@@ -243,6 +243,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Classic (`codeFor` in `shell/term.cpp`);
     the theme list shows each one as a swatch line on its own background (`ESC[48;2;...m`).
   - The TUI draws from `hue()`; the Console tab parses the 24-bit codes back (`ansiLine`).
+  - **Previews:** on the Shop tab, the mouse over a theme's row (or the keyboard on its button)
+    redraws the whole screen in that theme (`Ui::previewTheme`) until it moves away or you leave
+    the tab. Nothing is bought or switched; the Console keeps the real theme.
   - An unknown theme id in a save falls back to Classic instead of rejecting the save.
   - Custom themes may come later (Script's idea); not yet.
 

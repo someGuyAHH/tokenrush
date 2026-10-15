@@ -2,6 +2,8 @@
 // (never locking), with buttons that change the real game through ui.run().
 
 #include <algorithm>
+#include <array>
+#include <memory>
 #include <bit>
 #include <cmath>
 
@@ -172,7 +174,27 @@ Component ShopPage(Ui& ui) {
     for (auto& b : themeBtns) all.push_back(b);
     Component box = Container::Vertical(all);
 
-    return Renderer(box, [&ui, buys, license, themeBtns] {
+    // Previews: the mouse over a theme's row (anywhere on it), or the keyboard on its button,
+    // shows the whole screen in that theme until it moves away. Nothing is bought or switched.
+    auto rowBoxes = std::make_shared<std::array<Box, THEME_COUNT>>();
+    auto previewOf = [&ui, themeBtns] {
+        if (ui.hoverTheme >= 0) return ui.hoverTheme;
+        for (int i = 0; i < THEME_COUNT; ++i)
+            if (themeBtns[(size_t)i]->Focused()) return i;
+        return -1;
+    };
+    box = CatchEvent(box, [&ui, rowBoxes, previewOf](Event e) {
+        if (e.is_mouse()) {
+            ui.hoverTheme = -1;
+            for (int i = 0; i < THEME_COUNT; ++i)
+                if ((*rowBoxes)[(size_t)i].Contain(e.mouse().x, e.mouse().y)) ui.hoverTheme = i;
+        }
+        ui.previewTheme = previewOf();   // right away, so the next frame already shows it
+        return false;                    // the buttons still get the event
+    });
+
+    return Renderer(box, [&ui, buys, license, themeBtns, rowBoxes, previewOf] {
+        ui.previewTheme = previewOf();   // the keyboard may have moved without an event reaching us
         GameState g = ui.snap;   // upgrades() wants a non-const state
         auto ups = upgrades(g);
         const char* effects[] = {"+1 base yield", "better bonus/jackpot odds", "+0.5 passive tokens/s", "auto-mines"};
@@ -193,10 +215,16 @@ Component ShopPage(Ui& ui) {
         if (g.bot > 0) rows.push_back(note("Mining Bot mines every " + std::to_string(botIntervalOf(g)) + "s."));
 
         rows.push_back(text(""));
-        rows.push_back(hbox({heading("Themes"), text("   bought with shards, kept by this profile") | muted()}));
+        int shown = ui.previewTheme;
+        Element hint = shown >= 0 && shown != g.themeSel
+            ? text("   previewing " + std::string(THEMES[shown].name) + ": move away to go back" +
+                   (themeOwned(g, shown) ? "" : ", or buy it to keep it")) | color(hue(Hue::Accent))
+            : text("   bought with shards, kept by this profile; hover one to preview it") | muted();
+        rows.push_back(hbox({heading("Themes"), hint}));
         for (int i = 0; i < THEME_COUNT; ++i) {
-            rows.push_back(hbox({cell(THEMES[i].name, 12) | bold, themeSwatch(i), text("  "), themeBtns[(size_t)i]->Render(),
-                                 text("  " + std::string(THEMES[i].blurb)) | muted() | flex}));
+            Element row = hbox({text(i == shown ? "› " : "  ") | color(hue(Hue::Accent)), cell(THEMES[i].name, 12) | bold, themeSwatch(i),
+                                text("  "), themeBtns[(size_t)i]->Render(), text("  " + std::string(THEMES[i].blurb)) | muted() | flex});
+            rows.push_back(row | reflect((*rowBoxes)[(size_t)i]));
         }
         return vbox(rows) | yframe;
     });

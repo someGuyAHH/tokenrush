@@ -61,6 +61,11 @@ struct Ui {
     // Crew tab: which expedition the Send buttons start
     int expeditionTrip = 0;
 
+    // Shop tab: the theme being previewed (the mouse over its row, or the keyboard on its button),
+    // drawn over the whole screen instead of the profile's own; -1 = none
+    int previewTheme = -1;
+    int hoverTheme = -1;
+
     // Goals tab
     int goalSelected = 0;
 
@@ -78,7 +83,7 @@ struct Ui {
 
     bool typing() const;       // a text box has focus
 
-    void snapshot();                                              // refresh `snap` (start of each frame)
+    void snapshot();                                              // refresh `snap` and the theme (start of each frame)
     void run(const std::function<Notes(GameState&)>& action);     // lock, act, check goals/contract, log the notes
     void mineNow();                                               // respects the cooldown
     void saveNow();
