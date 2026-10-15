@@ -549,7 +549,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | The Wanderer | 3 crew members away on deep expeditions at once |
   | The Crown | signature jobs for 3 different clients |
   | The Phoenix | heat from 10 down to 0 within 20 minutes |
-  | The Hourglass | 1B tokens earned in an hour without mining by hand |
+  | The Hourglass | 4T tokens earned in an hour without mining by hand (1B until v10, which late-game income makes in a second) |
   | The Magpie | every curio, the Dealer's too |
 
 - Unlit constellations show their shape as faint `+`; lit ones are `*` in their theme color.

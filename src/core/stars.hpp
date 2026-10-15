@@ -42,7 +42,7 @@ struct SkyGlyph {
 };
 std::vector<std::vector<SkyGlyph>> skyMap(const GameState& g);   // SKY_H rows of SKY_W glyphs
 
-inline constexpr long long HOURGLASS_TOKENS = 1'000'000'000;   // in one hour, hands off the mine
+inline constexpr long long HOURGLASS_TOKENS = 4'000'000'000'000;   // in one hour, hands off the mine
 inline constexpr int HEARTH_PAYDAYS = 10;
 inline constexpr int LANTERN_STOPS = 3;
 inline constexpr int CROWN_CLIENTS = 3;

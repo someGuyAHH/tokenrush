@@ -25,7 +25,7 @@ const ConstellationInfo CONSTELLATIONS[] = {
      {{1, 1}, {3, 0}, {6, 1}, {9, 0}, {11, 1}, {6, 3}}},
     {"phoenix",   "The Phoenix",   "Bring your heat from 10 down to 0 within 20 minutes",                  Hue::Bad,
      {{6, 0}, {2, 1}, {10, 1}, {6, 2}, {3, 3}, {9, 3}}},
-    {"hourglass", "The Hourglass", "Earn 1B tokens in an hour without mining by hand",                     Hue::Infected,
+    {"hourglass", "The Hourglass", "Earn 4T tokens in an hour without mining by hand",                     Hue::Infected,
      {{2, 0}, {10, 0}, {6, 1}, {6, 2}, {2, 3}, {10, 3}}},
     {"magpie",    "The Magpie",    "Own every curio, the Dealer's too",                                    Hue::Text,
      {{1, 2}, {4, 1}, {8, 1}, {11, 2}, {6, 3}}},
