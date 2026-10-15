@@ -187,6 +187,15 @@ const std::vector<CommandInfo>& commands() {
           "style once; after that you can change its text for free."},
          {{"prompt", "list the styles"}, {"prompt 3", "buy or switch to style 3"}, {"prompt custom >_<", "your own prompt"}},
          {}, -1, SPENDING},
+        {Cmd::Theme, {"theme", "themes"}, "theme [n|name]", "Change how the game looks: color themes, with previews",
+         {"A theme recolors everything: headings, tokens, shards, good and bad news, and in the full-screen edition the "
+          "background and buttons too. The list shows each theme as a preview line in its own colors.",
+          "Classic and Dusk are free. The others are bought once with shards and then stay yours to switch between. "
+          "A theme belongs to the profile: another profile keeps its own.",
+          "Classic uses your terminal's own color palette, so it looks like the game always did. The other themes use "
+          "24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show."},
+         {{"theme", "every theme, with a preview"}, {"theme 2", "switch to Dusk"}, {"theme glacier", "names work too"}},
+         {"prompt"}, -1, SPENDING},
         {Cmd::Monolith, {"monolith"}, "monolith", "Look at the Monolith, the mid-game build",
          {"The Monolith is a five-stage build you pour tokens into: Foundation, Pillars, Spire, Crown and Beacon. "
           "Finishing it is worth a big goal. This draws it as it stands."},

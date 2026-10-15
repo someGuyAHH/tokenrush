@@ -35,10 +35,11 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Auto:     doAuto(s, arg); break;
         case Cmd::Log:      doLog(s, rest); break;
         case Cmd::Save:     out() << (saveNow(s) ? paint(Style::Good, "Saved.") : paint(Style::Bad, "Save failed.")) << "\n"; break;
-        case Cmd::Wipe:     doWipe(s); break;
+        case Cmd::Wipe:     doWipe(s); setTheme(0); break;
         case Cmd::Goals:    doGoals(s); break;
         case Cmd::Curios:   doCurios(s, arg); break;
         case Cmd::Prompt:   doPrompt(s, rest); break;
+        case Cmd::Theme:    doTheme(s, arg); break;
         case Cmd::Orrery:   doOrrery(s, arg); break;
         case Cmd::Monolith: doBuild(s, ""); break;
         case Cmd::Build:    doBuild(s, arg); break;

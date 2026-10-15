@@ -183,6 +183,29 @@ Notes choosePrompt(GameState& g, int idx) {
     return out;
 }
 
+// ----- Themes -----
+bool themeOwned(const GameState& g, int idx) {
+    return idx >= 0 && idx < THEME_COUNT && (THEMES[idx].cost == 0 || hasBit(g.themesOwned, idx));
+}
+
+Notes chooseTheme(GameState& g, int idx) {
+    if (idx < 0 || idx >= THEME_COUNT) return {{Sev::Warn, "No such theme."}};
+    const ThemeInfo& t = THEMES[idx];
+    if (idx == g.themeSel) return {{Sev::Info, std::string("You're already using ") + t.name + "."}};
+    Notes out;
+    if (!themeOwned(g, idx)) {
+        if (g.shards < t.cost) {
+            return {{Sev::Warn, std::string(t.name) + " costs " + count(t.cost, "shard") + ". You have " + num(g.shards) + "."}};
+        }
+        g.shards -= t.cost;
+        g.themesOwned |= 1u << idx;
+        out.push_back({Sev::Good, std::string("Bought the ") + t.name + " theme for " + count(t.cost, "shard") + "."});
+    }
+    g.themeSel = idx;
+    out.push_back({Sev::Info, std::string("Theme: ") + t.name + ". (It belongs to this profile.)"});
+    return out;
+}
+
 // ----- The Orrery -----
 long long orreryRemaining(const GameState& g) {
     return g.orreryStage < ORRERY_STAGE_COUNT ? ORRERY[g.orreryStage].cost - g.orreryProgress : 0;

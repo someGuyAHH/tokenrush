@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
@@ -187,6 +188,69 @@ void doPrompt(Shared& s, const std::string& arg) {
         out = choosePrompt(s.g, (int)n - 1);
     }
     printNotes(out);
+}
+
+// ----- Themes -----
+// One line in a theme's own colors, on its own background: what the game would look like.
+static std::string swatch(int theme) {
+    const ThemeInfo& t = THEMES[theme];
+    struct Part { Style st; const char* text; };
+    static const Part parts[] = {
+        {Style::Header, "Heading"}, {Style::Plain, "  "}, {Style::Tokens, "1,234 tokens"}, {Style::Plain, "  "},
+        {Style::Shards, "56 shards"}, {Style::Plain, "  "}, {Style::Good, "good"}, {Style::Plain, " "},
+        {Style::Bad, "bad"}, {Style::Plain, " "}, {Style::Warn, "warning"}, {Style::Plain, " "},
+        {Style::Event, "EVENT"}, {Style::Plain, " "}, {Style::Heat, "heat"}, {Style::Plain, " "}, {Style::Muted, "quiet"},
+    };
+    if (!colorOn()) return "";
+    std::string bg = t.classic ? "" : "\x1b[48;2;" + std::to_string(t.hue[(int)Hue::Background].r) + ";" +
+                                          std::to_string(t.hue[(int)Hue::Background].g) + ";" +
+                                          std::to_string(t.hue[(int)Hue::Background].b) + "m";
+    std::string text = t.classic ? "" : "\x1b[38;2;" + std::to_string(t.hue[(int)Hue::Text].r) + ";" +
+                                            std::to_string(t.hue[(int)Hue::Text].g) + ";" +
+                                            std::to_string(t.hue[(int)Hue::Text].b) + "m";
+    std::string out = bg + text + " ";
+    for (const Part& p : parts) {
+        std::string painted = paintIn(theme, p.st, p.text);
+        // paintIn() ends with a full reset, which would drop the background: put it back after each part.
+        out += painted + (painted.size() > std::strlen(p.text) ? bg + text : "");
+    }
+    return out + " \x1b[0m";
+}
+
+void doTheme(Shared& s, const std::string& arg) {
+    if (arg.empty()) {
+        std::lock_guard lk(s.m);
+        const GameState& g = s.g;
+        out() << paint(Style::Header, "=== THEMES ===") << "  Shards: " << paint(Style::Shards, num(g.shards))
+              << paint(Style::Muted, "   (a theme belongs to this profile)") << "\n";
+        for (int i = 0; i < THEME_COUNT; ++i) {
+            const ThemeInfo& t = THEMES[i];
+            std::string state = i == g.themeSel ? paint(Style::Good, "in use") : themeOwned(g, i) ? std::string(t.cost ? "owned" : "free")
+                                                                                : paint(Style::Shards, count(t.cost, "shard"));
+            out() << "  " << (i + 1) << ") " << paint(Style::Bold, padRight(t.name, 11)) << padVisible(state, 14)
+                  << paint(Style::Muted, t.blurb) << "\n";
+            if (std::string sw = swatch(i); !sw.empty()) out() << "     " << sw << "\n";
+        }
+        out() << "Use 'theme <n>' (or its name) to buy or switch. Classic uses your terminal's own colors; the others are 24-bit color.\n";
+        return;
+    }
+
+    int idx = -1;
+    long long n;
+    if (parseLongLong(arg, n) && n >= 1 && n <= THEME_COUNT) idx = (int)n - 1;
+    for (int i = 0; i < THEME_COUNT && idx < 0; ++i)
+        if (lower(arg) == THEMES[i].id) idx = i;
+    if (idx < 0) { out() << "Usage: theme [1-" << THEME_COUNT << " or a name]  (see 'theme')\n"; return; }
+
+    Notes notes;
+    int now;
+    {
+        std::lock_guard lk(s.m);
+        notes = chooseTheme(s.g, idx);
+        now = s.g.themeSel;
+    }
+    setTheme(now);   // from here on, everything prints in it
+    printNotes(notes);
 }
 
 // ----- The Monolith -----

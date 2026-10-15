@@ -191,6 +191,8 @@ struct GameState {
     int promptSel = 0;               // index into PROMPTS, or PROMPT_COUNT for the custom prompt
     bool customPromptOwned = false;
     std::string customPrompt;        // 1-5 characters, shown with a space after it
+    int themeSel = 0;                // index into THEMES
+    std::uint32_t themesOwned = 0;   // bit i = THEMES[i] bought (free ones count as owned anyway)
     int monolithStage = 0;           // stages completed
     long long monolithProgress = 0;  // tokens poured into the current stage
     int orreryStage = 0;             // stages completed

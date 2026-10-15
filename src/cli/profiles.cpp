@@ -53,6 +53,7 @@ std::string pickProfile(Profiles& profiles) {
         listProfiles(list);
         std::cout << "  n) New profile\n";
         if (legacy) std::cout << "  i) Import your save from before profiles " << paint(Style::Muted, "(" + Profiles::legacySave().string() + ")") << "\n";
+        if (!list.empty()) std::cout << "  r <n>) Rename a profile\n";
         if (!list.empty()) std::cout << "  d <n>) Delete a profile\n";
         std::cout << "  q) Quit\n";
         if (!readLine("> ", line)) return "";
@@ -76,6 +77,12 @@ std::string pickProfile(Profiles& profiles) {
                 return profiles.find(line);
             }
             std::cout << paint(Style::Warn, why) << "\n";
+        } else if ((word == "r" || word == "rename") && parseLongLong(arg, n) && n >= 1 && n <= (long long)list.size()) {
+            const std::string name = list[(size_t)n - 1].name;
+            if (!readLine("New name for " + name + " (Enter keeps it): ", line)) return "";
+            if (line.empty()) { std::cout << "Kept the name.\n"; continue; }
+            if (profiles.rename(name, line, why)) std::cout << paint(Style::Good, "Renamed " + name + " to " + trim(line) + ".") << "\n";
+            else std::cout << paint(Style::Warn, why) << "\n";
         } else if ((word == "d" || word == "delete") && parseLongLong(arg, n) && n >= 1 && n <= (long long)list.size()) {
             const std::string& name = list[(size_t)n - 1].name;
             std::cout << paint(Style::Warn, "This deletes " + name + "'s save for good. Type the name to confirm: ") << std::flush;
@@ -84,7 +91,7 @@ std::string pickProfile(Profiles& profiles) {
             if (profiles.remove(name, why)) std::cout << paint(Style::Good, "Deleted " + name + ".") << "\n";
             else std::cout << paint(Style::Bad, why) << "\n";
         } else {
-            std::cout << paint(Style::Warn, "Pick a number, or n, " + std::string(legacy ? "i, " : "") + "d <n> or q.") << "\n";
+            std::cout << paint(Style::Warn, "Pick a number, or n, " + std::string(legacy ? "i, " : "") + "r <n>, d <n> or q.") << "\n";
         }
     }
 }

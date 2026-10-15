@@ -27,6 +27,28 @@ inline constexpr int PROMPT_COUNT = 6;
 struct PromptStyle { const char* id; const char* text; long long cost; };   // id is what the save file uses
 extern const PromptStyle PROMPTS[];
 
+// ----- Themes (cosmetic, per profile) -----
+// Every color the two front ends use comes from a theme's palette of roles. Classic is the
+// original look: the front ends keep their original terminal colors for it (so it looks the
+// same on any terminal); every other theme is 24-bit color (ESC[38;2;r;g;bm), background included
+// in the full-screen edition.
+struct Rgb { unsigned char r, g, b; };
+enum class Hue : int {
+    Text, Muted, Accent, Good, Bad, Warn, Event, Tokens, Shards, Heat,
+    Background, Panel, Button, ButtonText, ButtonOff, ButtonOffText, Infected, Count,
+};
+inline constexpr int HUE_COUNT = (int)Hue::Count;
+inline constexpr int THEME_COUNT = 6;
+struct ThemeInfo {
+    const char* id;       // what the save file uses
+    const char* name;
+    long long cost;       // in shards; 0 = free for everyone
+    const char* blurb;
+    bool classic;         // the original look (the front ends use their old color codes)
+    Rgb hue[HUE_COUNT];   // indexed by Hue
+};
+extern const ThemeInfo THEMES[];
+
 // ----- The Monolith (endgame megaproject) -----
 inline constexpr int MONO_STAGE_COUNT = 5;
 struct MonoStage { const char* name; long long cost; const char* art[2]; };

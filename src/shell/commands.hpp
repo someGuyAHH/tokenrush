@@ -21,6 +21,7 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
+    Theme,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -44,6 +45,7 @@ void doWipe(Shared& s);
 void doShop(Shared& s, const std::string& args);     // no args: the shop menu; "1 10": buy right away
 void doCurios(Shared& s, const std::string& arg);    // no arg: the shelf menu; "3": buy that one
 void doPrompt(Shared& s, const std::string& arg);
+void doTheme(Shared& s, const std::string& arg);     // no arg: every theme with a preview; "3" or "glacier": buy or switch
 void doBuild(Shared& s, const std::string& arg); // empty arg just shows the Monolith
 void doOrrery(Shared& s, const std::string& arg); // empty arg just shows the Orrery
 

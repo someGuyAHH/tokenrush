@@ -19,8 +19,8 @@ namespace tui {
 
 namespace {
 
-Element heading(const std::string& s) { return text(s) | bold | color(Color::Cyan); }
-Element note(const std::string& s) { return paragraph(s) | dim; }
+Element heading(const std::string& s) { return text(s) | bold | color(hue(Hue::Accent)); }
+Element note(const std::string& s) { return paragraph(s) | muted(); }
 
 bool armed(int idx, int armedIdx, Clock::time_point until) { return idx == armedIdx && Clock::now() < until; }
 
@@ -33,14 +33,14 @@ Component MinePage(Ui& ui) {
         const GameState& g = ui.snap;
         std::time_t t = ui.snapTime;
 
-        Element last = text("Click MINE (or press m) to start.") | dim;
+        Element last = text("Click MINE (or press m) to start.") | muted();
         if (ui.hasMined) {
             const MineResult& r = ui.lastMine;
-            Elements parts = {text("Last mine "), text("+" + num(r.gain)) | color(Color::Gold1) | bold,
-                              text("  (base " + std::to_string(r.base) + ", x" + fixed(r.mult, 2) + ")") | dim};
-            if (r.jackpot)    parts.push_back(text("  JACKPOT!") | color(Color::Magenta) | bold);
-            else if (r.bonus) parts.push_back(text("  bonus") | color(Color::Green));
-            if (r.meteor)     parts.push_back(text("  Meteor x2") | color(Color::Magenta));
+            Elements parts = {text("Last mine "), text("+" + num(r.gain)) | color(hue(Hue::Tokens)) | bold,
+                              text("  (base " + std::to_string(r.base) + ", x" + fixed(r.mult, 2) + ")") | muted()};
+            if (r.jackpot)    parts.push_back(text("  JACKPOT!") | color(hue(Hue::Event)) | bold);
+            else if (r.bonus) parts.push_back(text("  bonus") | color(hue(Hue::Good)));
+            if (r.meteor)     parts.push_back(text("  Meteor x2") | color(hue(Hue::Event)));
             last = hbox(parts);
         }
 
@@ -48,27 +48,27 @@ Component MinePage(Ui& ui) {
         long long timeout = streakTimeout(g);
         long long since = g.lastMine ? (long long)std::difftime(t, g.lastMine) : timeout;
         if (since >= timeout) streak = 0;
-        Element streakLine = text("Streak 0  (mine to start one)") | dim;
+        Element streakLine = text("Streak 0  (mine to start one)") | muted();
         if (streak > 0) {
             long long left = std::max(0LL, timeout - since);
             streakLine = hbox({text("Streak " + std::to_string(streak) + "  x" + fixed(1.0 + 0.05 * std::min(streak, 20), 2) + "  "),
                                gauge((float)left / (float)timeout) | size(WIDTH, EQUAL, 15) |
-                                   color(pick(left <= 5, Color::Yellow, Color::Green)),
-                               text(" " + std::to_string(left) + "s") | dim});
+                                   color(pick(left <= 5, hue(Hue::Warn), hue(Hue::Good))) | track(),
+                               text(" " + std::to_string(left) + "s") | muted()});
         }
 
         Elements info;
         int ev = activeEvent(g, t);
         if (ev != EV_NONE)
-            info.push_back(hbox({text(std::string(EVENTS[ev].name) + ": ") | bold | color(Color::Magenta),
+            info.push_back(hbox({text(std::string(EVENTS[ev].name) + ": ") | bold | color(hue(Hue::Event)),
                                  text(std::string(EVENTS[ev].desc) + " (" + std::to_string((long long)std::difftime(g.eventEnds, t)) + "s)")}));
         for (const Contract& c : g.contracts) {
             info.push_back(hbox({text("Job: " + contractText(c) + "  "), progress(contractProgress(g, c), c.target, 12),
-                                 text("  " + duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, Color::Yellow, Color::Default))}));
+                                 text("  " + duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text)))}));
         }
 
-        Element rate = hbox({text("Earning "), text(perSecond(recentEarnRate(g))) | color(Color::Gold1) | bold,
-                             text(" tokens/s"), text("  (last " + std::to_string(EARN_WINDOW_SECONDS) + "s)") | dim});
+        Element rate = hbox({text("Earning "), text(perSecond(recentEarnRate(g))) | color(hue(Hue::Tokens)) | bold,
+                             text(" tokens/s"), text("  (last " + std::to_string(EARN_WINDOW_SECONDS) + "s)") | muted()});
         std::string split = incomeSplit(g);
 
         double bonusChance = std::min(0.70, 0.06 + 0.04 * g.magnet);
@@ -76,7 +76,7 @@ Component MinePage(Ui& ui) {
         Element stats = hbox({
             text("Base " + std::to_string(baseYield(g)) + "   Bonus " + percent(bonusChance, 0) + "   Jackpot " +
                  percent(jackpotChance) + "   Passive " + perSecond(passiveRatePerSec(g)) + "/s" +
-                 (g.bot > 0 ? "   Bot every " + std::to_string(botInterval(g.bot)) + "s" : "")) | dim,
+                 (g.bot > 0 ? "   Bot every " + std::to_string(botInterval(g.bot)) + "s" : "")) | muted(),
         });
 
         return vbox({
@@ -87,7 +87,7 @@ Component MinePage(Ui& ui) {
             streakLine | hcenter,
             text(""),
             rate | hcenter,
-            split.empty() ? text("") : text(split) | dim | hcenter,
+            split.empty() ? text("") : text(split) | muted() | hcenter,
             vbox(info) | hcenter,
             filler(),
             stats | hcenter,
@@ -96,6 +96,18 @@ Component MinePage(Ui& ui) {
 }
 
 // ----- Shop -----
+// A line of sample text in theme `t`'s own colors and background: the preview in the theme list.
+static Element themeSwatch(int t) {
+    auto part = [t](const std::string& s, Hue h) { return text(s) | color(hueOf(t, h)); };
+    Element e = hbox({text(" "), part("Heading", Hue::Accent) | bold, text("  "), part("1,234", Hue::Tokens), text(" "),
+                      part("56 sh", Hue::Shards), text("  "), part("good", Hue::Good), text(" "), part("bad", Hue::Bad), text(" "),
+                      part("warn", Hue::Warn), text(" "), part("EVENT", Hue::Event) | bold, text(" "), part("heat", Hue::Heat),
+                      text(" "), part("quiet", Hue::Muted), text(" "),
+                      text(" Btn ") | bgcolor(hueOf(t, Hue::Button)) | color(hueOf(t, Hue::ButtonText)), text(" ")});
+    if (THEMES[t].classic) return e;
+    return e | color(hueOf(t, Hue::Text)) | bgcolor(hueOf(t, Hue::Background));
+}
+
 Component ShopPage(Ui& ui) {
     // One row of buttons per upgrade: Buy, Buy 10, Buy 20. The bigger ones turn blue once you
     // can afford all of it; clicked earlier, they buy as many levels as you can afford.
@@ -116,11 +128,25 @@ Component ShopPage(Ui& ui) {
         },
         [&ui] { return ui.snap.autoUnlocked || ui.snap.tokens >= AUTOBUY_LICENSE_COST; });
 
+    // Themes: Buy, Use, or In use. The row itself is a preview in that theme's colors.
+    Components themeBtns;
+    for (int i = 0; i < THEME_COUNT; ++i) {
+        themeBtns.push_back(Btn(
+            [&ui, i] {
+                if (i == ui.snap.themeSel) return std::string("In use");
+                if (themeOwned(ui.snap, i)) return std::string("  Use ");
+                return "Buy " + num(THEMES[i].cost) + " sh";
+            },
+            [&ui, i] { ui.run([i](GameState& g) { return chooseTheme(g, i); }); },
+            [&ui, i] { return i != ui.snap.themeSel && (themeOwned(ui.snap, i) || ui.snap.shards >= THEMES[i].cost); }));
+    }
+
     Components all = rowsOfButtons;
     all.push_back(license);
+    for (auto& b : themeBtns) all.push_back(b);
     Component box = Container::Vertical(all);
 
-    return Renderer(box, [&ui, buys, license] {
+    return Renderer(box, [&ui, buys, license, themeBtns] {
         GameState g = ui.snap;   // upgrades() wants a non-const state
         auto ups = upgrades(g);
         const char* effects[] = {"+1 base yield", "better bonus/jackpot odds", "+0.5 passive tokens/s", "auto-mines"};
@@ -139,7 +165,14 @@ Component ShopPage(Ui& ui) {
         rows.push_back(note("The Auto-Buyer buys your cheapest upgrade whenever you have " +
                             std::to_string(AUTOBUY_RESERVE) + "x its cost."));
         if (g.bot > 0) rows.push_back(note("Mining Bot mines every " + std::to_string(botInterval(g.bot)) + "s."));
-        return vbox(rows);
+
+        rows.push_back(text(""));
+        rows.push_back(hbox({heading("Themes"), text("   bought with shards, kept by this profile") | muted()}));
+        for (int i = 0; i < THEME_COUNT; ++i) {
+            rows.push_back(hbox({cell(THEMES[i].name, 12) | bold, themeSwatch(i), text("  "), themeBtns[(size_t)i]->Render(),
+                                 text("  " + std::string(THEMES[i].blurb)) | muted() | flex}));
+        }
+        return vbox(rows) | yframe;
     });
 }
 
@@ -151,10 +184,10 @@ static Element ledger(const GameState& g) {
     auto avg = [](long long tokens, long long n) { return n > 0 ? "  avg " + fixed((double)tokens / (double)n, 1) : std::string(); };
     return vbox({
         heading("Your trading"),
-        hbox({cell("Bought", 8), shards(g.shardsBought), text(" shards for "), tokens(g.tokensOnBuys), text(avg(g.tokensOnBuys, g.shardsBought)) | dim}),
-        hbox({cell("Sold", 8), shards(g.shardsSold), text(" shards for "), tokens(g.tokensFromSells), text(avg(g.tokensFromSells, g.shardsSold)) | dim}),
-        hbox({cell("Net", 8), text((net >= 0 ? "+" : "-") + num(net >= 0 ? net : -net)) | color(pick(net >= 0, Color::Green, Color::Red)) | bold,
-              text(" tokens   (" + num(g.tradeCost) + " went to the spread and price impact)") | dim}),
+        hbox({cell("Bought", 8), shards(g.shardsBought), text(" shards for "), tokens(g.tokensOnBuys), text(avg(g.tokensOnBuys, g.shardsBought)) | muted()}),
+        hbox({cell("Sold", 8), shards(g.shardsSold), text(" shards for "), tokens(g.tokensFromSells), text(avg(g.tokensFromSells, g.shardsSold)) | muted()}),
+        hbox({cell("Net", 8), text((net >= 0 ? "+" : "-") + num(net >= 0 ? net : -net)) | color(pick(net >= 0, hue(Hue::Good), hue(Hue::Bad))) | bold,
+              text(" tokens   (" + num(g.tradeCost) + " went to the spread and price impact)") | muted()}),
     });
 }
 
@@ -217,10 +250,10 @@ Component MarketPage(Ui& ui) {
             return hbox(e);
         };
 
-        Element chart = text("(the chart fills in as the market moves)") | dim;
+        Element chart = text("(the chart fills in as the market moves)") | muted();
         if (g.priceHistory.size() >= 2) {
             auto [lo, hi] = std::minmax_element(g.priceHistory.begin(), g.priceHistory.end());
-            chart = hbox({sparkline(g.priceHistory), text("  low " + fixed(*lo, 1) + "  high " + fixed(*hi, 1)) | dim});
+            chart = hbox({sparkline(g.priceHistory), text("  low " + fixed(*lo, 1) + "  high " + fixed(*hi, 1)) | muted()});
         }
 
         return vbox({
@@ -232,20 +265,20 @@ Component MarketPage(Ui& ui) {
             text(""),
             rowOf(buyRow),
             text("        " + num(buyCost(g, 1)) + "     " + num(buyCost(g, 10)) + "      " + num(buyCost(g, 100)) +
-                 "    (" + num(maxAffordable(g)) + " max)") | dim,
+                 "    (" + num(maxAffordable(g)) + " max)") | muted(),
             rowOf(sellRow),
-            text("        " + num(sellValue(g, 1)) + "     " + num(sellValue(g, 10)) + "      " + num(sellValue(g, 100))) | dim,
+            text("        " + num(sellValue(g, 1)) + "     " + num(sellValue(g, 10)) + "      " + num(sellValue(g, 100))) | muted(),
             text(""),
-            hbox({text("Any amount "), amountBox->Render() | bgcolor(pick(amountBox->Focused(), Color::GrayDark, Color::Grey19)), text(" "), customBuy->Render(), text(" "), customSell->Render(),
+            hbox({text("Any amount "), amountBox->Render() | bgcolor(pick(amountBox->Focused(), hue(Hue::ButtonOff), hue(Hue::Panel))), text(" "), customBuy->Render(), text(" "), customSell->Render(),
                   [&] {
                       long long n = amount();
-                      if (ui.marketAmount.empty()) return text("   e.g. 2000 or 2k") | dim;
-                      if (n <= 0) return text("   that's not an amount") | color(Color::Yellow);
-                      if (n > MARKET_MAX_ORDER) return text("   the market takes up to " + num(MARKET_MAX_ORDER) + " at a time") | color(Color::Yellow);
-                      return text("   buy for " + num(buyCost(g, n)) + ", sell for " + num(sellValue(g, std::min(n, std::max(g.shards, 1LL))))) | dim;
+                      if (ui.marketAmount.empty()) return text("   e.g. 2000 or 2k") | muted();
+                      if (n <= 0) return text("   that's not an amount") | color(hue(Hue::Warn));
+                      if (n > MARKET_MAX_ORDER) return text("   the market takes up to " + num(MARKET_MAX_ORDER) + " at a time") | color(hue(Hue::Warn));
+                      return text("   buy for " + num(buyCost(g, n)) + ", sell for " + num(sellValue(g, std::min(n, std::max(g.shards, 1LL))))) | muted();
                   }()}),
             text(""),
-            g.heat > 0 ? text("Heat " + std::to_string(g.heat) + " adds " + percent(0.02 * g.heat) + " to the spread.") | color(Color::DarkOrange)
+            g.heat > 0 ? text("Heat " + std::to_string(g.heat) + " adds " + percent(0.02 * g.heat) + " to the spread.") | color(hue(Hue::Heat))
                        : text(""),
             ledger(g),
             note("Drifts back toward " + fixed(SHARD_FAIR_PRICE, 0) + ". Each shard you trade pushes the price a little."),
@@ -287,35 +320,35 @@ Component JobsPage(Ui& ui) {
         const GameState& g = ui.snap;
         int slots = contractSlots(g);
         Elements rows;
-        rows.push_back(hbox({heading("Contracts"), text("  " + std::to_string(g.contracts.size()) + "/" + std::to_string(slots)) | dim,
+        rows.push_back(hbox({heading("Contracts"), text("  " + std::to_string(g.contracts.size()) + "/" + std::to_string(slots)) | muted(),
                              text("   Heat "), heatBar(g.heat), text(" " + std::to_string(g.heat) + "/" + std::to_string(MAX_HEAT)),
-                             text("   done " + num(g.contractsDone) + ", failed " + num(g.contractsFailed)) | dim}));
+                             text("   done " + num(g.contractsDone) + ", failed " + num(g.contractsFailed)) | muted()}));
 
         for (size_t j = 0; j < g.contracts.size() && j < abandons.size(); ++j) {
             const Contract& c = g.contracts[j];
-            Elements pays = {text("pays "), text(compact(c.rewardTokens)) | color(Color::Gold1), text(" + "), shards(c.rewardShards), text(" sh")};
-            if (c.stake > 0) pays.push_back(text(" + stake") | dim);
+            Elements pays = {text("pays "), text(compact(c.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(c.rewardShards), text(" sh")};
+            if (c.stake > 0) pays.push_back(text(" + stake") | muted());
             rows.push_back(hbox({text(slots > 1 ? "Job " + std::to_string(j + 1) + ": " : "Job: ") | bold, text(contractText(c)) | bold,
-                                 text("  for " + std::string(CLIENTS[c.client])) | dim | flex}));
+                                 text("  for " + std::string(CLIENTS[c.client])) | muted() | flex}));
             rows.push_back(hbox({text("  "), progress(contractProgress(g, c), c.target, 14), text("  "),
-                                 text(duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, Color::Yellow, Color::Default)),
+                                 text(duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text))),
                                  text("   "), hbox(pays), filler(), abandons[j]->Render()}));
         }
-        if (g.contracts.empty()) rows.push_back(text("No active contract. Pick one below.") | dim);
-        else if ((int)g.contracts.size() < slots) rows.push_back(text("Room for one more job.") | dim);
+        if (g.contracts.empty()) rows.push_back(text("No active contract. Pick one below.") | muted());
+        else if ((int)g.contracts.size() < slots) rows.push_back(text("Room for one more job.") | muted());
         rows.push_back(heading("Offers"));
 
         for (int i = 0; i < OFFER_COUNT; ++i) {
             if (i >= (int)g.offers.size()) continue;
             const Contract& o = g.offers[(size_t)i];
-            Element tag = o.big ? text("BIG ") | color(Color::Yellow) | bold : text("    ");
-            Element terms = hbox({text(compact(o.rewardTokens)) | color(Color::Gold1), text(" + "), shards(o.rewardShards), text(" sh"),
-                                  o.stake > 0 ? text("  stake " + num(o.stake)) | color(Color::DeepSkyBlue1) : text("")});
+            Element tag = o.big ? text("BIG ") | color(hue(Hue::Warn)) | bold : text("    ");
+            Element terms = hbox({text(compact(o.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(o.rewardShards), text(" sh"),
+                                  o.stake > 0 ? text("  stake " + num(o.stake)) | color(hue(Hue::Shards)) : text("")});
             rows.push_back(hbox({tag, text(contractText(o)) | flex, text("  "), cell("in " + duration(o.duration), 11),
                                  terms | size(WIDTH, EQUAL, 24), accepts[(size_t)i]->Render()}));
-            rows.push_back(text("    from " + std::string(CLIENTS[o.client]) + ", leaves in " + duration(o.expiresIn)) | dim);
+            rows.push_back(text("    from " + std::string(CLIENTS[o.client]) + ", leaves in " + duration(o.expiresIn)) | muted());
         }
-        if (g.offers.empty()) rows.push_back(text("  (the board is empty; check back soon)") | dim);
+        if (g.offers.empty()) rows.push_back(text("  (the board is empty; check back soon)") | muted());
         rows.push_back(filler());
         rows.push_back(note("Failing costs the stake and adds heat (big jobs +2). Heat " + std::to_string(AUDIT_MIN_HEAT) +
                             "+ invites audits."));
@@ -370,27 +403,27 @@ Component CrewPage(Ui& ui) {
         Elements top = {heading("Crew " + std::to_string(g.crew.size()) + "/" + std::to_string(crewCap(g))),
                         text("   Shards "), shards(g.shards)};
         if (!g.crew.empty())
-            top.push_back(text("   Payday in " + duration(g.paydayClock) + ": " + count(totalWages(g), "shard")) | dim);
+            top.push_back(text("   Payday in " + duration(g.paydayClock) + ": " + count(totalWages(g), "shard")) | muted());
         rows.push_back(hbox(top));
 
-        if (g.crew.empty()) rows.push_back(text("  Nobody yet. Hire someone below.") | dim);
+        if (g.crew.empty()) rows.push_back(text("  Nobody yet. Hire someone below.") | muted());
         for (size_t i = 0; i < g.crew.size() && i < (size_t)MAX_CREW_SLOTS; ++i) {
             const CrewMember& c = g.crew[i];
             bool capped = c.level >= levelCap(g, c);
             Element cost = hbox({shards(capped ? promoteCost(c) : trainCost(c)), text(" sh")}) | size(WIDTH, EQUAL, 11);
             rows.push_back(hbox({cell(c.name, 9) | bold, cell(ROLES[(int)c.role].name, 8),
                                  cell("L" + std::to_string(c.level) + "/" + std::to_string(levelCap(g, c)), 7),
-                                 cell(starsText(c), 6) | color(Color::Gold1) | bold, cell(traitName(c), 14) | color(Color::Cyan),
+                                 cell(starsText(c), 6) | color(hue(Hue::Tokens)) | bold, cell(traitName(c), 14) | color(hue(Hue::Accent)),
                                  text(crewEffectText(g, c)) | flex, text("  "), cost, trains[i]->Render(), text(" "),
                                  fires[i]->Render()}));
         }
         rows.push_back(text(""));
-        rows.push_back(hbox({heading("Looking for work"), text("   new faces in " + duration(g.candidateClock)) | dim}));
+        rows.push_back(hbox({heading("Looking for work"), text("   new faces in " + duration(g.candidateClock)) | muted()}));
         for (size_t i = 0; i < g.candidates.size() && i < (size_t)CANDIDATE_COUNT; ++i) {
             const CrewMember& c = g.candidates[i];
             std::string about = c.trait != Trait::None ? std::string(TRAITS[(int)c.trait].desc) : ROLES[(int)c.role].perk;
             rows.push_back(hbox({cell(c.name, 9), cell(ROLES[(int)c.role].name, 8), cell("L" + std::to_string(c.level), 7),
-                                 cell("", 6), cell(traitName(c), 14) | color(Color::Cyan), text(about) | dim | flex, text("  "),
+                                 cell("", 6), cell(traitName(c), 14) | color(hue(Hue::Accent)), text(about) | muted() | flex, text("  "),
                                  hbox({shards(hireCost(g, c)), text(" sh")}) | size(WIDTH, EQUAL, 8), hires[i]->Render()}));
         }
         rows.push_back(filler());
@@ -415,14 +448,14 @@ Component CuriosPage(Ui& ui) {
     return Renderer(box, [&ui, buys] {
         const GameState& g = ui.snap;
         Elements rows = {hbox({heading("Curios"), text("   shelf " + std::to_string(std::popcount(g.curiosOwned)) + "/" +
-                                                       std::to_string(CURIO_COUNT)) | dim})};
+                                                       std::to_string(CURIO_COUNT)) | muted()})};
         for (int i = 0; i < CURIO_COUNT; ++i) {
             const CurioInfo& c = CURIOS[i];
             bool owned = hasBit(g.curiosOwned, i);
-            Element right = owned ? text("\"" + std::string(c.flavor) + "\"") | dim | color(Color::Green) | flex
+            Element right = owned ? text("\"" + std::string(c.flavor) + "\"") | muted() | color(hue(Hue::Good)) | flex
                                   : hbox({tokens(c.cost) | size(WIDTH, EQUAL, 13), buys[(size_t)i]->Render(), filler()}) | flex;
-            rows.push_back(hbox({cell(owned ? "[x]" : "[ ]", 4) | color(pick(owned, Color::Green, Color::Default)),
-                                 cell(c.name, 26) | (owned ? bold : nothing), cell(CURIO_SETS[c.set], 19) | dim, right}));
+            rows.push_back(hbox({cell(owned ? "[x]" : "[ ]", 4) | color(pick(owned, hue(Hue::Good), hue(Hue::Text))),
+                                 cell(c.name, 26) | (owned ? bold : nothing), cell(CURIO_SETS[c.set], 19) | muted(), right}));
         }
         return vbox(rows);
     });
@@ -455,14 +488,14 @@ Component MonolithPage(Ui& ui) {
                 std::string line = MONO[st].art[li];
                 if (!built) for (char& ch : line) if (ch != ' ') ch = '.';
                 Element label = li == 0 ? text("  " + std::string(MONO[st].name) + (st == g.monolithStage ? "  (building)" : "")) : text("");
-                Decorator look = built ? color(Color::Gold1) : Decorator(dim);
-                art.push_back(hbox({cell(line, 26) | look, label | dim | flex}));
+                Decorator look = built ? color(hue(Hue::Tokens)) : muted();
+                art.push_back(hbox({cell(line, 26) | look, label | muted() | flex}));
             }
         }
         Elements btnRow;
         for (const Component& b : btns) { btnRow.push_back(b->Render()); btnRow.push_back(text(" ")); }
 
-        Element status = text("Complete. It hums quietly.") | color(Color::Gold1) | bold;
+        Element status = text("Complete. It hums quietly.") | color(hue(Hue::Tokens)) | bold;
         if (g.monolithStage < MONO_STAGE_COUNT) {
             const MonoStage& m = MONO[g.monolithStage];
             status = hbox({text("Stage " + std::to_string(g.monolithStage + 1) + "/" + std::to_string(MONO_STAGE_COUNT) + ": " + m.name + "  "),
@@ -478,21 +511,21 @@ static constexpr int ORRERY_ART_WIDTH = 46;
 static Color orreryColor(int stage) {
     switch (stage) {
         case 0:  return Color::Tan;            // Base Plate
-        case 1:  return Color::DeepSkyBlue1;   // First Ring
+        case 1:  return hue(Hue::Shards);   // First Ring
         case 2:  return Color::SteelBlue1;     // Second Ring
         case 3:  return Color::Grey70;         // Gearwork
-        default: return Color::Gold1;          // The Sun
+        default: return hue(Hue::Tokens);          // The Sun
     }
 }
 
 static Element orreryRun(const ArtRun& run) {
     Element e = text(run.text);
     if (run.kind == ArtKind::Blank) return e;
-    if (!run.built) return e | dim;
+    if (!run.built) return e | muted();
     switch (run.kind) {
         case ArtKind::Planet: return e | color(Color::LightSalmon1) | bold;
         case ArtKind::Star:   return e | color(Color::LightGoldenrod1);
-        case ArtKind::Core:   return e | color(Color::Gold1) | bold;
+        case ArtKind::Core:   return e | color(hue(Hue::Tokens)) | bold;
         default:              return e | color(orreryColor(run.stage));
     }
 }
@@ -526,8 +559,8 @@ Component OrreryPage(Ui& ui) {
             if (int st = labelOf[r]; st >= 0) {
                 const OrreryStage& o = ORRERY[st];
                 label = st < g.orreryStage
-                    ? hbox({cell(o.name, 13) | bold, text(o.perk) | color(Color::Green) | flex})
-                    : hbox({cell(o.name, 13) | dim, text(num(o.cost) + " sh: " + o.perk) | dim | flex});
+                    ? hbox({cell(o.name, 13) | bold, text(o.perk) | color(hue(Hue::Good)) | flex})
+                    : hbox({cell(o.name, 13) | muted(), text(num(o.cost) + " sh: " + o.perk) | muted() | flex});
             }
             art.push_back(hbox({hbox(line) | size(WIDTH, EQUAL, ORRERY_ART_WIDTH), label | flex}));
             ++r;
@@ -535,7 +568,7 @@ Component OrreryPage(Ui& ui) {
         Elements btnRow;
         for (const Component& b : btns) { btnRow.push_back(b->Render()); btnRow.push_back(text(" ")); }
 
-        Element status = text("Complete. The little sun turns, and so does everything else.") | color(Color::DeepSkyBlue1) | bold;
+        Element status = text("Complete. The little sun turns, and so does everything else.") | color(hue(Hue::Shards)) | bold;
         if (g.orreryStage < ORRERY_STAGE_COUNT) {
             const OrreryStage& st = ORRERY[g.orreryStage];
             status = hbox({text("Stage " + std::to_string(g.orreryStage + 1) + "/" + std::to_string(ORRERY_STAGE_COUNT) + ": " + st.name + "  "),
@@ -562,7 +595,7 @@ static Element titleLadder(int renown) {
         bool reached = t <= ti;
         Element row = hbox({text(t == ti ? "> " : "  "), cell(TITLES[t].name, 16) | bold,
                             cell(std::to_string(TITLES[t].renown), 4), text(opens.empty() ? "" : "  " + opens)});
-        rows.push_back(reached ? row | color(Color::Green) : row | dim);
+        rows.push_back(reached ? row | color(hue(Hue::Good)) : row | muted());
     }
     return vbox(rows) | size(WIDTH, EQUAL, 42);
 }
@@ -579,11 +612,11 @@ Component GoalsPage(Ui& ui) {
             int needs = featureOfStat(goal.stat);
             bool locked = !done && needs >= 0 && !isUnlocked(g, (Feature)needs);
             Element right = done   ? text("+" + std::to_string(goal.renown) + " renown")
-                          : locked ? text("opens at " + std::string(TITLES[FEATURES[needs].title].name)) | dim
+                          : locked ? text("opens at " + std::string(TITLES[FEATURES[needs].title].name)) | muted()
                                    : progress(std::min(statValue(g, goal.stat), goal.target), goal.target, 12);
             Element row = hbox({cell(done ? "[x]" : "[ ]", 4), cell(goal.name, 16) | bold, cell(goal.desc, 34), right});
-            if (done) row = row | color(Color::Green);
-            else if (locked) row = row | dim;
+            if (done) row = row | color(hue(Hue::Good));
+            else if (locked) row = row | muted();
             if (i == ui.goalSelected) row = row | focus | (focused ? inverted : nothing);
             rows.push_back(row);
         }
@@ -592,7 +625,7 @@ Component GoalsPage(Ui& ui) {
         if (Terminal::Size().dimx >= 125) goals = hbox({goals, text("   "), titleLadder(renown)});
         return vbox({
             hbox({heading("Goals " + std::to_string(std::popcount(g.goalsDone)) + "/" + std::to_string(GOAL_COUNT)),
-                  text("   Renown " + std::to_string(renown) + "   Title "), text(TITLES[ti].name) | bold, text(next) | dim}),
+                  text("   Renown " + std::to_string(renown) + "   Title "), text(TITLES[ti].name) | bold, text(next) | muted()}),
             goals,
         });
     });
@@ -616,7 +649,7 @@ static std::string playTime(long long secs) {
 Component StatsPage(Ui& ui) {
     return Renderer([&ui] {
         const GameState& g = ui.snap;
-        auto row = [](const std::string& label, Element value) { return hbox({cell(label, 17) | dim, value}); };
+        auto row = [](const std::string& label, Element value) { return hbox({cell(label, 17) | muted(), value}); };
         auto plain = [](const std::string& v) { return text(v); };
 
         Elements wealth = {heading("Wealth"),
@@ -637,7 +670,7 @@ Component StatsPage(Ui& ui) {
             business.push_back(row("Shards traded", plain(num(g.shardsTraded))));
             long long net = g.tokensFromSells - g.tokensOnBuys;
             business.push_back(row("Trading net", text((net >= 0 ? "+" : "-") + compact(net >= 0 ? net : -net)) |
-                                                      color(pick(net >= 0, Color::Green, Color::Red))));
+                                                      color(pick(net >= 0, hue(Hue::Good), hue(Hue::Bad)))));
         }
         if (isUnlocked(g, Feature::Contracts)) {
             business.push_back(row("Contracts", plain(num(g.contractsDone) + " done, " + num(g.contractsFailed) + " failed")));
@@ -651,7 +684,7 @@ Component StatsPage(Ui& ui) {
         }
 
         // Where the money comes from: all time, with a share bar, and right now.
-        Elements income = {hbox({heading("Income by source"), text("   all time, and now") | dim})};
+        Elements income = {hbox({heading("Income by source"), text("   all time, and now") | muted()})};
         {
             auto rates = recentSourceRates(g);
             long long sorted = 0;
@@ -661,12 +694,12 @@ Component StatsPage(Ui& ui) {
                 long long v = g.earnedBy[(size_t)i];
                 if (v <= 0 && rates[(size_t)i] <= 0.0) continue;
                 float share = (float)((double)v / total);
-                income.push_back(hbox({cell(sourceName((Source)i), 17) | dim, text(compact(v)) | color(Color::Gold1) | size(WIDTH, EQUAL, 8),
-                                       gauge(share) | size(WIDTH, EQUAL, 14) | color(Color::Gold1), text(" " + percent(share, 0)) | size(WIDTH, EQUAL, 6),
-                                       text("now " + perSecond(rates[(size_t)i]) + "/s") | dim}));
+                income.push_back(hbox({cell(sourceName((Source)i), 17) | muted(), text(compact(v)) | color(hue(Hue::Tokens)) | size(WIDTH, EQUAL, 8),
+                                       gauge(share) | size(WIDTH, EQUAL, 14) | color(hue(Hue::Tokens)) | track(), text(" " + percent(share, 0)) | size(WIDTH, EQUAL, 6),
+                                       text("now " + perSecond(rates[(size_t)i]) + "/s") | muted()}));
             }
             if (g.lifetimeEarned > sorted)
-                income.push_back(hbox({cell("Before records", 17) | dim, text(compact(g.lifetimeEarned - sorted)) | dim}));
+                income.push_back(hbox({cell("Before records", 17) | muted(), text(compact(g.lifetimeEarned - sorted)) | muted()}));
         }
 
         Elements time = {heading("Time"), row("Played", plain(playTime(g.playSeconds)))};
@@ -675,18 +708,18 @@ Component StatsPage(Ui& ui) {
 
         int width = std::max(20, Terminal::Size().dimx - 12);
         int height = std::clamp(Terminal::Size().dimy - 32, 3, 14);
-        Element chart = text("The chart fills in as you play: a point every 5 minutes.") | dim;
+        Element chart = text("The chart fills in as you play: a point every 5 minutes.") | muted();
         std::vector<long long> cols = historyColumns(g, width);
         if (g.history.size() >= 2 && cols.size() >= 2) {
             Elements lines;
             std::vector<std::string> rows = logChart(cols, height);
             for (size_t r = 0; r < rows.size(); ++r) {
                 std::string label = r == 0 ? compact(cols.back()) : r + 1 == rows.size() ? compact(std::max(1LL, cols.front())) : "";
-                lines.push_back(hbox({text(label) | size(WIDTH, EQUAL, 8) | dim, text(" "), text(rows[r]) | color(Color::Gold1)}));
+                lines.push_back(hbox({text(label) | size(WIDTH, EQUAL, 8) | muted(), text(" "), text(rows[r]) | color(hue(Hue::Tokens))}));
             }
-            lines.push_back(hbox({text("         " + playTime(g.history.front().playSeconds)) | dim, filler(),
-                                  text(playTime(g.playSeconds)) | dim}));
-            chart = vbox({hbox({text("Earned in total, over your play time") | bold, text("  (log scale)") | dim}), vbox(lines)});
+            lines.push_back(hbox({text("         " + playTime(g.history.front().playSeconds)) | muted(), filler(),
+                                  text(playTime(g.playSeconds)) | muted()}));
+            chart = vbox({hbox({text("Earned in total, over your play time") | bold, text("  (log scale)") | muted()}), vbox(lines)});
         }
 
         return vbox({
@@ -701,18 +734,36 @@ Component StatsPage(Ui& ui) {
 
 // ----- Console -----
 // The CLI in a tab: shell/dispatch.cpp runs each line on the Console's own thread (console.cpp).
+// The output scrolls: PgUp/PgDn or the mouse wheel go back through it, typing comes back down.
 Component ConsolePage(Ui& ui) {
     Component input = TextBox(&ui.consoleLine, &ui.consoleCursor, "", [&ui] {
         if (ui.console) ui.console->submit(ui.consoleLine);
         ui.consoleLine.clear();
         ui.consoleCursor = 0;
         ui.historyAt = -1;
+        ui.consoleScroll = 0;   // a new command: back to the bottom to see what it says
     });
     ui.textBoxes.push_back(input);
 
-    // Up and Down walk through the lines typed before.
-    Component withHistory = CatchEvent(input, [&ui](Event e) {
-        if (!ui.console || (e != Event::ArrowUp && e != Event::ArrowDown)) return false;
+    auto page = [] { return std::max(3, Terminal::Size().dimy - 22); };   // about what the tab shows at once
+
+    Component withKeys = CatchEvent(input, [&ui, page](Event e) {
+        if (!ui.console) return false;
+        // Scrolling back through the output.
+        int before = ui.consoleScroll;
+        if (e == Event::PageUp) ui.consoleScroll += page();
+        else if (e == Event::PageDown) ui.consoleScroll -= page();
+        else if (e.is_mouse() && e.mouse().button == Mouse::WheelUp) ui.consoleScroll += 3;
+        else if (e.is_mouse() && e.mouse().button == Mouse::WheelDown) ui.consoleScroll -= 3;
+        else if (e == Event::End && ui.consoleScroll > 0) ui.consoleScroll = 0;
+        if (ui.consoleScroll != before || e == Event::PageUp || e == Event::PageDown) {
+            ui.consoleScroll = std::max(0, ui.consoleScroll);   // the top is clamped when drawing
+            return true;
+        }
+        if (e.is_character()) ui.consoleScroll = 0;   // typing: back to the prompt
+
+        // Up and Down walk through the lines typed before.
+        if (e != Event::ArrowUp && e != Event::ArrowDown) return false;
         std::vector<std::string> h = ui.console->history();
         if (h.empty()) return true;
         int at = ui.historyAt < 0 ? (int)h.size() : ui.historyAt;
@@ -723,13 +774,28 @@ Component ConsolePage(Ui& ui) {
         return true;
     });
 
-    return Renderer(withHistory, [&ui, input] {
+    return Renderer(withKeys, [&ui, input] {
+        if (!ui.console) return text("");
+        std::vector<std::string> lines = ui.console->lines(1000);
+        size_t total = ui.console->total();
+        // While scrolled back, new output must not drag the view along: move the mark up with it.
+        if (ui.consoleScroll > 0 && total > ui.consoleSeen) ui.consoleScroll += (int)(total - ui.consoleSeen);
+        ui.consoleSeen = total;
+        ui.consoleScroll = std::clamp(ui.consoleScroll, 0, std::max(0, (int)lines.size() - 1));
+
         Elements rows;
-        if (ui.console) {
-            for (const std::string& l : ui.console->lines(400)) rows.push_back(ansiLine(l));
-            rows.push_back(hbox({ansiLine(ui.console->partial()), input->Render() | flex}) | focus);
+        int focusAt = ui.consoleScroll > 0 ? (int)lines.size() - 1 - ui.consoleScroll : -1;
+        for (int i = 0; i < (int)lines.size(); ++i) {
+            Element row = ansiLine(lines[(size_t)i]);
+            rows.push_back(i == focusAt ? row | focus : row);
         }
-        return vbox(rows) | yframe | flex;
+        Element prompt = hbox({ansiLine(ui.console->partial()), input->Render() | flex});
+        rows.push_back(ui.consoleScroll > 0 ? prompt : prompt | focus);
+        Element view = vbox(rows) | vscroll_indicator | yframe | flex;
+        if (ui.consoleScroll == 0) return view;
+        Element mark = text(" scrolled back " + std::to_string(ui.consoleScroll) + (ui.consoleScroll == 1 ? " line" : " lines") +
+                            "   PgDn, End or just type to come back down ") | color(hue(Hue::Background)) | bgcolor(hue(Hue::Accent));
+        return vbox({view, mark | hcenter});
     });
 }
 

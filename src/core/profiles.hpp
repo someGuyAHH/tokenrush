@@ -38,11 +38,13 @@ public:
     bool exists(const std::string& name) const;                   // case-insensitive, like Windows
     std::string find(const std::string& name) const;              // the folder's real spelling, or ""
 
-    bool validName(const std::string& name, std::string& why) const;
+    // `renaming` (the profile's current name) lets a rename keep the name in another case.
+    bool validName(const std::string& name, std::string& why, const std::string& renaming = "") const;
     // A new profile is Infected with a random strain INFECTION_CHANCE of the time; that's
     // written into its first save. `strain` (if given) says which, or Strain::None.
     bool create(const std::string& name, std::string& why, Strain* strain = nullptr);
     bool remove(const std::string& name, std::string& why);       // deletes the folder and its save
+    bool rename(const std::string& name, const std::string& newName, std::string& why);   // moves the folder (a case-only change works too)
 
     // The save from before profiles, if there still is one.
     static std::filesystem::path legacySave();

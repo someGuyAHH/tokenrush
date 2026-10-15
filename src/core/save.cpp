@@ -439,6 +439,20 @@ const std::vector<Field>& saveFields() {
               },
               [](const GameState& g) { return g.customPromptOwned && !g.customPrompt.empty(); }},
 
+        maskField("cosmetics", "themesOwned", &GameState::themesOwned, THEME_COUNT,
+                  [](int i) { return THEMES[i].id; }),
+        // An unknown theme (hand-edited, or from a newer build) falls back to Classic: it's
+        // only a look, not worth rejecting the whole save over.
+        Field{"cosmetics", "theme",
+              [](const GameState& g) -> std::string { return THEMES[std::clamp(g.themeSel, 0, THEME_COUNT - 1)].id; },
+              [](GameState& g, const std::string& text) {
+                  std::string t = lower(trim(text));
+                  g.themeSel = 0;
+                  for (int i = 0; i < THEME_COUNT; ++i)
+                      if (t == THEMES[i].id) g.themeSel = i;
+                  return true;
+              }},
+
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
         numField("market", "heat",       &GameState::heat, 0, MAX_HEAT),
         numField("market", "heatClock",  &GameState::heatClock, 0, 24 * 3600),
@@ -554,6 +568,7 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
         g.promptSel = 0;
     }
     g.autoOn = g.autoOn && g.autoUnlocked;
+    if (!themeOwned(g, g.themeSel)) g.themeSel = 0;          // a hand-edited theme you never bought
 
     // Crew slots that were only half-written (say, [crew.3] with no name) are dropped.
     std::erase_if(g.crew, [](const CrewMember& c) { return c.name.empty(); });

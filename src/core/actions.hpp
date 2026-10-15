@@ -31,6 +31,10 @@ Notes setAuto(GameState& g, bool on);
 Notes buyCurio(GameState& g, int idx);
 Notes choosePrompt(GameState& g, int idx);   // buys it first if needed; idx PROMPT_COUNT = your custom prompt
 
+// Themes: bought once with shards (the free ones are everyone's), then switch freely.
+bool themeOwned(const GameState& g, int idx);
+Notes chooseTheme(GameState& g, int idx);   // buys it first if needed
+
 // The custom prompt: any 1-5 printable characters, for 30x the priciest prompt style.
 // Buying it is a one-off; after that, changing the text is free.
 inline constexpr size_t CUSTOM_PROMPT_MAX = 5;

@@ -29,6 +29,7 @@
 #include "core/profiles.hpp"
 #include "core/session.hpp"
 #include "core/util.hpp"
+#include "shell/term.hpp"
 #include "ui.hpp"
 
 using namespace ftxui;
@@ -53,23 +54,23 @@ constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
 Element statusBar(const tui::Ui& ui) {
     const GameState& g = ui.snap;
     int renown = renownOf(g);
-    Elements top = {text(" Tokens ") | dim, tui::tokens(g.tokens) | bold};
+    Elements top = {text(" Tokens ") | tui::muted(), tui::tokens(g.tokens) | bold};
     if (isUnlocked(g, Feature::Market)) {
-        top.push_back(text("   Shards ") | dim);
+        top.push_back(text("   Shards ") | tui::muted());
         top.push_back(tui::shards(g.shards) | bold);
-        top.push_back(text(" @" + fixed(g.shardPrice, 1)) | dim);
+        top.push_back(text(" @" + fixed(g.shardPrice, 1)) | tui::muted());
     }
     if (isUnlocked(g, Feature::Contracts)) {
-        top.push_back(text("   Heat ") | dim);
+        top.push_back(text("   Heat ") | tui::muted());
         top.push_back(tui::heatBar(g.heat));
     }
     top.push_back(filler());
     if (g.strain != Strain::None) {
-        if (g.cured) top.push_back(text(std::string("cured of ") + STRAINS[(int)g.strain].name + " · ") | dim);
-        else         top.push_back(text(std::string("INFECTED: ") + STRAINS[(int)g.strain].name + " · ") | color(Color::GreenYellow) | bold);
+        if (g.cured) top.push_back(text(std::string("cured of ") + STRAINS[(int)g.strain].name + " · ") | tui::muted());
+        else         top.push_back(text(std::string("INFECTED: ") + STRAINS[(int)g.strain].name + " · ") | color(tui::hue(Hue::Infected)) | bold);
     }
     top.insert(top.end(), {
-        ui.profile.empty() ? text("") : text(ui.profile + " · ") | dim,
+        ui.profile.empty() ? text("") : text(ui.profile + " · ") | tui::muted(),
         text(TITLES[titleIndex(renown)].name) | bold, text(" "),
     });
 
@@ -77,32 +78,32 @@ Element statusBar(const tui::Ui& ui) {
     int ev = activeEvent(g, ui.snapTime);
     if (ev != EV_NONE) {
         second.push_back(text(std::string(EVENTS[ev].name) + " " + std::to_string((long long)std::difftime(g.eventEnds, ui.snapTime)) + "s") |
-                         color(Color::Magenta) | bold);
+                         color(tui::hue(Hue::Event)) | bold);
         second.push_back(text("   "));
     }
     if (g.race.stake > 0) {
         second.push_back(text("RACE " + std::to_string(g.manualMines - g.race.startMines) + "/" + std::to_string(g.race.target) +
-                              " mines, " + std::to_string(g.race.secondsLeft) + "s") | color(Color::Magenta) | bold);
+                              " mines, " + std::to_string(g.race.secondsLeft) + "s") | color(tui::hue(Hue::Event)) | bold);
         second.push_back(text("   "));
     }
     if (g.investment.amount > 0) {
-        second.push_back(text("Loan back in " + duration(g.investment.secondsLeft)) | dim);
+        second.push_back(text("Loan back in " + duration(g.investment.secondsLeft)) | tui::muted());
         second.push_back(text("   "));
     }
     for (size_t j = 0; j < g.contracts.size(); ++j) {
         const Contract& c = g.contracts[j];
         // One job gets its description; two share the line, so each shows only its gauge.
-        if (g.contracts.size() == 1) second.push_back(text("Job: " + contractText(c) + " ") | dim);
-        else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | dim);
+        if (g.contracts.size() == 1) second.push_back(text("Job: " + contractText(c) + " ") | tui::muted());
+        else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | tui::muted());
         second.push_back(tui::progress(contractProgress(g, c), c.target, 8));
-        second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, Color::Yellow, Color::GrayLight)));
+        second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, tui::hue(Hue::Warn), tui::hue(Hue::Muted))));
     }
     if (int next = nextUnlock(g); next >= 0 && g.contracts.empty()) {
         const Title& t = TITLES[FEATURES[next].title];
         second.push_back(text("Next unlock: " + std::string(FEATURES[next].name) + " at the title " + t.name + " (" +
-                              std::to_string(renown) + "/" + std::to_string(t.renown) + " renown)") | dim);
+                              std::to_string(renown) + "/" + std::to_string(t.renown) + " renown)") | tui::muted());
     } else if (g.contracts.empty()) {
-        second.push_back(text("No contract. See the Jobs tab.") | dim);
+        second.push_back(text("No contract. See the Jobs tab.") | tui::muted());
     }
     return vbox({hbox(top), hbox(second)});
 }
@@ -113,7 +114,11 @@ Element logPane(Shared& s) {
     Elements rows;
     for (const LogEntry& e : s.log.recent((size_t)n)) rows.push_back(tui::logLine(e));
     while ((int)rows.size() < n) rows.push_back(text(""));   // fixed height, so nothing jumps
-    return window(text(" LOG ") | bold, vbox(rows));
+    if (THEMES[tui::currentTheme()].classic) return window(text(" LOG ") | bold, vbox(rows));
+    // Themed: a quiet frame with an accent title on the slightly lighter panel color, so the
+    // messages stand out from the border and the log from the page below.
+    return window(text(" LOG ") | bold | color(tui::hue(Hue::Accent)), vbox(rows)) | color(tui::hue(Hue::Muted)) |
+           bgcolor(tui::hue(Hue::Panel));
 }
 
 }  // namespace
@@ -177,6 +182,14 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     };
     MenuOption tabOpt = MenuOption::Horizontal();
     tabOpt.focused_entry = &tabFocus;
+    auto classicTab = tabOpt.entries_option.transform;   // FTXUI's own look, kept for the Classic theme
+    tabOpt.entries_option.transform = [classicTab](const EntryState& st) {
+        if (THEMES[tui::currentTheme()].classic) return classicTab(st);
+        // Themed: the open tab is a chip in the accent color, the rest are quiet.
+        if (st.active) return text(st.label) | bold | color(tui::hue(Hue::Background)) | bgcolor(tui::hue(Hue::Accent));
+        Element e = text(st.label) | color(tui::hue(st.focused ? Hue::Text : Hue::Muted));
+        return st.focused ? e | underlined : e;
+    };
     tabOpt.on_change = [&] { if (ui.tab >= 0 && ui.tab < (int)tabPage.size()) showPage(tabPage[(size_t)ui.tab]); };
     Component tabBar = Menu(&tabNames, &ui.tab, tabOpt);
     Components pageList = {tui::MinePage(ui), tui::ShopPage(ui), tui::GoalsPage(ui), tui::StatsPage(ui), tui::CuriosPage(ui),
@@ -202,22 +215,22 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
 
         Element offer = text("");
         if (hasChoice(ui.snap)) {
-            offer = hbox({text(" OFFER ") | bgcolor(Color::Magenta) | color(Color::White) | bold, text(" "),
-                          paragraph(choiceText(ui.snap)) | flex, text("  " + std::to_string(ui.snap.choice.secondsLeft) + "s  ") | dim,
+            offer = hbox({text(" OFFER ") | bgcolor(tui::hue(Hue::Event)) | color(tui::hue(Hue::ButtonText)) | bold, text(" "),
+                          paragraph(choiceText(ui.snap)) | flex, text("  " + std::to_string(ui.snap.choice.secondsLeft) + "s  ") | tui::muted(),
                           yesBtn->Render(), text(" "), noBtn->Render()});
         }
-        return vbox({
+        return tui::themed(vbox({
             logPane(s),
             statusBar(ui),
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),
             tabBar->Render(),
-            separatorLight(),
+            THEMES[tui::currentTheme()].classic ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
             text(ui.page == CONSOLE_PAGE
-                     ? std::string(" Esc back to the game   Up/Down earlier lines   (everything you type goes to the console)")
+                     ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
                      : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   : console   ") + (profile.empty() ? "" : "p profile   ") +
-                           "q quit") | dim,
-        });
+                           "q quit") | tui::muted(),
+        }));
     });
 
     Component root = CatchEvent(layout, [&](Event e) {
@@ -257,6 +270,8 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     console.stop();
     workers.stop();
     bool saved = saveNow(s);
+    tui::useTheme(0);   // the profile picker is nobody's: back to Classic
+    setTheme(0);
     if (end == SessionEnd::Quit) std::cout << (saved ? "Saved. Bye.\n" : "Save failed. Bye.\n");
     else if (!saved)             std::cout << "Save failed!\n";
     return end;
