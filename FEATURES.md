@@ -115,11 +115,15 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 ## Mining (`core/actions.cpp: mine`)
 - **Yield:** base = 1 + Pickaxe; a mine yields base + rand(0..base).
 - **Streak multiplier:** ×(1 + 0.05 × streak), capped at ×2.0 from streak 20. The streak breaks
-  after 15 s without mining (6 s with Amnesia, +10 s with the Tuning Fork).
-- **Bonus:** chance min(70%, 6% + 4%/Magnet); adds base × (8 + 4 × Magnet). The Lucky Penny:
-  ×1.5 chance, ×0.7 size (`bonusChance`, `bonusSize` in `game.cpp`).
-- **Jackpot:** chance min(20%, 1% + 0.5%/Magnet); adds base × (80 + 20 × Magnet). Halved by
-  the Tuning Fork (`jackpotChance`).
+  after 15 s without mining (6 s with Amnesia, 8 s with the Tuning Fork).
+- **Bonus:** chance min(70%, 6% + 4%/Magnet); adds base × (8 + 4 × Magnet), ×0.9 with the Lucky
+  Penny (`bonusChance`, `bonusSize` in `game.cpp`).
+- **Jackpot:** chance min(20%, 1% + 0.5%/Magnet); adds base × (80 + 20 × Magnet) (`jackpotSize`).
+- **The Magnet never stops paying:** the odds cap at Magnet 16 and 38, but every level keeps
+  adding +4 base to a bonus and +20 to a jackpot, and after the Orrery's First Ring the Drones and
+  the Bot scale with the average mine too. The Shop says what each upgrade does at your level and
+  what one more level adds to your income (`incomeEstimate` before and after); late in the game
+  a Magnet level is often worth more than a Pickaxe level.
 - **Night Shift:** mining by hand pays ×0.75 (`handMult`).
 - **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown; typing `mine` in the Console has
   none (typing is the limit).
@@ -142,10 +146,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Bot reports:** every 30 s in the log.
 
 ## Random events (`core/game.cpp`, `ticks.cpp`)
-- About one every 4 minutes (twice as often, half as long, with the Lightning Rod):
+- About one every 4 minutes (twice as often with the Lightning Rod, same length):
   - Meteor Shower: ×2 mining, you and the bot, 30 s.
   - Drone Overclock: ×3 passive, 45 s.
-  - Gold Rush: ×2 bonus/jackpot odds, 20 s.
+  - Gold Rush: ×2 bonuses and jackpots, 20 s: double the odds, and whatever the 70%/20% caps
+    swallow comes back as pay (`bonusBoost`, `jackpotBoost`), so it still doubles them late.
   - **Payday Rush** (only with a crew): the crew works twice as hard (`EventFx::crew`, applied in
     `effectiveLevel`) for 60 s, and payday moves to when it ends, so have the wages ready.
 
@@ -284,8 +289,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Trading record** (`[ledger]`): shards bought and sold, tokens spent and received (the Shady
   Broker counts as a buy), and `tradeCost`, what went to the spread and impact against the mid
   price. The market screen and Stats show it; a negative net is normal while you buy shards to use.
-- **Gadgets:** the Golden Ledger takes 2 points off the spread (audits from heat 2); the Moon
-  Anchor halves volatility and shocks but doubles your own impact.
+- **Gadgets:** the Golden Ledger makes both quotes 15% higher (selling pays more, buying costs
+  more: for net sellers); the Moon Anchor cuts your own price impact to a quarter but doubles
+  volatility and shocks.
 - **Known balance gap:** in the late game, income is so high that buying at the 100,000 ceiling
   is cheap, so the last Orrery stage can be bought outright. Not fixed yet (Script hasn't asked).
 
@@ -318,8 +324,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The stake is capped at 60, or half the shard pay if that's more.
 - **Slots:** 1, or 2 after the Orrery's Second Ring.
 - **Failing or abandoning:** you lose the stake and gain heat (+1, big +2). Finishing a big job cools heat by 1.
-- **Gadgets:** Forged Papers give new offers 25% more time for 20% less pay; the Fog Machine
-  doubles heat cooling but halves contract shards.
+- **Gadgets:** Forged Papers give new races against the clock 25% more time (the job and its pay
+  are sized from the normal time first; endurance jobs are left alone), but failing or dropping a
+  job costs twice the heat and standing. The Fog Machine pays 10% more per point of heat when a
+  job is done (tokens and shards), and heat cools half as fast.
 
 ### Clients and standing (`CLIENTS`, `TIERS`; `clients` in the Console, the grid on the Jobs tab)
 - **Standing** with each of the 12 clients, -10..10 (`[jobs] standing`). Finishing a job: +1 (big or
@@ -473,15 +481,23 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Gadget | From | Shards | Better | Worse |
   |---|---|---|---|---|
   | Debug Duck | Rubber Duck | 150 | offers twice as often | 20 s to answer |
-  | Tuning Fork | Newton's Cradle | 250 | streak lasts +10 s | jackpots halved |
+  | Tuning Fork | Newton's Cradle | 250 | with a streak of 20+, Drones and the Bot ×1.3 (`humBoost`) | the streak breaks after 8 s |
   | Lava Core | Lava Lamp | 400 | Drones ×1.5 | idle earnings capped at 4 h |
-  | Forged Papers | Cracked Floppy Disk | 500 | new contracts +25% time | -20% pay |
-  | Lucky Penny | The First Token Ever | 650 | bonuses ×1.5 as often | bonuses pay 30% less |
+  | Forged Papers | Cracked Floppy Disk | 500 | races against the clock +25% time | failing costs twice the heat and standing |
+  | Lucky Penny | The First Token Ever | 650 | every jackpot (yours or the resonant Bot's) +1-3 shards | bonuses pay 10% less |
   | Night Shift | Haunted Pickaxe | 900 | Mining Bot twice as fast | mining by hand ×0.75 |
-  | Golden Ledger | Golden Keyboard | 1,200 | spread -2 points | audits from heat 2 |
-  | Lightning Rod | Bottled Lightning | 1,800 | events twice as often | half as long |
-  | Fog Machine | Jar of Fog from Day One | 2,600 | heat cools twice as fast | contract shards halved |
-  | Moon Anchor | A Spare Moon | 4,000 | price swings halved | your trades move it twice as much |
+  | Golden Ledger | Golden Keyboard | 1,200 | shards sell for 15% more | shards cost 15% more |
+  | Lightning Rod | Bottled Lightning | 1,800 | events twice as often (full length) | disasters 25% more often |
+  | Fog Machine | Jar of Fog from Day One | 2,600 | contracts pay +10% per point of heat | heat cools half as fast |
+  | Moon Anchor | A Spare Moon | 4,000 | your trades move the price ×0.25 | random swings ×2 |
+
+- **v10 rework (Script: "nobody's gonna buy them"):** every gadget gets an upside on income that
+  matters late (Drones, the Bot, contracts, shards) and a downside on another axis. Measured with
+  `SIM_GADGETS=<id> SIM_GADGETS_FREE=1 sim 10 20 normal` (late income, hours 6-10, against no
+  gadget; the median of 20 seeds): Night Shift +17%, Forged Papers +17%, Tuning Fork +16%, Lava
+  Core +13%, Moon Anchor +12% (and more shards), Lucky Penny +7% (and ~250 more shards), Debug
+  Duck +2%, Fog Machine and Lightning Rod about even (swingy: they pay when you run hot or keep
+  disasters stopped), Golden Ledger -3% for that buying player (it's for net sellers).
 
 ## Disasters (`core/disasters.*`; `respond`, `repair`)
 - Start once the **Crew** is open: one every **20-35 min** of play (the first after 10-20), one at

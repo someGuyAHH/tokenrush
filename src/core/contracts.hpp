@@ -56,7 +56,7 @@ void judgeContract(const GameState& g, Contract& c, bool running);   // fills c.
 void judgeAll(GameState& g);                    // every offer and running job
 
 int heatCoolSeconds(const GameState& g);
-int auditMinHeat(const GameState& g);           // AUDIT_MIN_HEAT, or one less with the Golden Ledger
+int auditMinHeat(const GameState& g);           // AUDIT_MIN_HEAT (the same for everyone now)
 double auditChance(const GameState& g);         // per second
 double auditBlockChance(const GameState& g);    // chance a Fixer makes an audit go away
 double auditShare(const GameState& g);          // fraction of tokens an audit takes

@@ -84,6 +84,7 @@ struct Sim {
         if ((normal || strat == Strategy::NoEcon) && (chasing || uni(rng) < mineRate)) mine(g, t, rng);
         if (normal) disasterPlan();
         if (usesTasks(strat)) taskPlan();
+        if (t % 30 == 0) gadgetPlan();
 
         // Upgrades: buy the cheapest one we can afford, every few seconds.
         bool tasksUpgrade = usesTasks(strat) && strat != Strategy::TasksLight && g.taskSlots > 0;   // the tasks do it now
@@ -101,6 +102,32 @@ struct Sim {
         if (normal && t % 20 == 0) curioPlan();
         if (normal && t % 60 == 0 && !savingForLicense()) orreryPlan();
         if (strat == Strategy::Trader && t % 5 == 0) traderPlan();
+    }
+
+    // SIM_GADGETS="tuningfork,lavacore": build those (once their curio is on the shelf) and keep them equipped.
+    std::vector<int> wantGadgets = [] {
+        std::vector<int> out;
+        const char* env = std::getenv("SIM_GADGETS");
+        std::string list = env ? env : "", id;
+        for (size_t i = 0; i <= list.size(); ++i) {
+            if (i < list.size() && list[i] != ',') { id += list[i]; continue; }
+            for (int k = 0; k < GADGET_COUNT; ++k) if (id == GADGETS[k].id) out.push_back(k);
+            id.clear();
+        }
+        return out;
+    }();
+    void gadgetPlan() {
+        if (!isUnlocked(g, Feature::Workshop)) return;
+        static const bool free = std::getenv("SIM_GADGETS_FREE") != nullptr;   // measure the effect alone, not its price
+        for (int k : wantGadgets) {
+            if (free && !hasBit(g.gadgetsOwned, k)) g.gadgetsOwned |= 1u << k;
+            if (!hasBit(g.gadgetsOwned, k)) {
+                if (!hasBit(g.curiosOwned, GADGETS[k].curio)) buyCurio(g, GADGETS[k].curio);
+                if (hasBit(g.curiosOwned, GADGETS[k].curio) && g.shards >= GADGETS[k].cost + totalWages(g) * 2) craftGadget(g, k);
+            } else if (!gadgetEquipped(g, (Gadget)k)) {
+                equipGadget(g, k);
+            }
+        }
     }
 
     // Tasks: save up for the license once they open, then hand over the chores.
@@ -361,6 +388,20 @@ int main(int argc, char** argv) {
                         compact(fees).c_str(), earned > 0 ? 100.0 * (double)fees / (double)earned : 0.0, compact(earned).c_str());
             for (size_t i = 0; i < g.tasks.size(); ++i)
                 std::printf("    %zu) %-70s %6lld runs  %8s\n", i + 1, g.tasks[i].text.c_str(), g.tasks[i].runs, compact(g.tasks[i].fees).c_str());
+        }
+        {
+            long long total = 0;
+            for (long long v : g.earnedBy) total += v;
+            std::string split;
+            for (int i = 0; i < SOURCE_COUNT; ++i)
+                if (g.earnedBy[(size_t)i] > 0) split += std::string(" ") + sourceName((Source)i) + " " + std::to_string((int)std::lround(100.0 * (double)g.earnedBy[(size_t)i] / (double)std::max(1LL, total))) + "%";
+            std::printf("  income by source (all time):%s; right now: %s\n", split.c_str(), incomeSplit(g).c_str());
+        }
+        {
+            std::string built;
+            for (int k = 0; k < GADGET_COUNT; ++k)
+                if (hasBit(g.gadgetsOwned, k)) built += std::string(" ") + GADGETS[k].id + (gadgetEquipped(g, (Gadget)k) ? "*" : "");
+            std::printf("  gadgets built (* equipped):%s\n", built.empty() ? " none" : built.c_str());
         }
         std::printf("  trade profit %lld, max heat %d, crew quits %d, upgrades P%d M%d D%d B%d, crew:%s\n",
                     sim.tally.tradeProfit, sim.tally.maxHeat, sim.tally.quits, g.pickaxe, g.magnet, g.drone, g.bot,

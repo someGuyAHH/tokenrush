@@ -166,9 +166,11 @@ before this kept everything they were already using. The table lives in `FEATURE
   they don't work meanwhile but come back with shards, and sometimes a curio no shop sells, a
   trait or a level, or an injury.
 - **The Workshop.** Gadgets built once from a curio you own (it stays on the shelf) plus
-  shards, equipped in three slots, each a trade-off: the Tuning Fork makes your streak last
-  longer but halves your jackpots, the Night Shift doubles the bot but your own mining pays
-  less, and so on (`workshop`, `craft`, `equip`, `unequip`).
+  shards, equipped in three slots, each a trade-off: the Tuning Fork makes your Drones and Bot
+  earn 30% more while your streak is 20+ (but the streak breaks after 8 seconds), the Night
+  Shift doubles the bot but your own mining pays less, the Moon Anchor makes your own trades
+  barely move the price (but the market swings harder), and so on (`workshop`, `craft`,
+  `equip`, `unequip`).
 - **Disasters.** Once the Crew is open, every 20-35 minutes something goes wrong: a power
   surge, a bot breakdown, a vault fire, thieves, a quake under the Orrery, a short circuit in
   your gadgets. Each starts with a warning and can be stopped (`respond`, or the word it names:

@@ -34,7 +34,7 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
         std::vector<int> pool = {EV_METEOR, EV_OVERCLOCK, EV_GOLDRUSH};
         if (isUnlocked(g, Feature::Crew) && !g.crew.empty()) pool.push_back(EV_PAYDAY);   // needs someone to rush
         int e = pool[std::uniform_int_distribution<size_t>(0, pool.size() - 1)(rng)];
-        int lasts = gadgetOn(g, Gadget::LightningRod) ? EVENTS[e].duration / 2 : EVENTS[e].duration;
+        int lasts = EVENTS[e].duration;
         g.event = e;
         g.eventEnds = t + lasts;
         g.eventsSeen += 1;
@@ -62,7 +62,7 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
     checkGoals(g, log);
 }
 
-static long long botMine(const GameState& g, std::time_t t, std::mt19937& rng) {
+static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
     EventFx fx = fxNow(g, t);
     std::uniform_real_distribution<double> roll(0.0, 1.0);
 
@@ -73,18 +73,24 @@ static long long botMine(const GameState& g, std::time_t t, std::mt19937& rng) {
         double jackpotP = jackpotChance(g, fx.odds);
         double bonusP   = bonusChance(g, fx.odds);
         double swing = base * 1.5;
-        if (r < jackpotP)                 swing += base * (80.0 + 20.0 * g.magnet);
-        else if (r < jackpotP + bonusP)   swing += base * bonusSize(g);
-        return toTokens(swing * resonantBotPower(g) * fx.mining);
+        if (r < jackpotP) {
+            swing += base * jackpotSize(g) * jackpotBoost(g, fx.odds);
+            if (gadgetOn(g, Gadget::LuckyPenny)) g.shards += std::uniform_int_distribution<int>(1, 3)(rng);
+        } else if (r < jackpotP + bonusP) {
+            swing += base * bonusSize(g) * bonusBoost(g, fx.odds);
+        }
+        return toTokens(swing * resonantBotPower(g) * fx.mining * humBoost(g));
     }
 
     double gain = baseYield(g) * (0.6 + 0.2 * g.bot);
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
-    double bonusChance = std::min(0.35, (0.03 + 0.02 * g.magnet) * fx.odds);
-    if (uni(rng) < bonusChance) gain += baseYield(g) * (4.0 + 2.0 * g.magnet);
+    double raw = 0.03 + 0.02 * g.magnet;
+    double bonusChance = std::min(0.35, raw * fx.odds);
+    double boost = fx.odds * std::min(0.35, raw) / std::max(1e-9, bonusChance);   // Gold Rush past the cap pays more instead
+    if (uni(rng) < bonusChance) gain += baseYield(g) * (4.0 + 2.0 * g.magnet) * boost;
 
-    return toTokens(gain * fx.mining);
+    return toTokens(gain * fx.mining * humBoost(g));
 }
 
 static void autoBuy(GameState& g, MessageLog& log) {

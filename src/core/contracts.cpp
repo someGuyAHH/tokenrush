@@ -118,7 +118,6 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     c.duration = c.kind == ContractKind::CoolOff ? roundTo30(c.big ? between(600, 900) : between(420, 600))
                                                  : roundTo30(c.big ? between(240, 420) : between(150, 240));
     if (c.signature) c.duration = roundTo30(c.duration * 1.5);
-    if (gadgetOn(g, Gadget::ForgedPapers)) c.duration = roundTo30(c.duration * 1.25);   // more time...
     c.expiresIn = (int)between(300, 600);
 
     // Size the job from how you've actually been playing, but never below what the formulas
@@ -175,8 +174,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         case ClientStyle::Merchants: tokensPay = 0.8; shardsPay = 1.6; break;
         default:                     break;
     }
-    double pay = kindPay * TIERS[(int)tier].pay * (c.signature ? 2.0 : 1.0) * (gadgetOn(g, Gadget::ForgedPapers) ? 0.8 : 1.0);   // ...less pay
-    if (gadgetOn(g, Gadget::FogMachine)) shardsPay *= 0.5;
+    double pay = kindPay * TIERS[(int)tier].pay * (c.signature ? 2.0 : 1.0);
     double brokerBonus = 1.0 + std::min(2.0, 0.10 * roleLevels(g, Role::Broker));
     shardsPay *= brokerBonus * contractShardScale(power);
     if (c.big) {
@@ -189,6 +187,9 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         c.rewardShards = std::max(1LL, std::llround(between(1, 3) * shardsPay * pay));
         c.stake = 0;
     }
+    // Forged Papers: the same job and the same pay, with a quarter as long again to do it. (Not for
+    // endurance jobs, where more time would only mean lasting longer. Failing costs more: fail().)
+    if (gadgetOn(g, Gadget::ForgedPapers) && !isEndurance(c)) c.duration = roundTo30(c.duration * 1.25);
     return c;
 }
 
@@ -216,7 +217,8 @@ std::string shiftStanding(GameState& g, int client, int delta) {
 Note fail(GameState& g, size_t idx, const std::string& why) {
     Contract c = g.contracts[idx];   // a copy: erase() would leave a reference dangling
     g.contracts.erase(g.contracts.begin() + (std::ptrdiff_t)idx);
-    int heatGain = c.big ? 2 : 1;
+    int caught = gadgetOn(g, Gadget::ForgedPapers) ? 2 : 1;   // forged papers make a failure look worse
+    int heatGain = (c.big ? 2 : 1) * caught;
     g.heat = std::min(MAX_HEAT, g.heat + heatGain);
     g.heatClock = heatCoolSeconds(g);
     g.contractsFailed += 1;
@@ -225,7 +227,8 @@ Note fail(GameState& g, size_t idx, const std::string& why) {
     if (c.stake > 0) msg += " Lost your " + num(c.stake) + "-shard stake.";
     msg += " Heat +" + std::to_string(heatGain) + " (now " + std::to_string(g.heat) + ").";
     bool forgiving = CLIENTS[c.client].style == ClientStyle::SmallFry;
-    msg += shiftStanding(g, c.client, forgiving ? -1 : c.big ? -3 : -2);
+    msg += shiftStanding(g, c.client, (forgiving ? -1 : c.big ? -3 : -2) * caught);
+    if (caught > 1) msg += " (Forged papers: twice the trouble.)";
     return {Sev::Bad, msg};
 }
 
@@ -418,11 +421,11 @@ std::string progressText(const GameState& g, const Contract& c) {
 }
 
 int heatCoolSeconds(const GameState& g) {
-    double fog = gadgetOn(g, Gadget::FogMachine) ? 2.0 : 1.0;
-    return (int)std::lround(HEAT_COOL_SECONDS / (1.0 + 0.5 * roleLevels(g, Role::Fixer)) / fog);
+    double fog = gadgetOn(g, Gadget::FogMachine) ? 2.0 : 1.0;   // it keeps you hot
+    return (int)std::lround(HEAT_COOL_SECONDS / (1.0 + 0.5 * roleLevels(g, Role::Fixer)) * fog);
 }
 
-int auditMinHeat(const GameState& g) { return gadgetOn(g, Gadget::GoldenLedger) ? AUDIT_MIN_HEAT - 1 : AUDIT_MIN_HEAT; }
+int auditMinHeat(const GameState&) { return AUDIT_MIN_HEAT; }
 
 double auditChance(const GameState& g) {
     if (g.heat < auditMinHeat(g)) return 0.0;
@@ -509,9 +512,13 @@ void checkContract(GameState& g, MessageLog& log) {
 }
 
 void pay(GameState& g, MessageLog& log, const Contract& c) {
-    earn(g, c.rewardTokens, Source::Contracts);
-    g.rateSkip += c.rewardTokens;   // a payout isn't a sign you got faster
-    g.shards += c.rewardShards + c.stake;
+    // The Fog Machine: running hot pays, 10% more for every point of heat when you finish.
+    double fog = gadgetOn(g, Gadget::FogMachine) ? 1.0 + 0.10 * g.heat : 1.0;
+    long long tokensPaid = toTokens((double)c.rewardTokens * fog);
+    long long shardsPaid = std::llround((double)c.rewardShards * fog);
+    earn(g, tokensPaid, Source::Contracts);
+    g.rateSkip += tokensPaid;   // a payout isn't a sign you got faster
+    g.shards += shardsPaid + c.stake;
     g.contractsDone += 1;
 
     if (c.big && g.heat >= 8) spotSecret(g, Secret::GlassCannon);
@@ -519,7 +526,8 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     g.lastContractAt = g.playSeconds;
     if (c.signature) g.signatureClients |= 1u << c.client;
     std::string msg = "CONTRACT DONE for " + std::string(CLIENTS[c.client].name) + ": " + contractText(c) + ". +" +
-                      num(c.rewardTokens) + " tokens, +" + count(c.rewardShards, "shard");
+                      num(tokensPaid) + " tokens, +" + count(shardsPaid, "shard");
+    if (fog > 1.0) msg += " (+" + std::to_string(10 * g.heat) + "% from the Fog Machine)";
     if (c.stake > 0) msg += ", stake returned";
     if (CLIENTS[c.client].style == ClientStyle::Shady) {   // their money is never clean
         g.heat = std::min(MAX_HEAT, g.heat + 1);

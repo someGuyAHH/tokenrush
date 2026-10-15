@@ -11,7 +11,7 @@ const EventInfo EVENTS[] = {
     {"None",            "",                                  0},
     {"Meteor Shower",   "2x mining yield (you and the bot)", 30},
     {"Drone Overclock", "3x passive income",                 45},
-    {"Gold Rush",       "2x bonus/jackpot odds",             20},
+    {"Gold Rush",       "2x the bonuses and jackpots (more pay, once the odds are maxed)", 20},
     {"Payday Rush",     "your crew works twice as hard, but wants paying when it ends", 60},
 };
 static_assert(std::size(EVENTS) == EV_COUNT);
@@ -385,15 +385,15 @@ double contrastRatio(Rgb a, Rgb b) {
 // ----- Gadgets -----
 const GadgetInfo GADGETS[] = {
     {"debugduck",    "Debug Duck",      0,  150, "offers come twice as often",                 "you only get 20 seconds to answer them"},
-    {"tuningfork",   "Tuning Fork",     1,  250, "your streak lasts 25 seconds (+10)",         "jackpots come half as often"},
+    {"tuningfork",   "Tuning Fork",     1,  250, "while your streak is 20+, Drones and the Bot earn 30% more", "your streak breaks after 8 seconds without mining"},
     {"lavacore",     "Lava Core",       2,  400, "Drones earn 50% more",                       "they only earn 4 hours while you're away (not 12)"},
-    {"forgedpapers", "Forged Papers",   4,  500, "new contracts give you 25% more time",       "they pay 20% less"},
-    {"luckypenny",   "Lucky Penny",     5,  650, "bonuses come 50% more often",                "they pay 30% less"},
+    {"forgedpapers", "Forged Papers",   4,  500, "new races against the clock give you 25% more time",       "failing or dropping one costs twice the heat and standing"},
+    {"luckypenny",   "Lucky Penny",     5,  650, "every jackpot (yours or the Bot's) turns up 1-3 shards", "bonuses pay 10% less"},
     {"nightshift",   "Night Shift",     6,  900, "the Mining Bot works twice as fast",         "mining by hand pays 25% less"},
-    {"goldenledger", "Golden Ledger",   7, 1200, "the market spread is 2 points tighter",      "audits can start at heat 2 (not 3)"},
-    {"lightningrod", "Lightning Rod",   8, 1800, "random events come twice as often",          "they last half as long"},
-    {"fogmachine",   "Fog Machine",     9, 2600, "heat cools twice as fast",                   "contracts pay half the shards"},
-    {"moonanchor",   "Moon Anchor",    10, 4000, "the shard price swings half as hard",        "your own trades move it twice as much"},
+    {"goldenledger", "Golden Ledger",   7, 1200, "shards you sell pay 15% more",              "shards you buy cost 15% more"},
+    {"lightningrod", "Lightning Rod",   8, 1800, "random events come twice as often",          "disasters come 25% more often"},
+    {"fogmachine",   "Fog Machine",     9, 2600, "contracts pay 10% more for every point of heat", "heat cools half as fast"},
+    {"moonanchor",   "Moon Anchor",    10, 4000, "your own trades move the price a quarter as much", "its random swings are twice as hard"},
 };
 static_assert(std::size(GADGETS) == GADGET_COUNT);
 

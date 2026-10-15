@@ -59,6 +59,7 @@ bool possible(const GameState& g, DisasterKind k) {
 
 void resetClock(GameState& g, std::mt19937& rng) {
     g.disasterClock = std::uniform_int_distribution<int>(DISASTER_EVERY_MIN, DISASTER_EVERY_MAX)(rng);
+    if (gadgetOn(g, Gadget::LightningRod)) g.disasterClock = g.disasterClock * 4 / 5;   // it draws trouble too
 }
 
 long long botRepairCost(const GameState& g) {

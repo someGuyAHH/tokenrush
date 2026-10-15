@@ -35,18 +35,19 @@ long long clampToLL(double v) {
 
 double marketSpread(const GameState& g) {
     double s = BASE_SPREAD + SPREAD_PER_HEAT * g.heat - SPREAD_PER_BROKER_LEVEL * roleLevels(g, Role::Broker);
-    if (gadgetOn(g, Gadget::GoldenLedger)) s -= 0.02;
     s = std::max(MIN_SPREAD, s);
     return infected(g, Strain::Static) ? 2.0 * s : s;
 }
 
 double marketImpact(const GameState& g) {
     double cut = std::min(0.5, 0.08 * roleLevels(g, Role::Broker));
-    return BASE_IMPACT * (1.0 - cut) * (gadgetOn(g, Gadget::MoonAnchor) ? 2.0 : 1.0);
+    return BASE_IMPACT * (1.0 - cut) * (gadgetOn(g, Gadget::MoonAnchor) ? 0.25 : 1.0);   // your orders barely move it
 }
 
-double buyPrice(const GameState& g)  { return g.shardPrice * (1.0 + marketSpread(g) / 2.0); }
-double sellPrice(const GameState& g) { return g.shardPrice * (1.0 - marketSpread(g) / 2.0); }
+// The Golden Ledger cooks the books both ways: 15% more for what you sell, 15% more for what you buy.
+static double ledger(const GameState& g) { return gadgetOn(g, Gadget::GoldenLedger) ? 1.15 : 1.0; }
+double buyPrice(const GameState& g)  { return g.shardPrice * (1.0 + marketSpread(g) / 2.0) * ledger(g); }
+double sellPrice(const GameState& g) { return g.shardPrice * (1.0 - marketSpread(g) / 2.0) * ledger(g); }
 
 // Each shard moves the price by a factor r, so a big order is a geometric series.
 long long buyCost(const GameState& g, long long n) {
@@ -124,7 +125,7 @@ void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     double lp = std::log(std::max(g.shardPrice, MIN_PRICE));
-    double calm = gadgetOn(g, Gadget::MoonAnchor) ? 0.5 : 1.0;   // the Moon Anchor halves the swings
+    double calm = gadgetOn(g, Gadget::MoonAnchor) ? 2.0 : 1.0;   // ...but the tides pull twice as hard
     double vol = (infected(g, Strain::Static) ? 2.0 * VOLATILITY : VOLATILITY) * calm;
     lp += REVERSION * (std::log(SHARD_FAIR_PRICE) - lp) + vol * noise(rng);
 

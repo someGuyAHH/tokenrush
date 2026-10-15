@@ -33,10 +33,11 @@ MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
     long long gain = toTokens((double)raw * r.mult);
     if (roll < jackpotP) {
         r.jackpot = true;
-        gain = addTokens(gain, toTokens((double)r.base * (80.0 + 20.0 * (double)g.magnet)));
+        gain = addTokens(gain, toTokens((double)r.base * jackpotSize(g) * jackpotBoost(g, fx.odds)));
+        if (gadgetOn(g, Gadget::LuckyPenny)) g.shards += std::uniform_int_distribution<int>(1, 3)(rng);   // the Lucky Penny
     } else if (roll < jackpotP + bonusP) {
         r.bonus = true;
-        gain = addTokens(gain, toTokens((double)r.base * bonusSize(g)));
+        gain = addTokens(gain, toTokens((double)r.base * bonusSize(g) * bonusBoost(g, fx.odds)));
     }
     r.meteor = fx.mining > 1.0;
     r.gain = toTokens((double)gain * fx.mining * handMult(g));

@@ -204,12 +204,25 @@ Component ShopPage(Ui& ui) {
         ui.previewTheme = previewOf();   // the keyboard may have moved without an event reaching us
         GameState g = ui.snap;   // upgrades() wants a non-const state
         auto ups = upgrades(g);
-        const char* effects[] = {"+1 base yield", "better bonus/jackpot odds", "+0.5 passive tokens/s", "auto-mines"};
-
-        Elements rows = {heading("Upgrades"), text("")};
+        // What each one does at your level, and what one more level adds to your income.
+        bool oddsMaxed = bonusChance(g) >= 0.70 && jackpotChance(g) >= 0.20;
+        std::string effects[] = {
+            "+1 base yield (now " + num(baseYield(g)) + ")",
+            oddsMaxed ? "bonus x" + compact((long long)bonusSize(g)) + ", jackpot x" + compact((long long)jackpotSize(g)) + ": +4x/+20x a level"
+                      : "odds " + percent(bonusChance(g), 0) + "/" + percent(jackpotChance(g)) + ", and bigger payouts",
+            "+1 Drone (" + perSecond(passiveRatePerSec(g)) + "/s now)",
+            g.bot == 0 ? "mines on its own" : "stronger swings (every " + std::to_string(botIntervalOf(g)) + "s)",
+        };
+        double now = std::max(1.0, incomeEstimate(g));
+        Elements rows = {hbox({heading("Upgrades"), text("   the % is what one more level adds to your income") | muted()}), text("")};
         for (size_t i = 0; i < ups.size(); ++i) {
+            *ups[i].lvl += 1;
+            double gain = incomeEstimate(g) / now - 1.0;
+            *ups[i].lvl -= 1;
+            std::string pct = gain >= 0.0995 ? "+" + percent(gain, 0) : gain >= 0.000995 ? "+" + percent(gain, 1) : "+" + percent(gain, 2);
             rows.push_back(hbox({cell(ups[i].name, 12), cell("lvl " + std::to_string(*ups[i].lvl), 11),
-                                 cell(effects[i], 28), cell("cost ", 5), tokens(ups[i].cost) | size(WIDTH, EQUAL, 14),
+                                 text(effects[i]) | size(WIDTH, EQUAL, 46), text(pct) | color(hue(Hue::Good)) | size(WIDTH, EQUAL, 8),
+                                 tokens(ups[i].cost) | size(WIDTH, EQUAL, 14),
                                  buys[i][0]->Render(), text(" "), buys[i][1]->Render(), text(" "), buys[i][2]->Render()}));
         }
         rows.push_back(text(""));

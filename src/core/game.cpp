@@ -37,13 +37,21 @@ long long passiveCapSeconds(const GameState& g) { return gadgetOn(g, Gadget::Lav
 
 // ----- Mining odds -----
 double bonusChance(const GameState& g, double odds) {
-    double c = (0.06 + 0.04 * g.magnet) * odds * (gadgetOn(g, Gadget::LuckyPenny) ? 1.5 : 1.0);
+    double c = (0.06 + 0.04 * g.magnet) * odds;
     return std::min(0.70, c);
 }
 double jackpotChance(const GameState& g, double odds) {
-    return std::min(0.20, (0.01 + 0.005 * g.magnet) * odds) * (gadgetOn(g, Gadget::TuningFork) ? 0.5 : 1.0);
+    return std::min(0.20, (0.01 + 0.005 * g.magnet) * odds);
 }
-double bonusSize(const GameState& g) { return (8.0 + 4.0 * g.magnet) * (gadgetOn(g, Gadget::LuckyPenny) ? 0.7 : 1.0); }
+// The odds stop at 70% and 20%, but the Magnet keeps making both pay more, level after level.
+double bonusSize(const GameState& g) { return (8.0 + 4.0 * g.magnet) * (gadgetOn(g, Gadget::LuckyPenny) ? 0.9 : 1.0); }
+double jackpotSize(const GameState& g) { return 80.0 + 20.0 * g.magnet; }
+// Gold Rush doubles the odds; whatever the cap swallows comes back as pay, so it's still twice the
+// bonuses and jackpots once the odds are maxed.
+double bonusBoost(const GameState& g, double odds) { return odds * bonusChance(g) / std::max(1e-9, bonusChance(g, odds)); }
+double jackpotBoost(const GameState& g, double odds) { return odds * jackpotChance(g) / std::max(1e-9, jackpotChance(g, odds)); }
+// The Tuning Fork: a streak of 20 or more sets the machines humming.
+double humBoost(const GameState& g) { return gadgetOn(g, Gadget::TuningFork) && g.streak >= 20 ? 1.3 : 1.0; }
 double handMult(const GameState& g) { return gadgetOn(g, Gadget::NightShift) ? 0.75 : 1.0; }
 
 std::array<UpgradeRef, 4> upgrades(GameState& g) {
@@ -59,7 +67,8 @@ std::array<UpgradeRef, 4> upgrades(GameState& g) {
 // ----- Infection -----
 bool infected(const GameState& g, Strain s) { return g.strain == s && !g.cured; }
 long long streakTimeout(const GameState& g) {
-    return (infected(g, Strain::Amnesia) ? 6 : STREAK_TIMEOUT) + (gadgetOn(g, Gadget::TuningFork) ? 10 : 0);
+    long long t = infected(g, Strain::Amnesia) ? 6 : STREAK_TIMEOUT;
+    return gadgetOn(g, Gadget::TuningFork) ? std::min(t, 8LL) : t;   // the Tuning Fork wants you mining
 }
 
 // ----- Events -----
@@ -105,20 +114,20 @@ double passiveRatePerSec(const GameState& g) {
     if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
     if (g.machinesPaused > 0) return 0.0;                       // breakers pulled
     int working = std::max(0, g.drone - g.dronesDown);           // some may be burnt out by a surge
-    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0);
+    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0) * humBoost(g);
 }
 
 double botRatePerSec(const GameState& g) {
     if (g.bot <= 0 || g.botBroken || g.machinesPaused > 0) return 0.0;
-    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g);
+    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g) * humBoost(g);
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);
-    return (perMine + bonus) / botIntervalOf(g);
+    return (perMine + bonus) / botIntervalOf(g) * humBoost(g);
 }
 
 double expectedMine(const GameState& g) {
     double base = baseYield(g);
-    return base * 1.5 + bonusChance(g) * base * bonusSize(g) + jackpotChance(g) * base * (80.0 + 20.0 * g.magnet);
+    return base * 1.5 + bonusChance(g) * base * bonusSize(g) + jackpotChance(g) * base * jackpotSize(g);
 }
 
 double incomeEstimate(const GameState& g) {

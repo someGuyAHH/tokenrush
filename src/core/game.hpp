@@ -24,10 +24,14 @@ inline constexpr int       MAX_LEVEL            = 1'000'000;      // sanity cap 
 
 // ----- Infection -----
 bool infected(const GameState& g, Strain s);   // has this strain and isn't cured yet
-long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, less with Amnesia, more with the Tuning Fork
+long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, less with Amnesia or the Tuning Fork
 double bonusChance(const GameState& g, double odds = 1.0);     // a mine turning into a bonus (odds: Gold Rush)
 double jackpotChance(const GameState& g, double odds = 1.0);   // ...or a jackpot
 double bonusSize(const GameState& g);                          // how many base yields a bonus adds
+double jackpotSize(const GameState& g);                        // ...and a jackpot
+double bonusBoost(const GameState& g, double odds);            // Gold Rush past the odds cap: extra pay instead
+double jackpotBoost(const GameState& g, double odds);
+double humBoost(const GameState& g);                           // the Tuning Fork's boost to Drones and the Bot (1 = none)
 double handMult(const GameState& g);                           // gadgets that change what mining by hand pays
 
 // ----- Upgrades -----

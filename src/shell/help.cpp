@@ -284,10 +284,10 @@ const std::vector<CommandInfo>& commands() {
          {"The Workshop turns curios into gadgets. Each gadget is built from one curio you own (the curio stays on your "
           "shelf) plus some shards, and once built it's yours to equip in one of 3 slots or take off again, as often as "
           "you like.",
-          "Every gadget is a trade-off: something gets better and something gets worse. The Tuning Fork makes your streak "
-          "last longer but halves your jackpots; the Night Shift doubles the Mining Bot but your own mining pays less; the "
-          "Golden Ledger tightens the market but lets audits start a point of heat sooner. Pick the ones that fit how "
-          "you're playing right now.",
+          "Every gadget is a trade-off: something gets better and something else gets worse. The Tuning Fork makes "
+          "your Drones and Bot earn 30% more while your streak is 20 or more, but the streak breaks after 8 seconds; "
+          "the Night Shift doubles the Mining Bot but your own mining pays less; the Golden Ledger makes shards sell "
+          "for 15% more and cost 15% more. Pick the ones that fit how you're playing right now.",
           "The list shows every gadget, what it's built from, its price, and both sides of the deal."},
          {{"workshop", "the list and your slots"}, {"ws", "the same"}},
          {"craft", "equip", "unequip", "curios"}, WORKSHOP, SPENDING},
