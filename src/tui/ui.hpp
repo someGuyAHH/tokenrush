@@ -115,6 +115,10 @@ ftxui::Component Btn(std::function<std::string()> label, std::function<void()> o
                      std::function<bool()> enabled = nullptr);
 ftxui::Component Btn(const std::string& label, std::function<void()> onClick,
                      std::function<bool()> enabled = nullptr);
+// A quiet, borderless button: muted text that brightens and underlines when it has the keyboard
+// or the mouse. `warn` (if given) turns it the Bad color, e.g. while a delete is armed.
+ftxui::Component FlatBtn(std::function<std::string()> label, std::function<void()> onClick,
+                         std::function<bool()> warn = nullptr);
 ftxui::Component MineButton(Ui& ui);
 // A one-line text box with a drawn caret. (FTXUI's own Input moves the terminal's real cursor
 // on every frame, which flickers on Windows Terminal; this keeps that cursor hidden.)

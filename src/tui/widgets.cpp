@@ -249,6 +249,18 @@ Component Btn(std::function<std::string()> label, std::function<void()> onClick,
     return Button(opt);
 }
 
+Component FlatBtn(std::function<std::string()> label, std::function<void()> onClick, std::function<bool()> warn) {
+    ButtonOption opt;
+    opt.on_click = std::move(onClick);
+    opt.transform = [label = std::move(label), warn = std::move(warn)](const EntryState& st) {
+        Element e = text(label());
+        bool hot = st.focused;   // (FTXUI counts the mouse hovering as focused too)
+        if (warn && warn()) return e | color(hue(Hue::Bad)) | (hot ? underlined : nothing);
+        return hot ? e | color(hue(Hue::Text)) | underlined : e | muted();
+    };
+    return Button(opt);
+}
+
 Component Btn(const std::string& label, std::function<void()> onClick, std::function<bool()> enabled) {
     return Btn([label] { return label; }, std::move(onClick), std::move(enabled));
 }

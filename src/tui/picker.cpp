@@ -53,21 +53,25 @@ std::string pickProfile(Profiles& profiles) {
             const ProfileInfo p = list[i];
             ButtonOption opt;
             opt.on_click = [&finish, p] { finish(p.name); };
+            // Quiet on purpose: the row with the keyboard (or the mouse) gets a soft panel color and an
+            // accent marker, not an inverted bar; numbers are compact so they never get cut off.
             opt.transform = [p, now](const EntryState& st) {
+                bool hot = st.focused;   // the keyboard, or the mouse hovering
                 Element info = text("new profile") | muted();
                 if (p.hasSave && !p.readable) info = text("save can't be read (it'll be set aside)") | color(hue(Hue::Warn));
                 else if (p.readable)
-                    info = hbox({hbox({filler(), text(num(p.tokens)) | color(hue(Hue::Tokens))}) | size(WIDTH, EQUAL, 15), text(" tokens  "),
-                                 cell(p.title, 16), cell(timeAgo(p.lastPlayed, now), 10) | muted(),
+                    info = hbox({hbox({filler(), text(compact(p.tokens)) | color(hue(Hue::Tokens))}) | size(WIDTH, EQUAL, 9),
+                                 text(" tokens   ") | muted(), cell(p.title, 16), cell(timeAgo(p.lastPlayed, now), 11) | muted(),
                                  p.strain == Strain::None ? text("")
                                  : p.cured ? text(std::string("cured of ") + STRAINS[(int)p.strain].name) | muted()
-                                           : text(std::string("INFECTED: ") + STRAINS[(int)p.strain].name) | color(hue(Hue::Infected)) | bold});
-                Element e = hbox({text(st.focused ? " > " : "   "), cell(p.name, 18) | bold, info, filler()});
-                return st.focused ? e | inverted : e;
+                                           : text(std::string("infected: ") + STRAINS[(int)p.strain].name) | color(hue(Hue::Infected))});
+                Element e = hbox({text(hot ? " › " : "   ") | color(hue(Hue::Accent)), cell(p.name, 22) | (hot ? bold : nothing), info, filler()});
+                return hot ? e | bgcolor(hue(Hue::Panel)) : e;
             };
             Component play = Button(opt);
-            Component del = Btn(
-                [&deleteArmed, &deleteUntil, i] { return (int)i == deleteArmed && Clock::now() < deleteUntil ? "Really delete?" : "Delete"; },
+            auto armedNow = [&deleteArmed, &deleteUntil, i] { return (int)i == deleteArmed && Clock::now() < deleteUntil; };
+            Component del = FlatBtn(
+                [armedNow] { return armedNow() ? std::string("really delete?") : std::string("delete"); },
                 [&, i, p] {
                     if ((int)i == deleteArmed && Clock::now() < deleteUntil) {
                         std::string why;
@@ -79,8 +83,8 @@ std::string pickProfile(Profiles& profiles) {
                         deleteArmed = (int)i;
                         deleteUntil = Clock::now() + CONFIRM_WINDOW;
                     }
-                });
-            Component ren = Btn("Rename", [&, i, p] {
+                }, armedNow);
+            Component ren = FlatBtn([] { return std::string("rename"); }, [&, i, p] {
                 renaming = (int)i;
                 newName.clear();
                 placeholder = "new name for " + p.name;
@@ -89,8 +93,9 @@ std::string pickProfile(Profiles& profiles) {
                 message = "Type a new name for " + p.name + " in the box and press Enter. Esc cancels.";
                 messageColor = hue(Hue::Accent);
             });
-            Component spacedRen = Renderer(ren, [ren] { return hbox({ren->Render(), text(" ")}); });
-            rows.push_back(Container::Horizontal({play | flex, spacedRen, del}));
+            Component spacedRen = Renderer(ren, [ren] { return hbox({ren->Render(), text("   ")}); });
+            Component spacedDel = Renderer(del, [del] { return hbox({del->Render() | size(WIDTH, EQUAL, 14), text(" ")}); });   // "really delete?" doesn't shove "rename"
+            rows.push_back(Container::Horizontal({play | flex, spacedRen, spacedDel}));
         }
 
         InputOption inOpt;
@@ -98,13 +103,13 @@ std::string pickProfile(Profiles& profiles) {
         inOpt.multiline = false;
         inOpt.on_enter = create;
         input = Input(&newName, inOpt);
-        Component createBtn = Btn([&renaming] { return renaming >= 0 ? std::string("Rename") : std::string("Create"); }, create);
-        Component importBtn = Btn("Import my old save", [&] {
+        Component createBtn = FlatBtn([&renaming] { return renaming >= 0 ? std::string("rename") : std::string("create"); }, create);
+        Component importBtn = FlatBtn([] { return std::string("import my old save"); }, [&] {
             std::string name = trim(newName).empty() ? "Default" : newName, why;
             if (profiles.importLegacy(name, why)) finish(profiles.find(name));
             else { message = why; messageColor = hue(Hue::Warn); }
         });
-        Component quitBtn = Btn("Quit", [&] { screen.Exit(); });
+        Component quitBtn = FlatBtn([] { return std::string("quit"); }, [&] { screen.Exit(); });
 
         Components bottom = {input, createBtn};
         if (legacy) bottom.push_back(importBtn);
@@ -115,13 +120,16 @@ std::string pickProfile(Profiles& profiles) {
             for (const Component& r : rows) lines.push_back(r->Render());
             if (rows.empty()) lines.push_back(text("   No profiles yet. Make one below.") | muted());
 
-            Elements newRow = {text(renaming >= 0 ? " Rename " + list[(size_t)renaming].name + " to: " : " New: "),
-                               input->Render() | size(WIDTH, EQUAL, 26) | borderLight, text(" "),
-                               createBtn->Render() | vcenter};
-            if (legacy) { newRow.push_back(text("  ")); newRow.push_back(importBtn->Render() | vcenter); }
+            // The name box: a soft panel color, a little lighter while it has the keyboard.
+            Element box = input->Render() | size(WIDTH, EQUAL, 26) |
+                          bgcolor(input->Focused() ? hue(Hue::ButtonOff) : hue(Hue::Panel));
+            Elements newRow = {text(renaming >= 0 ? "   rename " + list[(size_t)renaming].name + " to  " : "   new profile  ") | muted(),
+                               box, text("   "), createBtn->Render()};
+            if (legacy) { newRow.push_back(text("   ")); newRow.push_back(importBtn->Render()); }
 
             Elements body = {
-                text(" Choose a profile") | bold | color(hue(Hue::Accent)),
+                text(""),
+                text("   Choose a profile") | color(hue(Hue::Accent)),
                 text(""),
                 vbox(lines),
                 text(""),
@@ -131,11 +139,12 @@ std::string pickProfile(Profiles& profiles) {
                 body.push_back(text(" Found a save from before profiles: " + Profiles::legacySave().string() +
                                     ". Type a name (or leave it empty for \"Default\") and import it.") | muted());
             body.push_back(text(""));
-            body.push_back(text(" " + message) | color(messageColor));
+            body.push_back(text("   " + message) | color(messageColor));
             body.push_back(filler());
-            body.push_back(hbox({quitBtn->Render(), text("   Click a profile to play. Saves live in " +
-                                                          profiles.folder().string()) | muted()}));
-            return window(text(" TokenRush ") | bold | color(hue(Hue::Tokens)), vbox(body));
+            body.push_back(hbox({text("   "), quitBtn->Render(), text("     click a profile, or pick one with the arrows and Enter") | muted()}));
+            body.push_back(text("   saves live in " + profiles.folder().string()) | muted());
+            body.push_back(text(""));
+            return window(text(" TokenRush ") | color(hue(Hue::Tokens)), vbox(body)) | color(hue(Hue::Muted));
         });
 
         if (rows.empty()) input->TakeFocus();   // nothing to pick yet: start in the name box
