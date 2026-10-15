@@ -54,6 +54,7 @@ const TabDef TABS[] = {
     {"Console", -1},   // always last; ':' opens it from anywhere
 };
 constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
+constexpr int SHOP_PAGE = 1;   // where theme previews live
 
 Element statusBar(const tui::Ui& ui) {
     const GameState& g = ui.snap;
@@ -230,6 +231,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     // The offer and danger bars come last in the focus order, so one showing up never moves the
     // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
     Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar, dangerBar}), [&] {
+        if (ui.page != SHOP_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Shop tab
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
         // On the Console, the typing line always has the keyboard.

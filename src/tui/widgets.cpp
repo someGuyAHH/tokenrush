@@ -23,8 +23,8 @@ void Ui::snapshot() {
         snap = s.g;
         snapTime = nowSec();
     }
-    useTheme(snap.themeSel);
-    setTheme(snap.themeSel);   // the Console tab prints through the shell, which keeps its own copy
+    useTheme(previewTheme >= 0 ? previewTheme : snap.themeSel);   // a theme being previewed in the Shop wins
+    setTheme(snap.themeSel);   // the Console tab prints through the shell, which keeps its own copy (never a preview)
 }
 
 void Ui::run(const std::function<Notes(GameState&)>& action) {

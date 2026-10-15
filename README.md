@@ -68,7 +68,8 @@ last 50 bad-news messages.
 
 **Themes:** `theme` lists them, each with a preview line in its own colors. Classic (your
 terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with
-shards. A theme belongs to the profile. Every theme but Classic is 24-bit color
+shards; on the Shop tab, hovering a theme previews the whole screen in it. A theme belongs to
+the profile. Every theme but Classic is 24-bit color
 (`ESC[38;2;r;g;bm`), with its own background in the TUI.
 
 ## What's in the game
