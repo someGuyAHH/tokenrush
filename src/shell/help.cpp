@@ -73,7 +73,8 @@ const std::vector<CommandInfo>& commands() {
          {"stats", "goals"}, -1, PLAYING},
         {Cmd::Yes, {"yes", "y"}, "yes", "Say yes to the offer on the table",
          {"Every 10 to 15 minutes someone makes you an offer: a shady broker, an investor, a rival miner, a crew "
-          "member who wants a raise, an auditor who can be bribed. It shows up in the log with what it costs.",
+          "member who wants a raise, an auditor who can be bribed, a dealer with a curio no shop sells. It shows up "
+          "in the log with what it costs.",
           "You have 45 seconds to answer. If the price has moved since (say you spent the tokens), the deal is off."},
          {{"yes", "accept the open offer"}, {"y", "the same"}},
          {"no", "status"}, -1, PLAYING},
@@ -196,7 +197,12 @@ const std::vector<CommandInfo>& commands() {
         // ----- Spending -----
         {Cmd::Curios, {"curios", "c"}, "curios [n]", "Buy collectibles for your shelf",
          {"Curios are collectibles in sets. They don't make you richer: owning them, and completing sets, is for "
-          "goals and for the shelf. With no number this opens the shelf menu; with a number it buys that curio."},
+          "goals and for the shelf. With no number this opens the shelf menu; with a number it buys that curio.",
+          "The first three sets (Desk Toys, Relics, Impossible Things) are in the shop, priced from the early game to "
+          "the very late one. The fourth, Under the Counter, isn't sold anywhere: now and then the Curio Dealer offers "
+          "one (at half again what it's worth), and a crew expedition can turn one up.",
+          "The shelf also keeps your keepsakes: things crew members leave behind when they quit, or give you when they "
+          "earn their third star."},
          {{"curios", "open the shelf"}, {"curios 3", "buy curio 3"}},
          {"goals"}, CURIOS, SPENDING},
         {Cmd::Prompt, {"prompt"}, "prompt [n] | prompt custom <text>", "Buy or switch prompt styles, or make your own",
@@ -239,7 +245,9 @@ const std::vector<CommandInfo>& commands() {
          {"Goals are milestones: mine so many times, earn so much, finish the Monolith... Each one earns renown, "
           "renown earns titles, and titles open the rest of the game (the Market, Contracts, the Crew and more). "
           "Once a feature is open it stays open.",
-          "Goals for features you haven't opened yet say which title opens them."},
+          "Goals for features you haven't opened yet say which title opens them.",
+          "Secret goals are listed with only a hint until you find them, usually by doing something odd. They pay "
+          "shards instead of renown, so they never stand between you and a title."},
          {{"goals", "show goals and titles"}, {"g", "the same"}},
          {"stats", "status"}, -1, PROGRESS},
         {Cmd::Stats, {"stats", "st"}, "stats", "Your records, where your income comes from, and a chart",
@@ -247,7 +255,8 @@ const std::vector<CommandInfo>& commands() {
           "crew), play time and when you reached each title.",
           "Income by source splits everything you've earned between mining by hand, Drones, the Mining Bot, the crew, "
           "contracts and offers, both all time and over the last few seconds.",
-          "The chart is everything you've earned over your play time, on a log scale, with a point every 5 minutes."},
+          "The chart is everything you've earned over your play time, on a log scale, with a point every 5 minutes.",
+          "Former crew lists the last people who left, and how: quit unpaid, or fired."},
          {{"stats", "show them"}, {"st", "the same"}},
          {"status", "market"}, -1, PROGRESS},
         {Cmd::Log, {"log"}, "log [n] [good|bad|warn|event|info]", "Earlier background messages, optionally filtered",

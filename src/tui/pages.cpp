@@ -479,7 +479,7 @@ Component CuriosPage(Ui& ui) {
     for (int i = 0; i < CURIO_COUNT; ++i) {
         Component b = Btn("Buy", [&ui, i] { ui.run([i](GameState& g) { return buyCurio(g, i); }); },
                           [&ui, i] { return ui.snap.tokens >= CURIOS[i].cost; });
-        buys.push_back(Maybe(b, [&ui, i] { return !hasBit(ui.snap.curiosOwned, i); }));
+        buys.push_back(Maybe(b, [&ui, i] { return inShop(i) && !hasBit(ui.snap.curiosOwned, i); }));
     }
     Component box = Container::Vertical(buys);
 
@@ -490,12 +490,19 @@ Component CuriosPage(Ui& ui) {
         for (int i = 0; i < CURIO_COUNT; ++i) {
             const CurioInfo& c = CURIOS[i];
             bool owned = hasBit(g.curiosOwned, i);
-            Element right = owned ? text("\"" + std::string(c.flavor) + "\"") | muted() | color(hue(Hue::Good)) | flex
-                                  : hbox({tokens(c.cost) | size(WIDTH, EQUAL, 13), buys[(size_t)i]->Render(), filler()}) | flex;
+            Element right = owned       ? text("\"" + std::string(c.flavor) + "\"") | muted() | color(hue(Hue::Good)) | flex
+                          : inShop(i)   ? hbox({tokens(c.cost) | size(WIDTH, EQUAL, 13), buys[(size_t)i]->Render(), filler()}) | flex
+                                        : text("not in any shop: the Curio Dealer, or a lucky expedition") | muted() | flex;
             rows.push_back(hbox({cell(owned ? "[x]" : "[ ]", 4) | color(pick(owned, hue(Hue::Good), hue(Hue::Text))),
-                                 cell(c.name, 26) | (owned ? bold : nothing), cell(CURIO_SETS[c.set], 19) | muted(), right}));
+                                 cell(owned || inShop(i) ? c.name : "???", 28) | (owned ? bold : nothing), cell(CURIO_SETS[c.set], 19) | muted(), right}));
         }
-        return vbox(rows);
+        if (!g.keepsakes.empty()) {
+            rows.push_back(text(""));
+            rows.push_back(hbox({heading("Keepsakes"), text("   left by your crew") | muted()}));
+            for (const Keepsake& k : g.keepsakes)
+                rows.push_back(hbox({text("    "), cell(k.item, 44) | color(hue(Hue::Tokens)), text(k.why) | muted()}));
+        }
+        return vbox(rows) | yframe;
     });
 }
 
@@ -658,6 +665,19 @@ Component GoalsPage(Ui& ui) {
             if (i == ui.goalSelected) row = row | focus | (focused ? inverted : nothing);
             rows.push_back(row);
         }
+        // Secret goals, under the others: a hint until found.
+        rows.push_back(text(""));
+        rows.push_back(hbox({heading("Secret goals"), text("   " + std::to_string(std::popcount(g.secretsDone)) + "/" + std::to_string(SECRET_COUNT) +
+                                                            " found; they pay shards, not renown") | muted()}));
+        for (int i = 0; i < SECRET_COUNT; ++i) {
+            const SecretGoal& sg = SECRETS[i];
+            bool done = hasBit(g.secretsDone, i);
+            Element row = done ? hbox({cell("[x]", 4), cell(sg.name, 22) | bold, cell(sg.desc, 58), text("+" + std::to_string(sg.shards) + " sh")}) | color(hue(Hue::Good))
+                               : hbox({cell("[?]", 4), cell("???", 22), text(sg.hint)}) | muted();
+            int at = GOAL_COUNT + i;   // the selection runs on through the secrets
+            if (at == ui.goalSelected) row = row | focus | (focused ? inverted : nothing);
+            rows.push_back(row);
+        }
         std::string next = ti + 1 < TITLE_COUNT ? "   next: " + std::string(TITLES[ti + 1].name) + " at " + std::to_string(TITLES[ti + 1].renown) : "";
         Element goals = vbox(rows) | vscroll_indicator | yframe | flex;
         if (Terminal::Size().dimx >= 125) goals = hbox({goals, text("   "), titleLadder(renown)});
@@ -672,7 +692,7 @@ Component GoalsPage(Ui& ui) {
         if (e == Event::ArrowDown || (e.is_mouse() && e.mouse().button == Mouse::WheelDown)) ++ui.goalSelected;
         else if (e == Event::ArrowUp || (e.is_mouse() && e.mouse().button == Mouse::WheelUp)) --ui.goalSelected;
         else return false;
-        ui.goalSelected = std::clamp(ui.goalSelected, 0, GOAL_COUNT - 1);
+        ui.goalSelected = std::clamp(ui.goalSelected, 0, GOAL_COUNT + SECRET_COUNT - 1);
         return ui.goalSelected != before;   // at the ends, let the arrow move focus out of the list
     });
 }
@@ -743,6 +763,16 @@ Component StatsPage(Ui& ui) {
         Elements time = {heading("Time"), row("Played", plain(playTime(g.playSeconds)))};
         int ti = titleIndex(renownOf(g));
         for (int t = 1; t <= ti; ++t) time.push_back(row(TITLES[t].name, plain("at " + playTime(g.titleReachedAt[t]))));
+        if (!g.formerCrew.empty()) {
+            time.push_back(text(""));
+            time.push_back(hbox({heading("Former crew"), text("  " + std::to_string(g.formerCrew.size())) | muted()}));
+            size_t from = g.formerCrew.size() > 6 ? g.formerCrew.size() - 6 : 0;
+            for (size_t i = g.formerCrew.size(); i-- > from;) {
+                const FormerCrew& c = g.formerCrew[i];
+                time.push_back(hbox({cell(c.name, 8) | bold, cell(std::string(ROLES[(int)c.role].name) + " L" + std::to_string(c.level), 11),
+                                     text(c.how) | muted()}));
+            }
+        }
 
         int width = std::max(20, Terminal::Size().dimx - 12);
         int height = std::clamp(Terminal::Size().dimy - 32, 3, 14);

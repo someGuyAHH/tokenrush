@@ -6,6 +6,7 @@
 //   Rival Miner        bet 5% of your tokens you can out-mine them in 60 seconds
 //   Raise Request      a crew member wants a raise           (Crew open)
 //   Bribe the Auditor  pay to make 2 heat go away            (heat 3+)
+//   Curio Dealer       a curio no shop sells, at 1.5x what it's worth   (Curios open)
 //
 // They're rare (one every 10-15 minutes), never stack, and expire after CHOICE_SECONDS.
 // Letting one expire is the same as saying no, except nobody takes it personally.
@@ -21,6 +22,8 @@ inline constexpr int CHOICE_EVERY_MAX = 900;
 inline constexpr int INVEST_SECONDS   = 600;
 inline constexpr int RACE_SECONDS     = 60;
 inline constexpr long long RACE_MINES = 40;
+inline constexpr double DEALER_MARKUP = 1.5;
+long long dealerPrice(int curio);
 
 void choicesTick(GameState& g, MessageLog& log, std::mt19937& rng);   // once per second
 void checkRace(GameState& g, MessageLog& log);                         // after mining: did you just win?

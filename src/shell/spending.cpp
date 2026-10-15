@@ -119,14 +119,20 @@ void doCurios(Shared& s, const std::string& arg) {
             out() << "\n" << paint(Style::Header, "=== CURIOS ===") << "  Tokens: " << paint(Style::Tokens, num(g.tokens))
                       << "   Shelf: " << std::popcount(g.curiosOwned) << "/" << CURIO_COUNT << "\n";
             for (int set = 0; set < CURIO_SET_COUNT; ++set) {
-                out() << paint(Style::Bold, CURIO_SETS[set]) << "\n";
+                out() << paint(Style::Bold, CURIO_SETS[set]) << (set == DEALER_SET ? paint(Style::Muted, "   not in any shop: the Curio Dealer, or a lucky expedition") : "") << "\n";
                 for (int i = 0; i < CURIO_COUNT; ++i) {
                     if (CURIOS[i].set != set) continue;
                     bool owned = hasBit(g.curiosOwned, i);
-                    std::string row = padLeft(std::to_string(i + 1), 2) + ") " + (owned ? "[x] " : "[ ] ") + padRight(CURIOS[i].name, 25);
-                    if (owned) out() << "  " << paint(Style::Good, row) << paint(Style::Muted, std::string("\"") + CURIOS[i].flavor + "\"") << "\n";
-                    else       out() << "  " << row << padLeft(num(CURIOS[i].cost), 11) << "\n";
+                    std::string row = padLeft(std::to_string(i + 1), 2) + ") " + (owned ? "[x] " : "[ ] ") + padRight(owned || inShop(i) ? CURIOS[i].name : "???", 27);
+                    if (owned)           out() << "  " << paint(Style::Good, row) << paint(Style::Muted, std::string("\"") + CURIOS[i].flavor + "\"") << "\n";
+                    else if (inShop(i))  out() << "  " << row << padLeft(num(CURIOS[i].cost), 11) << "\n";
+                    else                 out() << "  " << paint(Style::Muted, row) << "\n";
                 }
+            }
+            if (!g.keepsakes.empty()) {
+                out() << paint(Style::Bold, "Keepsakes") << paint(Style::Muted, "   left by your crew") << "\n";
+                for (const Keepsake& k : g.keepsakes)
+                    out() << "  " << padRight(k.item, 42) << paint(Style::Muted, k.why) << "\n";
             }
             out() << "Buy which? (number, 0 to go back)\n> " << std::flush;
         } // unlock before waiting on input

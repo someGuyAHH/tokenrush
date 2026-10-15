@@ -39,6 +39,9 @@ MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
     r.gain = toTokens((double)gain * fx.mining);
 
     earn(g, r.gain, Source::Mining);
+    if (r.gain == 777) spotSecret(g, Secret::LuckySevens);
+    if (r.jackpot && activeEvent(g, t) == EV_GOLDRUSH) spotSecret(g, Secret::GoldenHour);
+    if (localHour(t) == 3) spotSecret(g, Secret::WitchingHour);
     g.contractStreak = std::min(g.contractStreak, (long long)g.streak);   // follows the streak down if it broke
     g.streak += 1;
     g.contractStreak += 1;
@@ -116,8 +119,10 @@ Notes buyCurio(GameState& g, int idx) {
     if (idx < 0 || idx >= CURIO_COUNT) return {{Sev::Warn, "No such curio."}};
     const CurioInfo& c = CURIOS[idx];
     if (hasBit(g.curiosOwned, idx)) return {{Sev::Info, "Already on your shelf."}};
+    if (!inShop(idx)) return {{Sev::Info, "That one isn't sold in any shop. Maybe someone will offer it to you one day."}};
     if (g.tokens < c.cost) return {{Sev::Warn, "Not enough tokens."}};
 
+    if (g.curiosOwned == 0 && idx == 0) spotSecret(g, Secret::RubberDuck);
     g.tokens -= c.cost;
     g.curiosOwned |= (1u << idx);
     Notes out{{Sev::Good, std::string("You bought the ") + c.name + ". \"" + c.flavor + "\""}};

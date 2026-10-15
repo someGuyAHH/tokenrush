@@ -266,6 +266,67 @@ void addCrewFields(std::vector<Field>& fields) {
     }
 }
 
+// "a ; b ; c" -> {"a", "b", "c"}
+std::vector<std::string> splitFields(const std::string& text) {
+    std::vector<std::string> out;
+    std::stringstream ss(text);
+    std::string item;
+    while (std::getline(ss, item, ';')) out.push_back(trim(item));
+    return out;
+}
+
+int roleOf(const std::string& id) {
+    for (int r = 0; r < ROLE_COUNT; ++r) if (lower(id) == ROLES[r].id) return r;
+    return -1;
+}
+
+// The shelf's keepsakes and the Stats tab's former crew: one line each, "[keepsakes] 1 = ...".
+void addPeopleFields(std::vector<Field>& fields) {
+    for (size_t i = 0; i < KEEPSAKE_MAX; ++i) {
+        fields.push_back(Field{
+            "keepsakes", std::to_string(i + 1),
+            [i](const GameState& g) {
+                const Keepsake& k = g.keepsakes[i];
+                return k.item + " ; " + k.from + " ; " + ROLES[(int)k.role].id + " ; " + k.why + " ; " + std::to_string(k.at);
+            },
+            [i](GameState& g, const std::string& text) {
+                std::vector<std::string> p = splitFields(text);
+                Keepsake k;
+                int role = p.size() == 5 ? roleOf(p[2]) : -1;
+                if (role < 0 || p[0].empty() || p[0].size() > 80 || !parseNumber(p[4], k.at)) return false;
+                k.item = p[0]; k.from = p[1]; k.role = (Role)role; k.why = p[3];
+                if (g.keepsakes.size() <= i) g.keepsakes.resize(i + 1);
+                g.keepsakes[i] = k;
+                return true;
+            },
+            [i](const GameState& g) { return i < g.keepsakes.size(); }});
+    }
+    for (size_t i = 0; i < FORMER_CREW_MAX; ++i) {
+        fields.push_back(Field{
+            "formercrew", std::to_string(i + 1),
+            [i](const GameState& g) {
+                const FormerCrew& c = g.formerCrew[i];
+                return c.name + " ; " + ROLES[(int)c.role].id + " ; " + std::to_string(c.level) + " ; " + std::to_string(c.stars) + " ; " +
+                       TRAITS[(int)c.trait].id + " ; " + c.how + " ; " + std::to_string(c.at);
+            },
+            [i](GameState& g, const std::string& text) {
+                std::vector<std::string> p = splitFields(text);
+                FormerCrew c;
+                int role = p.size() == 7 ? roleOf(p[1]) : -1;
+                int trait = -1;
+                for (int t = 0; role >= 0 && t < TRAIT_COUNT; ++t) if (lower(p[4]) == TRAITS[t].id) trait = t;
+                if (role < 0 || trait < 0 || p[0].empty() || !parseNumber(p[2], c.level) || !parseNumber(p[3], c.stars) ||
+                    !parseNumber(p[6], c.at))
+                    return false;
+                c.name = p[0]; c.role = (Role)role; c.trait = (Trait)trait; c.how = p[5];
+                if (g.formerCrew.size() <= i) g.formerCrew.resize(i + 1);
+                g.formerCrew[i] = c;
+                return true;
+            },
+            [i](const GameState& g) { return i < g.formerCrew.size(); }});
+    }
+}
+
 // Seconds of play when each title was reached: "0, 312, 1800, -1, 0..." (-1 = reached before
 // this was recorded, 0 = not yet, except for the first title).
 Field titleTimesField() {
@@ -438,6 +499,9 @@ const std::vector<Field>& saveFields() {
 
         maskField("progress", "goalsDone",   &GameState::goalsDone,   GOAL_COUNT,
                   [](int i) { return GOALS[i].name; }),
+        maskField("progress", "secretsDone", &GameState::secretsDone, SECRET_COUNT,
+                  [](int i) { return SECRETS[i].id; }),
+        numField("progress", "refusedInRow", &GameState::refusedInRow, 0, 1'000'000),
         maskField("progress", "unlocked",    &GameState::unlocked,    FEATURE_COUNT,
                   [](int i) { return FEATURES[i].id; }),
         maskField("progress", "curiosOwned", &GameState::curiosOwned, CURIO_COUNT,
@@ -510,6 +574,7 @@ const std::vector<Field>& saveFields() {
         f.push_back(boolAt("investment", "scam", [](GameState& g) -> bool& { return g.investment.scam; }, investing));
         addCrewFields(f);
         addContractFields(f);
+        addPeopleFields(f);
         return f;
     }();
     return fields;
@@ -590,8 +655,11 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
     g.autoOn = g.autoOn && g.autoUnlocked;
     if (!themeOwned(g, g.themeSel)) g.themeSel = 0;          // a hand-edited theme you never bought
 
-    // Crew slots that were only half-written (say, [crew.3] with no name) are dropped.
+    // Crew slots that were only half-written (say, [crew.3] with no name) are dropped, and so are
+    // gaps in the keepsake and former crew lists (a hand-edited file that skips a number).
     std::erase_if(g.crew, [](const CrewMember& c) { return c.name.empty(); });
+    std::erase_if(g.keepsakes, [](const Keepsake& k) { return k.item.empty(); });
+    std::erase_if(g.formerCrew, [](const FormerCrew& c) { return c.name.empty(); });
 
     for (Contract& c : g.contracts)
         if (c.secondsLeft <= 0) c.secondsLeft = 1;   // fails on the next tick

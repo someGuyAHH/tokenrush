@@ -10,6 +10,7 @@
 #include <vector>
 
 std::time_t nowSec();
+int localHour(std::time_t t);   // 0-23 on the player's clock (thread-safe, unlike std::localtime)
 unsigned makeSeed();
 
 std::string lower(std::string s);

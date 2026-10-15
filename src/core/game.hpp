@@ -82,7 +82,8 @@ void resetGame(GameState& g, std::time_t t);   // 'wipe': everything back to the
 long long statValue(const GameState& g, Stat st);
 int renownOf(const GameState& g);
 int titleIndex(int renown);
-void checkGoals(GameState& g, MessageLog& log);   // also records title times and cures an infection
+void checkGoals(GameState& g, MessageLog& log);   // also records title times, cures an infection and pays secret goals
+void spotSecret(GameState& g, Secret s);          // an action saw a secret goal happen; checkGoals pays it
 
 // ----- Stats and history -----
 inline constexpr int STATS_EVERY = 300;   // play seconds between chart samples

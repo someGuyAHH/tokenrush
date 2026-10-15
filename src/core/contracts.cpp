@@ -346,6 +346,7 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     g.shards += c.rewardShards + c.stake;
     g.contractsDone += 1;
 
+    if (c.big && g.heat >= 8) spotSecret(g, Secret::GlassCannon);
     std::string msg = "CONTRACT DONE for " + std::string(CLIENTS[c.client].name) + ": " + contractText(c) + ". +" +
                       num(c.rewardTokens) + " tokens, +" + count(c.rewardShards, "shard");
     if (c.stake > 0) msg += ", stake returned";

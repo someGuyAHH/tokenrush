@@ -7,18 +7,23 @@
 #include <vector>
 
 // ----- Events -----
-enum EventId : int { EV_NONE = 0, EV_METEOR = 1, EV_OVERCLOCK = 2, EV_GOLDRUSH = 3, EV_COUNT = 4 };
+enum EventId : int { EV_NONE = 0, EV_METEOR = 1, EV_OVERCLOCK = 2, EV_GOLDRUSH = 3, EV_PAYDAY = 4, EV_COUNT = 5 };
 
 struct EventInfo { const char* name; const char* desc; int duration; };
 extern const EventInfo EVENTS[];   // indexed by EventId
 
-struct EventFx { double mining = 1.0, passive = 1.0, odds = 1.0; };
+struct EventFx { double mining = 1.0, passive = 1.0, odds = 1.0, crew = 1.0; };
 EventFx eventFx(int ev);
 
 // ----- Curios (collectibles, pure flex) -----
-inline constexpr int CURIO_SET_COUNT = 3;
-inline constexpr int CURIO_COUNT = 12;
+// The first three sets are in the shop. The last one, Under the Counter, isn't: those come from
+// the Curio Dealer (an offer) or turn up on crew expeditions, and cost is what they're worth.
+inline constexpr int CURIO_SET_COUNT = 4;
+inline constexpr int CURIO_COUNT = 16;
+inline constexpr int SHOP_CURIO_COUNT = 12;        // CURIOS[0..11] are in the shop
+inline constexpr int DEALER_SET = 3;
 struct CurioInfo { const char* name; int set; long long cost; const char* flavor; };
+inline bool inShop(int curio) { return curio < SHOP_CURIO_COUNT; }
 extern const char* const CURIO_SETS[];
 extern const CurioInfo CURIOS[];
 
@@ -88,10 +93,21 @@ enum class Stat {
     Lifetime, ManualMines, Jackpots, BestStreak, BotTotal,
     EventsSeen, CuriosOwned, MonolithStage, UpgradeLevels, PlayMinutes,
     ShardsTraded, ContractsDone, CrewHired, CrewMined, OrreryStage, CrewSize,
-    BestStanding,
+    BestStanding, ShopCurios,
 };
 
 struct Goal { const char* name; const char* desc; Stat stat; long long target; int renown; };
+
+// Secret goals: hidden until you stumble into them (only a hint shows), and they pay shards
+// instead of renown, so they never stand between you and a title.
+enum class Secret : int {
+    RubberDuck, ColdFeet, WitchingHour, LuckySevens, WellRested, GlassCannon, GoldenHour, Hoard,
+    Overkill, CleanHands, Speedrun, DownToZero, LoyalToAFault, UnderTheCounter, Firefighter, Count,
+};
+inline constexpr int SECRET_COUNT = (int)Secret::Count;
+static_assert(SECRET_COUNT <= 32, "GameState::secretsDone is a 32-bit mask");
+struct SecretGoal { const char* id; const char* name; const char* hint; const char* desc; long long shards; };
+extern const SecretGoal SECRETS[];   // indexed by Secret
 inline constexpr int GOAL_COUNT = 27;
 static_assert(GOAL_COUNT <= 32, "GameState::goalsDone is a 32-bit mask");
 extern const Goal GOALS[];

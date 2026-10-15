@@ -3,15 +3,16 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 #include "choices.hpp"
 #include "contracts.hpp"
+#include "crew.hpp"
 #include "game.hpp"
 #include "util.hpp"
 
 void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
-    std::uniform_int_distribution<int> pickEvent(1, EV_COUNT - 1);
 
     updatePassive(g, t);
     g.playSeconds += 1;
@@ -27,12 +28,19 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
         g.event = EV_NONE;
         g.eventEnds = 0;
     } else if (g.event == EV_NONE && uni(rng) < EVENT_CHANCE_PER_SEC) {
-        int e = pickEvent(rng);
+        std::vector<int> pool = {EV_METEOR, EV_OVERCLOCK, EV_GOLDRUSH};
+        if (isUnlocked(g, Feature::Crew) && !g.crew.empty()) pool.push_back(EV_PAYDAY);   // needs someone to rush
+        int e = pool[std::uniform_int_distribution<size_t>(0, pool.size() - 1)(rng)];
         g.event = e;
         g.eventEnds = t + EVENTS[e].duration;
         g.eventsSeen += 1;
+        std::string extra;
+        if (e == EV_PAYDAY) {   // ...and they want paying when it's over
+            g.paydayClock = std::min(g.paydayClock, EVENTS[e].duration);
+            extra = " Payday is in " + duration(g.paydayClock) + ": have " + count(totalWages(g), "shard") + " ready.";
+        }
         log.push(Sev::Event, std::string("EVENT: ") + EVENTS[e].name + " for " +
-                             std::to_string(EVENTS[e].duration) + "s! (" + EVENTS[e].desc + ")");
+                             std::to_string(EVENTS[e].duration) + "s! (" + EVENTS[e].desc + ")" + extra);
     }
 
     if (infected(g, Strain::Leech) && g.playSeconds % 300 == 150 && g.tokens >= 100) {

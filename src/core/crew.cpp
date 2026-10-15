@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <string>
 
 #include "game.hpp"
@@ -42,6 +43,27 @@ void refreshCandidates(GameState& g, std::mt19937& rng) {
     g.candidateClock = CANDIDATE_REFRESH;
 }
 
+// Someone left: the Stats tab remembers them.
+void remember(GameState& g, const CrewMember& c, const std::string& how) {
+    g.formerCrew.push_back({c.name, c.role, c.level, c.stars, c.trait, how, g.playSeconds});
+    if (g.formerCrew.size() > FORMER_CREW_MAX) g.formerCrew.erase(g.formerCrew.begin());
+}
+
+// A keepsake for the shelf, picked by who they are (the same person always leaves the same thing).
+std::string leaveKeepsake(GameState& g, const CrewMember& c, const std::string& why) {
+    static const char* const items[ROLE_COUNT][6] = {
+        {"Lucky Wrench", "Dented Helmet", "Lamp That Never Dies", "Notched Pickaxe Handle", "Lump of Fool's Gold", "Coffee-Stained Map of the Mine"},
+        {"Battered Ledger", "Pen That Only Writes Numbers", "Ticker-Tape Bracelet", "Lucky Calculator", "Very Firm Handshake (Framed)", "Rubber Stamp: SOLD"},
+        {"Compass That Points at Shards", "Boots Full of Sand", "Pocket Telescope", "Map With One X on It", "Jar of Interesting Pebbles", "Well-Chewed Pencil"},
+        {"Burner Phone", "Fake Mustache", "Envelope (Empty Now)", "Little Black Book", "Spare Set of Fingerprints", "Business Card: 'A Friend'"},
+    };
+    size_t pick = std::hash<std::string>{}(c.name + ROLES[(int)c.role].id) % 6;
+    std::string item = c.name + "'s " + items[(int)c.role][pick];
+    g.keepsakes.push_back({item, c.name, c.role, why, g.playSeconds});
+    if (g.keepsakes.size() > KEEPSAKE_MAX) g.keepsakes.erase(g.keepsakes.begin());
+    return item;
+}
+
 void payday(GameState& g, MessageLog& log) {
     long long paid = 0;
     std::vector<CrewMember> stayed;
@@ -55,9 +77,12 @@ void payday(GameState& g, MessageLog& log) {
         } else if (c.trait == Trait::Loyal && !c.missedPay) {
             c.missedPay = true;
             log.push(Sev::Warn, who(c) + " wasn't paid, but is staying out of loyalty. Next time they walk.");
+            spotSecret(g, Secret::LoyalToAFault);
             stayed.push_back(c);
         } else {
-            log.push(Sev::Bad, who(c) + " wasn't paid and quit.");
+            remember(g, c, "quit (unpaid)");
+            std::string item = leaveKeepsake(g, c, "quit when you couldn't pay");
+            log.push(Sev::Bad, who(c) + " wasn't paid and quit. They left something behind: " + item + " (on your shelf).");
         }
     }
     g.crew = std::move(stayed);
@@ -83,7 +108,7 @@ double effectiveLevel(const GameState& g, const CrewMember& c) {
         default: break;
     }
     if (c.sulk > 0) e *= 0.5;
-    return e;
+    return e * fxNow(g, g.lastUpdate).crew;   // a Payday Rush doubles everyone
 }
 
 double roleLevels(const GameState& g, Role r) {
@@ -176,6 +201,7 @@ Notes fire(GameState& g, int idx) {
     if (idx < 0 || idx >= (int)g.crew.size()) return {{Sev::Warn, "No such crew member."}};
     CrewMember c = g.crew[(size_t)idx];
     g.crew.erase(g.crew.begin() + idx);
+    remember(g, c, "fired");
     return {{Sev::Info, who(c) + " packed up and left."}};
 }
 
@@ -209,10 +235,17 @@ Notes promote(GameState& g, int idx) {
 
     g.shards -= cost;
     c.stars += 1;
-    return {{Sev::Good, who(c) + " was promoted to " + std::string((size_t)c.stars, '*') + " (" + std::to_string(c.stars) +
+    Notes extra;
+    if (c.stars == 3) {
+        std::string item = leaveKeepsake(g, c, "a thank-you for their third star");
+        extra.push_back({Sev::Event, c.name + " is so proud of their third star they gave you something: " + item + " (on your shelf)."});
+    }
+    Notes out = {{Sev::Good, who(c) + " was promoted to " + std::string((size_t)c.stars, '*') + " (" + std::to_string(c.stars) +
                         (c.stars == 1 ? " star" : " stars") + "): level cap " + std::to_string(levelCap(g, c)) + ", every level worth +" +
                         std::to_string((int)std::lround(100 * PROMO_EFFECT * c.stars)) + "%. Next promotion: " +
                         num(promoteCost(c)) + " shards."}};
+    out.insert(out.end(), extra.begin(), extra.end());
+    return out;
 }
 
 void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {

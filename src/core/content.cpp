@@ -9,6 +9,7 @@ const EventInfo EVENTS[] = {
     {"Meteor Shower",   "2x mining yield (you and the bot)", 30},
     {"Drone Overclock", "3x passive income",                 45},
     {"Gold Rush",       "2x bonus/jackpot odds",             20},
+    {"Payday Rush",     "your crew works twice as hard, but wants paying when it ends", 60},
 };
 static_assert(std::size(EVENTS) == EV_COUNT);
 
@@ -18,13 +19,14 @@ EventFx eventFx(int ev) {
         case EV_METEOR:    fx.mining  = 2.0; break;
         case EV_OVERCLOCK: fx.passive = 3.0; break;
         case EV_GOLDRUSH:  fx.odds    = 2.0; break;
+        case EV_PAYDAY:    fx.crew    = 2.0; break;
         default:           break; // EV_NONE (and anything corrupt) has no effect
     }
     return fx;
 }
 
 // ----- Curios -----
-const char* const CURIO_SETS[] = {"Desk Toys", "Relics", "Impossible Things"};
+const char* const CURIO_SETS[] = {"Desk Toys", "Relics", "Impossible Things", "Under the Counter"};
 static_assert(std::size(CURIO_SETS) == CURIO_SET_COUNT);
 
 const CurioInfo CURIOS[] = {
@@ -43,6 +45,11 @@ const CurioInfo CURIOS[] = {
     {"Jar of Fog from Day One",  2,      80'000'000, "Smells like the beginning."},
     {"A Spare Moon",             2,     250'000'000, "In case the first one breaks."},
     {"The Last Token",           2,     750'000'000, "There will never be another. (There will. Shh.)"},
+    // Under the Counter: never in the shop (the Curio Dealer sells them at 1.5x this, or a crew expedition finds one)
+    {"A Map of Nowhere",         3,       2'000'000, "Every road on it is real. None of them go anywhere."},
+    {"Jar of Someone Else's Luck", 3,    20'000'000, "Slightly used. Still works. Mostly."},
+    {"Receipt for a Moon",       3,     200'000'000, "Non-refundable. They checked."},
+    {"A Token From Tomorrow",    3,   1'500'000'000, "It's already worth less."},
 };
 static_assert(std::size(CURIOS) == CURIO_COUNT);
 
@@ -215,7 +222,7 @@ constexpr Goal GOALS[] = {
     {"Shard Baron",    "Trade 5,000 shards",                Stat::ShardsTraded,  5'000,  4},
     {"Industrialist",  "Own 75 upgrade levels in total",    Stat::UpgradeLevels,    75,  4},
     {"Grinder",        "Mine 1,000 times",                  Stat::ManualMines,   1'000,  4},
-    {"Curator",        "Own every curio",                   Stat::CuriosOwned, CURIO_COUNT, 5},
+    {"Curator",        "Own every curio in the shop",       Stat::ShopCurios, SHOP_CURIO_COUNT, 5},
     {"Tycoon",         "Earn 1,000,000 tokens in total",    Stat::Lifetime,  1'000'000,  6},
     {"Architect",      "Complete the Monolith",             Stat::MonolithStage, MONO_STAGE_COUNT, 10},
     {"Market Maker",   "Trade 500 shards",                  Stat::ShardsTraded,    500,  2},
@@ -229,6 +236,26 @@ constexpr Goal GOALS[] = {
     {"Regular",        "Become Trusted by a client",        Stat::BestStanding,      6,  3},
 };
 static_assert(std::size(GOALS) == GOAL_COUNT);
+
+// ----- Secret goals -----
+const SecretGoal SECRETS[] = {
+    {"rubberduck",  "Rubber Duck Debugging", "Quack.",                                      "Make the Rubber Duck your very first curio",              25},
+    {"coldfeet",    "Cold Feet",             "Some offers are better left unanswered.",     "Say no to 10 offers in a row",                            40},
+    {"witching",    "Witching Hour",         "The Haunted Pickaxe knows what time it is.",  "Mine by hand between 3 and 4 in the morning",             66},
+    {"sevens",      "Lucky Sevens",          "Some numbers are luckier than others.",       "Mine exactly 777 tokens in one go",                       77},
+    {"rested",      "Well Rested",           "Sometimes the best move is to walk away.",    "Come back after 8 hours or more away",                    30},
+    {"glasscannon", "Glass Cannon",          "Big risks, hot hands.",                       "Finish a big contract at heat 8 or more",                120},
+    {"goldenhour",  "Golden Hour",           "Strike while the gold is rushing.",           "Hit a jackpot during a Gold Rush",                        50},
+    {"hoard",       "Dragon's Hoard",        "Just look at them all.",                      "Hold 10,000 shards at once",                             150},
+    {"overkill",    "Overkill",              "Past twenty it stops helping. Keep going.",   "Reach a mining streak of 500",                           100},
+    {"cleanhands",  "Clean Hands",           "Never let them down.",                        "Finish 10 contracts without ever failing one",            80},
+    {"speedrun",    "Speedrunner",           "Hurry.",                                      "Reach the title Baron within 25 minutes of play",         60},
+    {"downtozero",  "Down to Zero",          "Every last one.",                             "Spend your way to exactly 0 tokens (after earning 10,000)", 20},
+    {"loyal",       "Loyal to a Fault",      "Some stay even when you can't pay.",          "Have a Loyal crew member stay through a missed payday",   40},
+    {"undercounter","Under the Counter",     "Not everything is in the shop.",              "Own every curio the Dealer sells",                       200},
+    {"firefighter", "Firefighter",           "Stop it before it starts.",                   "Stop 5 disasters before they hit",                       100},
+};
+static_assert(std::size(SECRETS) == SECRET_COUNT);
 
 // ----- Titles -----
 constexpr Title TITLES[] = {

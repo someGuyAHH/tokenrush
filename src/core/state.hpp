@@ -44,8 +44,28 @@ struct CrewMember {
     bool missedPay = false;      // Loyal only: already stayed through one missed payday
 };
 
+// ----- People who left, and what they left behind -----
+struct Keepsake {                // on your shelf: from a crew member who quit, or got their third star
+    std::string item;            // "Mara's Lucky Wrench"
+    std::string from;            // "Mara"
+    Role role = Role::Miner;
+    std::string why;             // "quit when you couldn't pay"
+    long long at = 0;            // play seconds
+};
+struct FormerCrew {              // the Stats tab remembers everyone who ever left
+    std::string name;
+    Role role = Role::Miner;
+    int level = 1;
+    int stars = 0;
+    Trait trait = Trait::None;
+    std::string how;             // "quit (unpaid)", "fired"
+    long long at = 0;            // play seconds
+};
+inline constexpr size_t KEEPSAKE_MAX = 30;      // the oldest go first past these
+inline constexpr size_t FORMER_CREW_MAX = 40;
+
 // ----- Choice events -----
-enum class ChoiceKind : int { None, ShadyBroker, Investor, Rival, Raise, Bribe };
+enum class ChoiceKind : int { None, ShadyBroker, Investor, Rival, Raise, Bribe, Dealer };
 
 struct Choice {                  // the question on the table, if any (not saved: it would expire anyway)
     ChoiceKind kind = ChoiceKind::None;
@@ -53,6 +73,7 @@ struct Choice {                  // the question on the table, if any (not saved
     long long tokens = 0;        // what it costs or stakes
     long long shards = 0;        // Shady Broker: how many shards
     std::string crewName;        // Raise: who's asking
+    int curio = -1;              // Dealer: which curio
 };
 
 struct Investment {              // money lent to the Investor (saved)
@@ -187,6 +208,11 @@ struct GameState {
     std::vector<HistorySample> history;
 
     std::uint32_t goalsDone = 0;     // bit i = GOALS[i] complete
+    std::uint32_t secretsDone = 0;   // bit i = SECRETS[i] found (and paid)
+    std::uint32_t secretsFound = 0;  // spotted by an action or a tick, paid by the next checkGoals (not saved)
+    int refusedInRow = 0;            // offers you said no to since the last yes (a secret goal)
+    std::vector<Keepsake> keepsakes;
+    std::vector<FormerCrew> formerCrew;
     std::uint32_t unlocked = 0;      // bit i = FEATURES[i] is open (see game.hpp, Unlocks)
     std::uint32_t curiosOwned = 0;   // bit i = CURIOS[i] owned
     std::uint32_t promptsOwned = 1;  // bit i = PROMPTS[i] owned; bit 0 (the default) is free

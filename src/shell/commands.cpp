@@ -177,6 +177,17 @@ void doGoals(Shared& s) {
         }
     }
 
+    // Secret goals: only a hint until you find them.
+    out() << "\n" << paint(Style::Header, "Secret goals") << paint(Style::Muted, "  (" + std::to_string(std::popcount(g.secretsDone)) + "/" +
+                                                                  std::to_string(SECRET_COUNT) + " found; they pay shards, not renown)") << "\n";
+    for (int i = 0; i < SECRET_COUNT; ++i) {
+        const SecretGoal& sg = SECRETS[i];
+        if (hasBit(g.secretsDone, i))
+            out() << "  " << paint(Style::Good, "[x] " + padRight(sg.name, 22) + padRight(sg.desc, 58) + "+" + std::to_string(sg.shards) + " shards") << "\n";
+        else
+            out() << "  " << paint(Style::Muted, "[?] " + padRight("???", 22) + sg.hint) << "\n";
+    }
+
     out() << "\nRenown: " << renown << "   Title: " << paint(Style::Bold, TITLES[ti].name);
     if (ti + 1 < TITLE_COUNT) out() << "   (next: " << TITLES[ti + 1].name << " at " << TITLES[ti + 1].renown << ")";
     out() << "\n\n" << paint(Style::Header, "Titles") << "\n";
@@ -337,6 +348,19 @@ void doStats(Shared& s) {
             row("Audits", num(g.audits));
         }
         if (isUnlocked(g, Feature::Crew)) row("Crew", num(g.crewHired) + " hired, mined " + num(g.crewMined) + " tokens");
+    }
+
+    if (!g.formerCrew.empty()) {
+        out() << paint(Style::Bold, "Former crew") << paint(Style::Muted, "   (the last " + std::to_string(std::min<size_t>(g.formerCrew.size(), 10)) +
+                                                                  " of " + std::to_string(g.formerCrew.size()) + ")") << "\n";
+        size_t from = g.formerCrew.size() > 10 ? g.formerCrew.size() - 10 : 0;
+        for (size_t i = g.formerCrew.size(); i-- > from;) {
+            const FormerCrew& c = g.formerCrew[i];
+            std::string who = c.name + " (" + ROLES[(int)c.role].name + " L" + std::to_string(c.level) +
+                              (c.stars ? " " + std::string((size_t)std::min(c.stars, 5), '*') : "") + ")";
+            out() << "  " << padRight(who, 26) << padRight(TRAITS[(int)c.trait].name, 14) << padRight(c.how, 16)
+                  << paint(Style::Muted, "at " + playTime(c.at)) << "\n";
+        }
     }
 
     out() << paint(Style::Bold, "Time") << "\n";

@@ -178,6 +178,7 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
     long long elapsed = (long long)std::difftime(tNow, g.lastUpdate);
     if (elapsed <= 0) { g.lastUpdate = tNow; return; }
     addPassiveForElapsed(g, elapsed, 1.0); // events and the bot don't run offline
+    if (elapsed >= 8 * 3600) spotSecret(g, Secret::WellRested);
 }
 
 void resetGame(GameState& g, std::time_t t) {
@@ -213,6 +214,7 @@ long long statValue(const GameState& g, Stat st) {
         case Stat::OrreryStage:   return g.orreryStage;
         case Stat::CrewSize:      return (long long)g.crew.size();
         case Stat::BestStanding:  return bestStanding(g);
+        case Stat::ShopCurios:    return std::popcount(g.curiosOwned & ((1u << SHOP_CURIO_COUNT) - 1));
     }
     return 0; // unreachable, keeps the compiler happy
 }
@@ -231,7 +233,37 @@ int titleIndex(int renown) {
     return idx;
 }
 
+void spotSecret(GameState& g, Secret s) { g.secretsFound |= 1u << (int)s; }
+
+// The secret goals that are about how things stand, rather than something that just happened.
+static void spotStandingSecrets(GameState& g) {
+    auto spot = [&](bool cond, Secret s) { if (cond) spotSecret(g, s); };
+    spot(g.refusedInRow >= 10, Secret::ColdFeet);
+    spot(g.shards >= 10'000, Secret::Hoard);
+    spot(g.bestStreak >= 500, Secret::Overkill);
+    spot(g.contractsDone >= 10 && g.contractsFailed == 0, Secret::CleanHands);
+    spot(g.titleReachedAt[3] > 0 && g.titleReachedAt[3] <= 25 * 60, Secret::Speedrun);   // 3 = Baron
+    spot(g.tokens == 0 && g.lifetimeEarned >= 10'000, Secret::DownToZero);
+    std::uint32_t dealerSet = 0;
+    for (int i = 0; i < CURIO_COUNT; ++i) if (CURIOS[i].set == DEALER_SET) dealerSet |= 1u << i;
+    spot((g.curiosOwned & dealerSet) == dealerSet, Secret::UnderTheCounter);
+}
+
+static void paySecrets(GameState& g, MessageLog& log) {
+    spotStandingSecrets(g);
+    std::uint32_t fresh = g.secretsFound & ~g.secretsDone;
+    g.secretsFound = 0;
+    for (int i = 0; i < SECRET_COUNT; ++i) {
+        if (!hasBit(fresh, i)) continue;
+        g.secretsDone |= 1u << i;
+        g.shards += SECRETS[i].shards;
+        log.push(Sev::Event, std::string("SECRET GOAL: ") + SECRETS[i].name + "! " + SECRETS[i].desc + ". (+" +
+                             std::to_string(SECRETS[i].shards) + " shards)");
+    }
+}
+
 void checkGoals(GameState& g, MessageLog& log) {
+    paySecrets(g, log);
     int titleBefore = titleIndex(renownOf(g));
 
     for (int i = 0; i < GOAL_COUNT; ++i) {
@@ -320,7 +352,8 @@ Notes syncUnlocks(GameState& g) {
 
 int featureOfStat(Stat st) {
     switch (st) {
-        case Stat::CuriosOwned:   return (int)Feature::Curios;
+        case Stat::CuriosOwned:
+        case Stat::ShopCurios:    return (int)Feature::Curios;
         case Stat::MonolithStage: return (int)Feature::Monolith;
         case Stat::ShardsTraded:  return (int)Feature::Market;
         case Stat::ContractsDone:
