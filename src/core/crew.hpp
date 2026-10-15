@@ -13,6 +13,7 @@
 inline constexpr int CANDIDATE_COUNT   = 3;
 inline constexpr int CANDIDATE_REFRESH = 300;   // seconds until new candidates show up
 inline constexpr int PAYDAY_SECONDS    = 300;
+inline constexpr double WAGE_CURVE   = 16.0;   // wage = rank x (1 + rank / this): see wageOf
 inline constexpr int MINER_EVERY       = 5;     // seconds between a Miner's swings
 inline constexpr int SCOUT_EVERY       = 60;    // seconds between a Scout's searches
 inline constexpr int CREW_REPORT_EVERY = 60;

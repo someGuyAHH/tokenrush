@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <ctime>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -127,6 +128,25 @@ struct Contract {
     int expiresIn = 0;           // offers only: seconds until it leaves the board
     int tipLevel = -1;           // how it looks right now: a TipLevel (contracts.hpp); -1 = not judged yet (not saved)
     std::string tip;             // ...and why, in a sentence (not saved)
+};
+
+// ----- Tasks (tasks.hpp) -----
+struct TaskProgram;              // a task's text, compiled (tasks.cpp)
+
+struct Task {
+    std::string text;            // what the player wrote: the task itself (the rest is bookkeeping)
+    bool on = true;
+    bool quiet = false;          // runs without a log line
+    long long runs = 0;
+    long long fees = 0;          // tokens paid in fees, all told
+    long long lastRun = -1;      // playSeconds of the last run; -1 = never
+    bool wasTrue = false;        // `when`: the condition last second
+    bool pending = false;        // `when`: it became true, but the action couldn't happen yet
+    long long nextAt = 0;        // `every`: playSeconds of the next check
+    // Not saved:
+    std::shared_ptr<const TaskProgram> prog;   // null until compiled (or when the text doesn't compile)
+    std::string error;           // why the text doesn't compile ("" = it does)
+    std::string waiting;         // why it didn't run the last time it wanted to ("" = it did, or didn't need to)
 };
 
 struct GameState {
@@ -270,6 +290,11 @@ struct GameState {
     long long monolithProgress = 0;  // tokens poured into the current stage
     int orreryStage = 0;             // stages completed
     long long orreryProgress = 0;    // shards put into the current stage
+
+    // Tasks: 0 slots until the Automation License is bought
+    int taskSlots = 0;
+    std::vector<Task> tasks;
+    std::array<long long, 60> taskFeeWindow{};   // fees paid in each of the last 60 seconds, by playSeconds % 60 (not saved)
 
     std::time_t lastUpdate = 0;  // for passive
     std::time_t lastMine = 0;    // for streak timeout

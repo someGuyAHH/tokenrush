@@ -64,6 +64,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Train:     doTrain(s, arg); break;
         case Cmd::Promote:   doPromote(s, arg); break;
         case Cmd::Expedition: doExpedition(s, rest); break;
+        case Cmd::Task:      doTask(s, rest); break;
         case Cmd::Yes:       doAnswer(s, rng, true); break;
         case Cmd::No:        doAnswer(s, rng, false); break;
         case Cmd::Quit:      result = Outcome::Quit; break;

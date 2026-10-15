@@ -154,7 +154,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   Gadgeteer (build 3 gadgets, 3), Explorer (finish 5 expeditions, 3). Curator now means every
   curio *in the shop*.
 - **Titles:** Rookie 0, Prospector 4, Hustler 10, Baron 18, Magnate 28, Legend 40,
-  Monolith-Maker 55, Kingpin 62, Celestial 96 (every goal). Celestial's renown is checked
+  Monolith-Maker 55, Kingpin 62, Overseer 72 (v10), Celestial 96 (every goal). Celestial's renown is checked
   against the sum of the goals at compile time (`allRenown()` in `content.cpp`).
 - **Titles unlock features.** A new game has only Mine, Shop and Goals (plus Stats and the Console):
 
@@ -167,6 +167,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Legend | the Crew (and disasters start) |
   | Monolith-Maker | the Orrery |
   | Kingpin | the Workshop |
+  | Overseer | Tasks (and then the Automation License) |
   | (completing the Orrery) | the Constellations |
 
 - **Once open, a feature stays open.** This is the saved `[progress] unlocked` list.
@@ -179,7 +180,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Title times:** `checkGoals` records the play time for every reached title that has none yet,
   so a save that loads past a threshold that moved (Kingpin went from 68 to 62) gets one.
 - **Simulator pacing:** a steady player gets Curios after about 5 min, the Monolith ~30, the
-  Market ~34, Contracts ~45, the Crew ~60-80, the Orrery ~80-120 and the Workshop ~90-140.
+  Market ~34, Contracts ~45, the Crew ~60-80, the Orrery ~80-120, the Workshop ~90-140 and
+  Tasks ~3-4 hours. v9 saves had no Overseer: their title times get a "not yet" slot for it.
 
 ### Secret goals (`SECRETS` in `core/content.cpp`)
 - 15 of them, shown as `???` and a hint until found. They pay **shards, not renown**, so they
@@ -335,6 +337,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Candidates:** 3 at a time, refreshed every 5 min.
 - **Hire cost:** shards, rising with each member you already have.
 - **Payday:** every 5 min, each member takes their wage in shards. Unpaid members quit.
+- **Wages (v10)** follow the member's lasting strength, *rank* = level × (1 + 0.25 × stars) ×
+  (1 + 0.25 × raises): wage = rank × (1 + rank / 16), rounded (×2 Greedy, ÷2 Frugal, ×2 Mutiny).
+  Rookies cost about their level as before (L1 1, L2 2, L5 7); an L8 costs 12, a two-star L8
+  21, a two-star, two-raise L10 54. Before, a wage was just level + raises, so a starred,
+  raised veteran cost almost nothing next to what they brought in.
 - **Roles** (all use the member's *effective level*):
   - **Miner:** a swing every 5 s worth expectedMine × (0.15 + 0.10 × eff).
   - **Broker:** a tighter spread, less price impact, more contract shards.
@@ -502,6 +509,57 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
 - Unlit constellations show their shape as faint `+`; lit ones are `*` in their theme color.
 
+## Tasks (`core/tasks.*`; the Tasks tab, `task` in the Console)
+- Open at **Overseer** (72 renown). Then the **Automation License**: 7,500 shards, once, with
+  3 slots; more slots cost 1.5K, 3K, 5K, 8K and 12K shards (8 at most).
+- **A task is one line:** a trigger, `do`, one action. They run once a second, top to bottom,
+  only while the game is open, and each sees the game as the tasks above it left it.
+
+  | Trigger | Runs |
+  |---|---|
+  | `when <condition> do ...` | the second the condition turns true (false → true); if the action can't happen then, it waits while the condition stays true |
+  | `while <condition> do ...` | every second the condition is true and the action can happen |
+  | `every <time> [if <condition>] do ...` | once per interval (5 s to 24 h), if the condition holds and the action can happen; otherwise at the next interval |
+
+  A new, edited or re-enabled task counts its condition as false (so a `when` that's already
+  true fires at once) and an `every` checks right away. `when`'s state is saved, so restarting
+  the game doesn't fire it again.
+- **Conditions:** `< <= > >= = == !=`, `and or not`, brackets, `+ - * /` (dividing by 0 gives 0).
+  A value alone is true when it isn't 0. Numbers: `500`, `5,000`, `2.5k`, `3M`, `1.2B`, `5T`;
+  times: `30s`, `5m`, `1h`, `1h30m`. Values are amounts or times (only `payday` is a time): a
+  plain number takes the other side's kind, and `5m` means 5 minutes next to a time and 5
+  million next to an amount. Comparing or adding a time and an amount is an error. One
+  comparison at a time (`a < b < c` is an error: join with `and`).
+- **What tasks can read** (only what the screen already shows): `tokens`, `shards`, `income`
+  (the 5-minute average), `price`, `heat`, `level.<pickaxe|magnet|drone|bot>`, `cost.<...>` (the
+  next level), `crew`, `home`, `away`, `wages`, `payday`, `broken`, `orrery.left`, `jobs`, `true`,
+  `false`. Nothing about offers, clients, candidates, events or chance.
+- **What tasks can do:** `upgrade <item> [n|max]`, `buy shards <n|max>`, `sell shards <n|all>`,
+  `train <who>`, `promote <who>`, `send <who> <short|long|deep>`, `repair`, `fund orrery <n|all>`
+  (all keeps the next payday's wages), `equip <gadget>`, `unequip <gadget>`, `autobuyer on|off`,
+  `notify "<text>"` (not with `while`). `<who>` is a name, a slot number or `anyone` (the first
+  member it works for). **Never:** mining, stopping disasters, answering offers, firing,
+  hiring, taking or dropping jobs, the save, themes. Typing one of those says so.
+- **Never runs what can't happen, never pays for it:** every action is checked first (away,
+  at the cap, can't afford, nothing broken, already on...). The task waits and its status says
+  why. A crew member who left stays named in the task; it just waits.
+- **Fees (tuned with the simulator):** each run costs instructions × 0.3 s of income (the
+  5-minute average), at least 10 tokens. Every value, number, operator and the action count as
+  one instruction. Fees never take more than a fifth of a minute's income: past that, tasks
+  wait. Fees grow with income, so they stay the same share at every stage. In 12-hour sims:
+  3 sensible tasks ≈ 2% of income, 8 busy tasks ≈ 7-9%, 8 `while` tasks firing every second
+  ≈ 9-14% (and they never pass the 20% limit).
+- **Mistakes** are caught while you type, with a `^` under the spot and a suggestion ("did you
+  mean shards?", "you have Odette, Kaan..."). Crew names are checked against your crew when
+  you write the task; a saved task this build can't read is kept, marked broken.
+- **Console:** `task` (the list), `task add <task>`, `task edit <n> <task>`, `task on|off <n>`,
+  `task quiet|loud <n>`, `task move <n> <to>`, `task remove <n>`, `task check <task>` (is it
+  right, what it costs), `task values`, `task actions`, `task license`, `task slot`.
+- **The Tasks tab:** one row per task (On/Off, edit, quiet, a two-click delete) with its status
+  ("ran 14 times, last 2m ago; 5.6B in fees", "waiting: Odette is away", "next check in 3m"),
+  the fees of the last minute against the limit, the box (checked as you type, with the cost
+  of a run), and what tasks can read and do.
+
 ---
 
 ## Under the hood
@@ -510,7 +568,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The workers: world, market, automation, crew, autosave every 30 s. All lock `Shared::m`.
   - Lock order: `saveMtx` → `m`.
 - **World tick order** (`worldTick`): passive income, play time, streak expiry, events, Leech,
-  contracts and heat, offers, disasters, the Hourglass, stats, then `checkGoals` (which also pays
+  contracts and heat, offers, disasters, tasks, the Hourglass, stats, then `checkGoals` (which also pays
   secret goals and lights constellations).
 - **The theme** the Console's commands paint with is a process-wide atomic (`setTheme` in `shell/term.cpp`), set
   when a profile loads, by `theme`, and by the TUI every frame (for its Console); back to Classic
@@ -529,7 +587,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     one line per entry, "`a ; b ; c`".
   - Unknown keys are ignored; missing keys keep their defaults.
   - A bad file is moved to `.save.bad`.
-  - Every older version loads (v1–v2 positional, v3 sectionless, v4–v9 INI). A real v8 save
+  - Every older version loads (v1–v2 positional, v3 sectionless, v4–v10 INI). A real v8 save
     (made by the v8 build) loads and upgrades.
   - Doubles are saved floored to 4 decimals.
   - **Token cap:** token totals saturate at 10^18 (`TOKEN_CAP`, `addTokens`).
@@ -539,8 +597,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - `build.ps1` is the older PowerShell version of the same thing.
   - `make` on Linux/macOS.
   - Build times go to `target/debug/build-times.log`.
-- **Simulator:** `tools/sim.cpp` (`sim <hours> <seeds> normal|trader|idle|noecon`) plays the
-  core headlessly to check balance after changing numbers.
+- **Simulator:** `tools/sim.cpp` (`sim <hours> <seeds> normal|trader|idle|noecon|tasks-light|tasks-heavy|tasks-greedy`)
+  plays the core headlessly to check balance after changing numbers. The `tasks-*` players save
+  up for the license (and slots) once Tasks open, hand chores to a set of tasks, and report what
+  share of their income went to fees.
 - **`.trash/`** in the project root is for old or temporary files instead of deleting them.
 
 ## Design decisions to respect

@@ -74,6 +74,15 @@ struct Ui {
     int marketCursor = 0;
     Clock::time_point customBuyArmedUntil{};
 
+    // Tasks tab: the box (a new task, or task `taskEditing` being rewritten)
+    std::string taskDraft;
+    int taskCursor = 0;
+    int taskEditing = -1;
+    int taskDeleteArmed = -1;
+    Clock::time_point taskDeleteUntil{};
+    bool taskHelp = true;      // the list of what tasks can read and do
+    ftxui::Component taskBox;
+
     // Console tab
     std::string consoleLine;
     int consoleCursor = 0;
@@ -153,6 +162,7 @@ ftxui::Component MonolithPage(Ui& ui);
 ftxui::Component OrreryPage(Ui& ui);
 ftxui::Component WorkshopPage(Ui& ui);
 ftxui::Component StarsPage(Ui& ui);
+ftxui::Component TasksPage(Ui& ui);   // tasks_page.cpp
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);
 ftxui::Component ConsolePage(Ui& ui);

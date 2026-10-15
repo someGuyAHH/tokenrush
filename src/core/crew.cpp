@@ -220,12 +220,16 @@ long long promoteCost(const CrewMember& c) {
     return std::min(toTokens(std::round(cost)), TOKEN_CAP);
 }
 
+// Wages follow how good someone is for good: their level, made stronger by every promotion and
+// raise (the lasting part of their effective level), and a little more than in step with it, so
+// a starred, raised veteran costs what they bring in. Rookies cost about their level, as before.
 long long wageOf(const GameState& g, const CrewMember& c) {
-    long long w = c.level;
+    double rank = (double)c.level * (1.0 + PROMO_EFFECT * c.stars) * (1.0 + RAISE_EFFECT * c.raises);
+    long long w = std::max(1LL, std::llround(rank * (1.0 + rank / WAGE_CURVE)));
     if (c.trait == Trait::Greedy) w *= 2;
     if (c.trait == Trait::Frugal) w = std::max(1LL, (w + 1) / 2);
     if (infected(g, Strain::Mutiny)) w *= 2;
-    return w + c.raises;
+    return w;
 }
 
 long long totalWages(const GameState& g) {

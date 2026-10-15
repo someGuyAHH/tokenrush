@@ -6,7 +6,7 @@
 
 #include "state.hpp"
 
-inline constexpr int SAVE_VERSION = 9;
+inline constexpr int SAVE_VERSION = 10;
 
 // Where the save lives: the current profile's folder. Call setSaveDir before any worker
 // thread exists (at startup, or between sessions when switching profiles).

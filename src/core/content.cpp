@@ -276,6 +276,7 @@ constexpr Title TITLES[] = {
     {40, "Legend"},
     {55, "Monolith-Maker"},
     {62, "Kingpin"},
+    {72, "Overseer"},
     {96, "Celestial"},   // every goal, Orrery included
 };
 static_assert(std::size(TITLES) == TITLE_COUNT);
@@ -310,6 +311,7 @@ const FeatureInfo FEATURES[] = {
     {"the Orrery",   "orrery",    6, "the late-game build, made of shards"},               // Monolith-Maker
     {"the Workshop", "workshop",  7, "gadgets built from your curios: trade-offs to equip"}, // Kingpin
     {"the Constellations", "stars", -1, "feats that light up the sky around the Orrery"},  // the Orrery's Sun
+    {"Tasks",        "tasks",     8, "rules that run your errands for a fee (with a license)"}, // Overseer
 };
 static_assert(std::size(FEATURES) == FEATURE_COUNT);
 

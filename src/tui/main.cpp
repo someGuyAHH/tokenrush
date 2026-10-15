@@ -51,7 +51,7 @@ const TabDef TABS[] = {
     {"Mine", -1}, {"Shop", -1}, {"Goals", -1}, {"Stats", -1},
     {"Curios", (int)Feature::Curios}, {"Monolith", (int)Feature::Monolith}, {"Market", (int)Feature::Market},
     {"Jobs", (int)Feature::Contracts}, {"Crew", (int)Feature::Crew}, {"Orrery", (int)Feature::Orrery},
-    {"Workshop", (int)Feature::Workshop}, {"Stars", (int)Feature::Stars},
+    {"Workshop", (int)Feature::Workshop}, {"Stars", (int)Feature::Stars}, {"Tasks", (int)Feature::Tasks},
     {"Console", -1},   // always last; ':' opens it from anywhere
 };
 constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
@@ -220,7 +220,8 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     Component tabBar = Menu(&tabNames, &ui.tab, tabOpt);
     Components pageList = {tui::MinePage(ui), tui::ShopPage(ui), tui::GoalsPage(ui), tui::StatsPage(ui), tui::CuriosPage(ui),
                            tui::MonolithPage(ui), tui::MarketPage(ui), tui::JobsPage(ui), tui::CrewPage(ui),
-                           tui::OrreryPage(ui), tui::WorkshopPage(ui), tui::StarsPage(ui), tui::ConsolePage(ui)};
+                           tui::OrreryPage(ui), tui::WorkshopPage(ui), tui::StarsPage(ui), tui::TasksPage(ui),
+                           tui::ConsolePage(ui)};
     Component pages = Container::Tab(pageList, &ui.page);
     ui.snapshot();
     refreshTabs();

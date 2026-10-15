@@ -97,6 +97,7 @@ titles, and titles open the rest of the game, one piece at a time:
 | Legend | 40 | the Crew (and, from then on, disasters) |
 | Monolith-Maker | 55 | the Orrery |
 | Kingpin | 62 | the Workshop |
+| Overseer | 72 | Tasks |
 | Celestial | 96 | every goal done |
 
 Completing the Orrery opens the Constellations. Once open, a feature stays open. Saves from
@@ -145,7 +146,7 @@ before this kept everything they were already using. The table lives in `FEATURE
 - **Heat.** Widens the market spread. From 3 up, audits can seize part of your tokens.
   It cools slowly on its own; big jobs you finish cool it by 1.
 - **Crew.** Up to four named hires (five with the Orrery), paid in shards every 5 minutes
-  (their level in shards each). Miners mine, Brokers improve the market, Scouts find shards,
+  (more for stronger members: promotions and raises count too). Miners mine, Brokers improve the market, Scouts find shards,
   Fixers handle heat, audits and disasters. Anyone you can't pay quits, and leaves a keepsake
   on your shelf; the Stats tab remembers everyone who left.
 - **Crew traits and promotions.** About two in three candidates have a trait, always a
@@ -167,6 +168,19 @@ before this kept everything they were already using. The table lives in `FEATURE
   your gadgets. Each starts with a warning and can be stopped (`respond`, or the word it names:
   douse, chase, brace, oil, unplug). If it hits, Drones burn out for a while, shards burn,
   tokens are stolen, or something breaks until you `repair` it. Fixers soften all of it.
+- **Tasks.** One-line rules that run errands for you, for a fee, once you're an Overseer
+  and own the Automation License (7,500 shards, 3 slots, up to 8):
+
+      when shards >= 5k and home > 0 do send anyone deep
+      while broken do repair
+      every 10m if tokens >= 5 * cost.pickaxe do upgrade pickaxe 10
+
+  `when` acts the moment its condition turns true, `while` every second it's true, `every` once
+  per interval. Tasks read only what the screen shows and do only a short list of things (never
+  mining, disasters, offers or firing). A task never runs, or pays for, an action that can't
+  happen; it waits and says why. Each run costs 0.3 seconds of income per instruction, and fees
+  stop at a fifth of your income. Mistakes are pointed at while you type. See the Tasks tab, or
+  `help task` in the Console.
 - **Offers.** Every 10-15 minutes someone makes you an offer; answer yes or no within 45
   seconds (ignoring it is a no). A shady broker selling cheap shards for heat, an investor
   who usually pays back 1.3x (and sometimes vanishes), a rival betting you can't mine 40
@@ -236,7 +250,9 @@ Crew members are numbered sections (`[crew.1]`, `[crew.2]`...), active contracts
 `[infection]` holds an Infected profile's strain, and `[history] samples` is the Stats chart.
 Version 9 adds `[cosmetics] theme`, `[jobs] standing`, `[workshop]`, `[disasters]`, `[stars]`,
 `[income]`, `[ledger]`, `[keepsakes]` and `[formercrew]` (one line per entry). To add a field to
-the save, add one line to `saveFields()` in `src/core/save.cpp`.
+the save, add one line to `saveFields()` in `src/core/save.cpp`. Version 10 adds `[tasks] slots` and
+`[task.1]`...`[task.8]` (each task's text as written, plus its on/quiet switches and counters),
+and a tenth title time for Overseer.
 
 ## Balance simulator
 
@@ -245,7 +261,8 @@ second per loop, so hours of play take a moment. It prints a progress table per 
 stopped/hit), when each feature unlocked and when each curio was bought.
 
     python build.py --sim                 # Windows; or `make sim` elsewhere
-    .\target\debug\sim.exe 4 3 normal     # 4 hours, 3 seeds; strategies: normal, trader, idle, noecon
+    .\target\debug\sim.exe 4 3 normal     # 4 hours, 3 seeds; strategies: normal, trader, idle, noecon,
+                                          # tasks-light, tasks-heavy, tasks-greedy (fees as a share of income)
     .\target\debug\sim.exe 4 3 normal 10  # the same, a table row every 10 minutes (default 30)
 
 Use it after changing numbers: `noecon` is the old game for comparison, and `trader` checks

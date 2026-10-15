@@ -48,6 +48,7 @@
 #include "crew.hpp"
 #include "game.hpp"
 #include "stars.hpp"
+#include "tasks.hpp"
 #include "util.hpp"
 
 namespace {
@@ -249,6 +250,38 @@ CrewMember& crewSlot(GameState& g, size_t i) {
     return g.crew[i];
 }
 
+// Tasks: [task.1] text = ..., on = 1, ... The text is kept as written; it's compiled after loading.
+Task& taskSlot(GameState& g, size_t i) {
+    if (g.tasks.size() <= i) g.tasks.resize(i + 1);
+    return g.tasks[i];
+}
+
+void addTaskFields(std::vector<Field>& fields) {
+    for (size_t i = 0; i < (size_t)TASK_SLOTS_MAX; ++i) {
+        std::string sec = "task." + std::to_string(i + 1);
+        Present present = [i](const GameState& g) { return i < g.tasks.size(); };
+        fields.push_back(Field{
+            sec, "text",
+            [i](const GameState& g) { return g.tasks[i].text; },
+            [i](GameState& g, const std::string& text) {
+                std::string t = trim(text);
+                if (t.empty() || t.size() > TASK_TEXT_MAX) return false;
+                taskSlot(g, i).text = t;
+                return true;
+            },
+            present});
+        fields.push_back(boolAt(sec, "on", [i](GameState& g) -> bool& { return taskSlot(g, i).on; }, present));
+        fields.push_back(boolAt(sec, "quiet", [i](GameState& g) -> bool& { return taskSlot(g, i).quiet; }, present));
+        using LL = long long;
+        fields.push_back(numAt(sec, "runs", [i](GameState& g) -> LL& { return taskSlot(g, i).runs; }, 0LL, std::numeric_limits<LL>::max(), present));
+        fields.push_back(numAt(sec, "fees", [i](GameState& g) -> LL& { return taskSlot(g, i).fees; }, 0LL, std::numeric_limits<LL>::max(), present));
+        fields.push_back(numAt(sec, "lastRun", [i](GameState& g) -> LL& { return taskSlot(g, i).lastRun; }, -1LL, std::numeric_limits<LL>::max(), present));
+        fields.push_back(boolAt(sec, "wasTrue", [i](GameState& g) -> bool& { return taskSlot(g, i).wasTrue; }, present));
+        fields.push_back(boolAt(sec, "pending", [i](GameState& g) -> bool& { return taskSlot(g, i).pending; }, present));
+        fields.push_back(numAt(sec, "nextAt", [i](GameState& g) -> LL& { return taskSlot(g, i).nextAt; }, 0LL, std::numeric_limits<LL>::max(), present));
+    }
+}
+
 void addCrewFields(std::vector<Field>& fields) {
     for (size_t i = 0; i < (size_t)MAX_CREW_SLOTS; ++i) {
         std::string sec = "crew." + std::to_string(i + 1);
@@ -344,11 +377,16 @@ Field titleTimesField() {
         [](GameState& g, const std::string& text) {
             std::stringstream ss(text);
             std::string item;
-            for (int i = 0; i < TITLE_COUNT; ++i) {
+            std::vector<long long> times;
+            while (std::getline(ss, item, ',')) {
                 long long v = 0;
-                if (!std::getline(ss, item, ',') || !parseNumber(trim(item), v) || v < -1) return false;
-                g.titleReachedAt[i] = v;
+                if (!parseNumber(trim(item), v) || v < -1) return false;
+                times.push_back(v);
             }
+            // v9 and earlier had no Overseer (the title before Celestial): its slot starts at "not yet".
+            if ((int)times.size() == TITLE_COUNT - 1) times.insert(times.end() - 1, 0);
+            if ((int)times.size() != TITLE_COUNT) return false;
+            for (int i = 0; i < TITLE_COUNT; ++i) g.titleReachedAt[i] = times[(size_t)i];
             return true;
         }};
 }
@@ -622,6 +660,8 @@ const std::vector<Field>& saveFields() {
         f.push_back(numAt("investment", "secondsLeft", [](GameState& g) -> int& { return g.investment.secondsLeft; }, 0,
                           24 * 3600, investing));
         f.push_back(boolAt("investment", "scam", [](GameState& g) -> bool& { return g.investment.scam; }, investing));
+        f.push_back(numAt("tasks", "slots", [](GameState& g) -> int& { return g.taskSlots; }, 0, TASK_SLOTS_MAX));
+        addTaskFields(f);
         addCrewFields(f);
         addContractFields(f);
         addPeopleFields(f);
@@ -896,6 +936,9 @@ LoadResult loadGameFile(const std::filesystem::path& path, GameState& out) {
         int ti = titleIndex(renownOf(tmp));
         for (int i = 1; i <= ti; ++i) tmp.titleReachedAt[i] = -1;
     }
+    tmp.tasks.erase(std::remove_if(tmp.tasks.begin(), tmp.tasks.end(), [](const Task& t) { return t.text.empty(); }), tmp.tasks.end());
+    if ((int)tmp.tasks.size() > tmp.taskSlots) tmp.tasks.resize((size_t)tmp.taskSlots);
+    compileTasks(tmp);                          // a task this build can't read stays, marked as broken
     out = tmp;
     return {LoadStatus::Ok, "", notice};
 }

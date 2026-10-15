@@ -27,18 +27,22 @@
 #include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
+#include "core/tasks.hpp"
 #include "core/ticks.hpp"
 #include "core/util.hpp"
 
 namespace {
 
-enum class Strategy { Normal, Trader, Idle, NoEcon };
+enum class Strategy { Normal, Trader, Idle, NoEcon, TasksLight, TasksHeavy, TasksGreedy };
+bool usesTasks(Strategy s) { return s == Strategy::TasksLight || s == Strategy::TasksHeavy || s == Strategy::TasksGreedy; }
 
 struct Tally {
     std::string curioTimes;      // " 1@3m 2@5m ...": when each curio was bought
     long long tradeProfit = 0;   // tokens from selling minus tokens spent buying
     int maxHeat = 0;
     int quits = 0;
+    long long licenseAt = -1;       // playSeconds when the Automation License was bought
+    long long earnedAtLicense = 0;  // lifetimeEarned then
 };
 
 struct Sim {
@@ -72,15 +76,18 @@ struct Sim {
 
     void player() {
         std::uniform_real_distribution<double> uni(0.0, 1.0);
-        bool econ = strat == Strategy::Normal || strat == Strategy::Idle;
+        bool normal = strat == Strategy::Normal || usesTasks(strat);
+        bool econ = normal || strat == Strategy::Idle;
 
         // Chasing thieves: mine as fast as you can.
         bool chasing = disasterPending(g) && g.disaster.chasing;
-        if ((strat == Strategy::Normal || strat == Strategy::NoEcon) && (chasing || uni(rng) < mineRate)) mine(g, t, rng);
-        if (strat == Strategy::Normal) disasterPlan();
+        if ((normal || strat == Strategy::NoEcon) && (chasing || uni(rng) < mineRate)) mine(g, t, rng);
+        if (normal) disasterPlan();
+        if (usesTasks(strat)) taskPlan();
 
         // Upgrades: buy the cheapest one we can afford, every few seconds.
-        if (strat != Strategy::Trader && t % 5 == 0) {
+        bool tasksUpgrade = usesTasks(strat) && strat != Strategy::TasksLight && g.taskSlots > 0;   // the tasks do it now
+        if (strat != Strategy::Trader && !tasksUpgrade && t % 5 == 0) {
             auto ups = upgrades(g);
             size_t best = 0;
             for (size_t i = 1; i < ups.size(); ++i) if (ups[i].cost < ups[best].cost) best = i;
@@ -89,11 +96,70 @@ struct Sim {
         }
 
         if (econ && t % 10 == 0) crewPlan();
-        if (strat == Strategy::Normal && t % 10 == 0) contractPlan();
-        if (strat == Strategy::Normal && t % 30 == 0) buildMonolithWhenRich();
-        if (strat == Strategy::Normal && t % 20 == 0) curioPlan();
-        if (strat == Strategy::Normal && t % 60 == 0) orreryPlan();
+        if (normal && t % 10 == 0) contractPlan();
+        if (normal && t % 30 == 0) buildMonolithWhenRich();
+        if (normal && t % 20 == 0) curioPlan();
+        if (normal && t % 60 == 0 && !savingForLicense()) orreryPlan();
         if (strat == Strategy::Trader && t % 5 == 0) traderPlan();
+    }
+
+    // Tasks: save up for the license once they open, then hand over the chores.
+    std::vector<std::string> waitingTasks;   // a set's tasks that don't have a slot yet
+    bool savingForLicense() const {
+        return usesTasks(strat) && isUnlocked(g, Feature::Tasks) && (g.taskSlots == 0 || !waitingTasks.empty());
+    }
+    void taskPlan() {
+        if (!isUnlocked(g, Feature::Tasks)) return;
+        if (g.taskSlots == 0 && waitingTasks.empty()) {
+            long long need = TASK_LICENSE_COST + totalWages(g) * 2 - g.shards;
+            if (need > 0 && t % 10 == 0 && g.shardPrice < SHARD_FAIR_PRICE * 1.3) {
+                long long n = std::min(need, maxAffordable(g) / 2);
+                if (n > 0) buy(n);
+            }
+            if (g.shards >= TASK_LICENSE_COST + totalWages(g)) {
+                buyTaskLicense(g);
+                tally.licenseAt = g.playSeconds;
+                tally.earnedAtLicense = g.lifetimeEarned;
+                std::vector<std::string> set;
+                if (strat == Strategy::TasksLight) {
+                    set = {"while broken do repair",
+                           "every 1m if tokens >= 3 * cost.pickaxe do upgrade pickaxe max",
+                           "when home > 0 and shards >= wages * 3 do send anyone short"};
+                } else if (strat == Strategy::TasksHeavy) {
+                    set = {"while broken do repair",
+                           "every 30s if tokens >= 3 * cost.pickaxe do upgrade pickaxe max",
+                           "every 30s if tokens >= 3 * cost.magnet do upgrade magnet max",
+                           "every 30s if tokens >= 3 * cost.drone do upgrade drone max",
+                           "every 30s if tokens >= 3 * cost.bot do upgrade bot max",
+                           "while payday < 1m and shards < wages do buy shards 100",
+                           "when home > 0 and shards >= wages * 3 do send anyone short",
+                           "every 2m if shards > wages * 2 + 100 and orrery.left > 0 do fund orrery all"};
+                } else {
+                    set = {"while broken do repair",
+                           "while tokens >= cost.pickaxe do upgrade pickaxe",
+                           "while tokens >= cost.magnet do upgrade magnet",
+                           "while tokens >= cost.drone do upgrade drone",
+                           "while tokens >= cost.bot do upgrade bot",
+                           "while shards < wages do buy shards 50",
+                           "while home > 0 do send anyone short",
+                           "while shards > wages * 2 and orrery.left > 0 do fund orrery all"};
+                }
+                waitingTasks = set;
+            }
+        }
+        // Fill the slots; save up (and buy shards) for more while some of the set is still waiting.
+        while (!waitingTasks.empty() && (int)g.tasks.size() < g.taskSlots) {
+            addTask(g, waitingTasks.front());
+            waitingTasks.erase(waitingTasks.begin());
+        }
+        if (waitingTasks.empty() || g.taskSlots == 0) return;
+        long long cost = taskSlotCost(g.taskSlots);
+        if (g.shards >= cost + totalWages(g)) { buyTaskSlot(g); return; }
+        long long need = cost + totalWages(g) * 2 - g.shards;
+        if (t % 10 == 0 && g.shardPrice < SHARD_FAIR_PRICE * 1.3) {
+            long long n = std::min(need, maxAffordable(g) / 2);
+            if (n > 0) buy(n);
+        }
     }
 
     void crewPlan() {
@@ -226,6 +292,9 @@ const char* name(Strategy s) {
         case Strategy::Trader: return "trader";
         case Strategy::Idle:   return "idle";
         case Strategy::NoEcon: return "noecon";
+        case Strategy::TasksLight:  return "tasks-light";
+        case Strategy::TasksHeavy:  return "tasks-heavy";
+        case Strategy::TasksGreedy: return "tasks-greedy";
     }
     return "?";
 }
@@ -238,7 +307,8 @@ int main(int argc, char** argv) {
     std::string sarg = argc > 3 ? argv[3] : "normal";
     long long every = argc > 4 ? std::max(1, std::atoi(argv[4])) * 60LL : 1800;   // table row interval, in minutes
     Strategy strat = sarg == "trader" ? Strategy::Trader : sarg == "idle" ? Strategy::Idle
-                   : sarg == "noecon" ? Strategy::NoEcon : Strategy::Normal;
+                   : sarg == "noecon" ? Strategy::NoEcon : sarg == "tasks-light" ? Strategy::TasksLight
+                   : sarg == "tasks-heavy" ? Strategy::TasksHeavy : sarg == "tasks-greedy" ? Strategy::TasksGreedy : Strategy::Normal;
 
     long long total = (long long)(hours * 3600);
     std::printf("strategy %s, %.1f hours, %d seeds\n", name(strat), hours, seeds);
@@ -282,6 +352,16 @@ int main(int argc, char** argv) {
         std::printf("  curios:%s\n", sim.tally.curioTimes.empty() ? " none" : sim.tally.curioTimes.c_str());
         std::printf("  monolith done: %s, orrery stages:%s\n", g.monolithStage >= MONO_STAGE_COUNT ? "yes" : "no",
                     stageTimes.empty() ? " none" : stageTimes.c_str());
+        if (usesTasks(strat)) {
+            long long fees = 0, runs = 0;
+            for (const Task& tk : g.tasks) { fees += tk.fees; runs += tk.runs; }
+            long long earned = g.lifetimeEarned - sim.tally.earnedAtLicense;
+            std::printf("  tasks: license at %s, %zu tasks, %lld runs, fees %s = %.1f%% of the %s earned since\n",
+                        sim.tally.licenseAt < 0 ? "never" : (std::to_string(sim.tally.licenseAt / 60) + "m").c_str(), g.tasks.size(), runs,
+                        compact(fees).c_str(), earned > 0 ? 100.0 * (double)fees / (double)earned : 0.0, compact(earned).c_str());
+            for (size_t i = 0; i < g.tasks.size(); ++i)
+                std::printf("    %zu) %-70s %6lld runs  %8s\n", i + 1, g.tasks[i].text.c_str(), g.tasks[i].runs, compact(g.tasks[i].fees).c_str());
+        }
         std::printf("  trade profit %lld, max heat %d, crew quits %d, upgrades P%d M%d D%d B%d, crew:%s\n",
                     sim.tally.tradeProfit, sim.tally.maxHeat, sim.tally.quits, g.pickaxe, g.magnet, g.drone, g.bot,
                     crew.c_str());

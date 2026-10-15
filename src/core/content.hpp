@@ -114,7 +114,7 @@ static_assert(GOAL_COUNT <= 32, "GameState::goalsDone is a 32-bit mask");
 extern const Goal GOALS[];
 
 struct Title { int renown; const char* name; };
-inline constexpr int TITLE_COUNT = 9;
+inline constexpr int TITLE_COUNT = 10;
 extern const Title TITLES[];
 
 // ----- Infection -----
@@ -134,7 +134,7 @@ extern const StrainInfo STRAINS[];   // indexed by Strain
 // A new player starts with mining, the shop and the goals. Everything else opens up as titles
 // are earned, in this order (the TUI's tabs follow it too).
 // The Constellations are the exception: they open when the Orrery is complete, not with a title.
-enum class Feature : int { Curios, Monolith, Market, Contracts, Crew, Orrery, Workshop, Stars, Count };
+enum class Feature : int { Curios, Monolith, Market, Contracts, Crew, Orrery, Workshop, Stars, Tasks, Count };
 inline constexpr int FEATURE_COUNT = (int)Feature::Count;
 struct FeatureInfo {
     const char* name;    // "the Market"

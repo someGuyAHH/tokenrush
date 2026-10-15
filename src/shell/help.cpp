@@ -41,7 +41,7 @@ struct CommandInfo {
 
 constexpr int MARKET = (int)Feature::Market, CONTRACTS = (int)Feature::Contracts, CREW = (int)Feature::Crew;
 constexpr int CURIOS = (int)Feature::Curios, MONOLITH = (int)Feature::Monolith, ORRERY = (int)Feature::Orrery;
-constexpr int WORKSHOP = (int)Feature::Workshop, STARS = (int)Feature::Stars;
+constexpr int WORKSHOP = (int)Feature::Workshop, STARS = (int)Feature::Stars, TASKS = (int)Feature::Tasks;
 
 const std::vector<CommandInfo>& commands() {
     static const std::vector<CommandInfo> table = {
@@ -296,6 +296,41 @@ const std::vector<CommandInfo>& commands() {
          {"Frees its slot. The gadget stays built, so you can equip it again any time for nothing."},
          {{"unequip 5", "take off the fifth gadget"}},
          {"equip", "workshop"}, WORKSHOP, SPENDING},
+
+        {Cmd::Task, {"task", "tasks"}, "task [add|edit|on|off|quiet|loud|move|remove|check|license|slot] ...",
+         "Tasks: one-line rules that run errands for you, for a fee",
+         {"A task is one line: when something is true, do one thing. For example 'while broken do repair', or "
+          "'every 10m if tokens >= 5 * cost.pickaxe do upgrade pickaxe 10'. Tasks need the Automation License "
+          "(7,500 shards, once, with 3 slots; more slots cost 1.5K, 3K, 5K, 8K and 12K, up to 8). They run once a second, top to "
+          "bottom, only while the game is open.",
+          "There are three ways to start a task. 'when <condition> do ...' acts the moment the condition turns true; "
+          "if the action can't happen right then, it waits while the condition stays true. 'while <condition> do ...' "
+          "acts every second the condition is true. 'every <time> [if <condition>] do ...' checks once per interval "
+          "(5s at the most often, 24h at the least).",
+          "Conditions compare numbers: < <= > >= = != with and, or, not, brackets and + - * /. Numbers are written "
+          "like the game shows them: 500, 5,000, 2.5k, 3M, 1.2B, 5T; times like 30s, 5m, 1h or 1h30m. '5m' means 5 "
+          "minutes next to a time (payday < 5m) and 5 million next to an amount (tokens > 5m). A value on its own "
+          "counts as true when it isn't 0 ('while broken do repair'). 'task values' lists what tasks can read: only "
+          "what the screen already shows (tokens, shards, income, price, heat, upgrade levels and costs, crew at "
+          "home, wages, payday, broken things, the Orrery, jobs).",
+          "'task actions' lists what tasks can do: upgrade, buy and sell shards, train, promote, send on expeditions, "
+          "repair, fund the Orrery, equip and unequip gadgets, the Auto-Buyer, and notify (a message in the log). "
+          "Never: mine, stop disasters, answer offers, fire, hire, take jobs, or anything about your save.",
+          "A task never runs an action that can't happen, and never pays for one: it waits, and the list says why "
+          "(\"waiting: Odette is away\"). Each run costs a fee of 0.3 seconds of your income for every instruction "
+          "(each value, number, operator and the action count as one), and fees never take more than a fifth of "
+          "a minute's income: past that, tasks wait. 'task check <task>' tells you what a task would cost, and "
+          "mistakes are pointed at with a ^."},
+         {{"task", "your tasks, what they're doing, what they've cost"},
+          {"task add while broken do repair", "a new task"},
+          {"task add when heat >= 8 do notify \"cool it\"", "a reminder, once each time heat reaches 8"},
+          {"task edit 2 every 5m do upgrade bot max", "rewrite task 2"},
+          {"task off 2", "pause it (task on 2 starts it again)"},
+          {"task quiet 1", "no log lines from it (task loud 1 undoes it)"},
+          {"task move 3 1", "make task 3 run first"},
+          {"task check while shards > 6k do fund orrery all", "is it right, and what would it cost?"},
+          {"task license", "buy the Automation License"}, {"task slot", "buy another slot"}},
+         {"repair", "expedition", "shop"}, TASKS, PROGRESS},
 
         // ----- Progress and other -----
         {Cmd::Stars, {"stars", "sky", "constellations"}, "stars", "The Constellations: the sky map and the feats that light it",
