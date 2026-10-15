@@ -105,6 +105,7 @@ void comeBack(GameState& g, CrewMember& c, MessageLog& log, std::mt19937& rng) {
 }
 
 void payday(GameState& g, MessageLog& log) {
+    size_t before = g.crew.size();
     long long paid = 0;
     std::vector<CrewMember> stayed;
     for (CrewMember c : g.crew) {
@@ -126,6 +127,8 @@ void payday(GameState& g, MessageLog& log) {
         }
     }
     g.crew = std::move(stayed);
+    // The Hearth: a full crew of five, paid, nobody walking out.
+    g.fullCrewPaydays = before >= 5 && g.crew.size() == before ? g.fullCrewPaydays + 1 : 0;
     if (paid > 0) log.push(Sev::Info, "Payday: your crew took " + count(paid, "shard") + ".");
 }
 
@@ -286,6 +289,7 @@ Notes fire(GameState& g, int idx) {
     CrewMember c = g.crew[(size_t)idx];
     g.crew.erase(g.crew.begin() + idx);
     remember(g, c, "fired");
+    g.fullCrewPaydays = 0;   // the Hearth wants nobody leaving
     return {{Sev::Info, who(c) + " packed up and left."}};
 }
 

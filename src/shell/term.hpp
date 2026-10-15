@@ -35,6 +35,7 @@ std::string paint(Style st, const std::string& text);
 std::string paint256(int color, const std::string& text, bool bold = false);   // one of the 256 xterm colors
 std::string paintRgb(Rgb color, const std::string& text, bool bold = false);   // 24-bit, whatever the theme
 std::string paintIn(int theme, Style st, const std::string& text);             // as another theme would (previews)
+std::string paintHue(Hue h, const std::string& text, bool bold = false);       // a theme role directly (the sky map)
 Style styleFor(Sev sev);
 
 std::string padRight(const std::string& s, size_t width);   // pad BEFORE painting, or escape codes break alignment

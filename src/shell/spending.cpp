@@ -14,6 +14,7 @@
 #include "core/actions.hpp"
 #include "core/content.hpp"
 #include "core/game.hpp"
+#include "core/stars.hpp"
 #include "core/util.hpp"
 #include "term.hpp"
 
@@ -194,6 +195,36 @@ void doPrompt(Shared& s, const std::string& arg) {
         out = choosePrompt(s.g, (int)n - 1);
     }
     printNotes(out);
+}
+
+// ----- The Constellations -----
+void doStars(Shared& s) {
+    std::lock_guard lk(s.m);
+    const GameState& g = s.g;
+    out() << paint(Style::Header, "=== THE CONSTELLATIONS ===") << "  " << std::popcount(g.starsLit) << "/" << CONSTELLATION_COUNT << " lit\n\n";
+    for (const std::vector<SkyGlyph>& row : skyMap(g)) {
+        std::string line;
+        for (const SkyGlyph& c : row) {
+            switch (c.kind) {
+                case SkyCell::Empty: line += " "; break;
+                case SkyCell::Dust:  line += paint(Style::Muted, c.text); break;
+                case SkyCell::Star:
+                case SkyCell::Label: line += c.lit ? paintHue(CONSTELLATIONS[c.constellation].hue, c.text, c.kind == SkyCell::Star)
+                                                   : paint(Style::Muted, c.text); break;
+            }
+        }
+        out() << "  " << line << "\n";
+    }
+    out() << "\n";
+    for (int i = 0; i < CONSTELLATION_COUNT; ++i) {
+        const ConstellationInfo& c = CONSTELLATIONS[i];
+        bool lit = hasBit(g.starsLit, i);
+        std::string progress = lit ? "" : starProgress(g, i);
+        out() << "  " << (lit ? paintHue(c.hue, "[*] " + padRight(c.name, 15), true) : paint(Style::Muted, "[ ] ") + padRight(c.name, 15))
+              << (lit ? paint(Style::Muted, c.feat) : std::string(c.feat))
+              << (progress.empty() ? "" : paint(Style::Muted, "   (" + progress + ")")) << "\n";
+    }
+    out() << paint(Style::Muted, "They give nothing but the sky. Each one is a feat you pulled off.") << "\n";
 }
 
 // ----- Themes -----

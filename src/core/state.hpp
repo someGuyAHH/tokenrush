@@ -225,6 +225,18 @@ struct GameState {
     long long disastersHit = 0;
     long long disastersStopped = 0;
 
+    // The Constellations (stars.hpp): what's lit, and the feats being tracked
+    std::uint32_t starsLit = 0;      // bit i = CONSTELLATIONS[i] lit
+    std::uint32_t starsFound = 0;    // done by an action, lit by the next checkGoals (not saved)
+    long long lastContractAt = -1'000'000;   // play seconds when the last contract was finished (the Twins)
+    int fullCrewPaydays = 0;         // paydays in a row with a full crew of 5 and nobody leaving (the Hearth)
+    int stoppedInRow = 0;            // disasters stopped since the last one hit (the Lantern)
+    std::uint32_t signatureClients = 0;   // bit i = finished a signature job for CLIENTS[i] (the Crown)
+    long long heat10At = -1;         // play seconds when heat was last 10 (the Phoenix)
+    long long handsOffSince = 0;     // the Hourglass's hour: when it started...
+    long long handsOffFrom = 0;      // ...lifetimeEarned then...
+    long long handsOffMines = 0;     // ...and manualMines then
+
     // Infection (see content.hpp): a strain, until the Orrery cures it
     Strain strain = Strain::None;
     bool cured = false;

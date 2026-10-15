@@ -7,6 +7,7 @@
 
 #include "crew.hpp"
 #include "game.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 namespace {
@@ -111,6 +112,7 @@ Notes sellShards(GameState& g, long long n) {
     g.shardsSold += n;
     g.tokensFromSells = addTokens(g.tokensFromSells, value);
     g.tradeCost = addTokens(g.tradeCost, std::max(0LL, toTokens(g.shardPrice * (double)n) - value));
+    if (n >= 100 && (double)value >= 3.0 * SHARD_FAIR_PRICE * (double)n) spotStar(g, Constellation::Scales);
     g.shardPrice = std::clamp(g.shardPrice / std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;
     return {{Sev::Good, "Sold " + count(n, "shard") + " for " + num(value) + " tokens (avg " +

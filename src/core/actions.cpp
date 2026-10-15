@@ -5,6 +5,7 @@
 #include <string>
 
 #include "crew.hpp"
+#include "stars.hpp"
 #include "game.hpp"
 #include "util.hpp"
 
@@ -42,6 +43,7 @@ MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
     if (r.gain == 777) spotSecret(g, Secret::LuckySevens);
     if (r.jackpot && activeEvent(g, t) == EV_GOLDRUSH) spotSecret(g, Secret::GoldenHour);
     if (localHour(t) == 3) spotSecret(g, Secret::WitchingHour);
+    if (g.streak + 1 >= 250 && r.meteor) spotStar(g, Constellation::Miner);   // (the streak goes up just below)
     g.contractStreak = std::min(g.contractStreak, (long long)g.streak);   // follows the streak down if it broke
     g.streak += 1;
     g.contractStreak += 1;

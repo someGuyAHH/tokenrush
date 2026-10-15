@@ -8,6 +8,7 @@
 #include <string>
 
 #include "contracts.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 // ----- Upgrades -----
@@ -296,6 +297,7 @@ static void paySecrets(GameState& g, MessageLog& log) {
 
 void checkGoals(GameState& g, MessageLog& log) {
     paySecrets(g, log);
+    starsCheck(g, log);
     int titleBefore = titleIndex(renownOf(g));
 
     for (int i = 0; i < GOAL_COUNT; ++i) {

@@ -47,6 +47,7 @@
 #include "contracts.hpp"
 #include "crew.hpp"
 #include "game.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 namespace {
@@ -581,6 +582,16 @@ const std::vector<Field>& saveFields() {
         numField("disasters", "unplugged",      &GameState::gadgetsUnplugged, 0, 24 * 3600),
         numField("stats", "disastersHit",       &GameState::disastersHit),
         numField("stats", "disastersStopped",   &GameState::disastersStopped),
+
+        maskField("stars", "lit",              &GameState::starsLit, CONSTELLATION_COUNT, [](int i) { return CONSTELLATIONS[i].id; }),
+        numField("stars", "lastContractAt",    &GameState::lastContractAt, std::numeric_limits<long long>::min(), std::numeric_limits<long long>::max()),
+        numField("stars", "fullCrewPaydays",   &GameState::fullCrewPaydays, 0, 1'000'000),
+        numField("stars", "stoppedInRow",      &GameState::stoppedInRow, 0, 1'000'000),
+        maskField("stars", "signatureClients", &GameState::signatureClients, CLIENT_COUNT, [](int i) { return CLIENTS[i].id; }),
+        numField("stars", "heat10At",          &GameState::heat10At, -1LL, std::numeric_limits<long long>::max()),
+        numField("stars", "handsOffSince",     &GameState::handsOffSince),
+        numField("stars", "handsOffFrom",      &GameState::handsOffFrom),
+        numField("stars", "handsOffMines",     &GameState::handsOffMines),
 
         numField("orrery", "stage",    &GameState::orreryStage, 0, ORRERY_STAGE_COUNT),
         numField("orrery", "progress", &GameState::orreryProgress),

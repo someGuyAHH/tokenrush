@@ -41,7 +41,7 @@ struct CommandInfo {
 
 constexpr int MARKET = (int)Feature::Market, CONTRACTS = (int)Feature::Contracts, CREW = (int)Feature::Crew;
 constexpr int CURIOS = (int)Feature::Curios, MONOLITH = (int)Feature::Monolith, ORRERY = (int)Feature::Orrery;
-constexpr int WORKSHOP = (int)Feature::Workshop;
+constexpr int WORKSHOP = (int)Feature::Workshop, STARS = (int)Feature::Stars;
 
 const std::vector<CommandInfo>& commands() {
     static const std::vector<CommandInfo> table = {
@@ -298,6 +298,14 @@ const std::vector<CommandInfo>& commands() {
          {"equip", "workshop"}, WORKSHOP, SPENDING},
 
         // ----- Progress and other -----
+        {Cmd::Stars, {"stars", "sky", "constellations"}, "stars", "The Constellations: the sky map and the feats that light it",
+         {"Once the Orrery is complete, the sky around it opens: ten constellations, each lit by one hard feat, like a "
+          "streak of 250 during a Meteor Shower, two contracts finished within ten seconds of each other, or an hour "
+          "of 1B tokens without mining by hand.",
+          "They give no power: just the picture, and a record of what you pulled off. Feats only count once the "
+          "Constellations are open. Where a feat builds up over time, the list shows how far along you are."},
+         {{"stars", "the sky and the list"}, {"sky", "the same"}},
+         {"orrery", "goals"}, STARS, PROGRESS},
         {Cmd::Goals, {"goals", "g"}, "goals", "Goals, renown, titles and what they unlock",
          {"Goals are milestones: mine so many times, earn so much, finish the Monolith... Each one earns renown, "
           "renown earns titles, and titles open the rest of the game (the Market, Contracts, the Crew and more). "

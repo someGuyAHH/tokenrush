@@ -73,6 +73,7 @@ void strike(GameState& g, MessageLog& log, std::mt19937& rng) {
     Disaster d = g.disaster;
     g.disaster = Disaster{};
     g.disastersHit += 1;
+    g.stoppedInRow = 0;
     std::uniform_real_distribution<double> uni(0.0, 1.0);
     double soft = fixerSoften(g);
     std::string fix = soft < 1.0 ? " (your Fixers kept it down)" : "";
@@ -123,6 +124,7 @@ void strike(GameState& g, MessageLog& log, std::mt19937& rng) {
 void stopped(GameState& g, const std::string& how, Notes& out) {
     g.disaster = Disaster{};
     g.disastersStopped += 1;
+    g.stoppedInRow += 1;
     if (g.disastersStopped >= 5) spotSecret(g, Secret::Firefighter);
     out.push_back({Sev::Good, how});
 }

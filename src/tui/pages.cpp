@@ -8,6 +8,7 @@
 #include "core/contracts.hpp"
 #include "core/crew.hpp"
 #include "core/disasters.hpp"
+#include "core/stars.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/util.hpp"
@@ -726,6 +727,44 @@ Component WorkshopPage(Ui& ui) {
         Element hint = note("Each gadget is built once from a curio you own (it stays on the shelf) and some shards. Equip up to " +
                             std::to_string(GADGET_SLOTS) + "; swap them whenever you like, for free.");
         return vbox({vbox(rows) | yframe | flex, hint});
+    });
+}
+
+// ----- The Constellations -----
+Component StarsPage(Ui& ui) {
+    return Renderer([&ui] {
+        const GameState& g = ui.snap;
+        Elements sky;
+        for (const std::vector<SkyGlyph>& row : skyMap(g)) {
+            Elements line;
+            for (const SkyGlyph& c : row) {
+                Element e = text(c.text);
+                if (c.kind == SkyCell::Dust) e = e | muted();
+                else if (c.kind != SkyCell::Empty) {
+                    e = c.lit ? e | color(hue(CONSTELLATIONS[c.constellation].hue)) : e | muted();
+                    if (c.lit && c.kind == SkyCell::Star) e = e | bold;
+                }
+                line.push_back(e);
+            }
+            sky.push_back(hbox(line));
+        }
+        Elements list;
+        for (int i = 0; i < CONSTELLATION_COUNT; ++i) {
+            const ConstellationInfo& c = CONSTELLATIONS[i];
+            bool lit = hasBit(g.starsLit, i);
+            std::string progress = lit ? "" : starProgress(g, i);
+            list.push_back(hbox({text(lit ? "[*] " : "[ ] ") | (lit ? color(hue(c.hue)) : muted()),
+                                 cell(c.name, 15) | bold | (lit ? color(hue(c.hue)) : nothing), text(c.feat) | (lit ? muted() : nothing),
+                                 text(progress.empty() ? "" : "   " + progress) | muted()}));
+        }
+        return vbox({
+            hbox({heading("The Constellations"), text("   " + std::to_string(std::popcount(g.starsLit)) + "/" + std::to_string(CONSTELLATION_COUNT) + " lit") | muted()}),
+            text(""),
+            vbox(sky) | hcenter,
+            text(""),
+            vbox(list) | yframe | flex,   // the sky keeps its size; the list scrolls on a short terminal
+            note("They give nothing but the sky. Each one is a feat you pulled off."),
+        });
     });
 }
 

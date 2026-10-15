@@ -137,6 +137,7 @@ ftxui::Component CuriosPage(Ui& ui);
 ftxui::Component MonolithPage(Ui& ui);
 ftxui::Component OrreryPage(Ui& ui);
 ftxui::Component WorkshopPage(Ui& ui);
+ftxui::Component StarsPage(Ui& ui);
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);
 ftxui::Component ConsolePage(Ui& ui);

@@ -7,6 +7,7 @@
 
 #include "crew.hpp"
 #include "game.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 // ----- Standing -----
@@ -352,6 +353,9 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     g.contractsDone += 1;
 
     if (c.big && g.heat >= 8) spotSecret(g, Secret::GlassCannon);
+    if (g.playSeconds - g.lastContractAt <= 10) spotStar(g, Constellation::Twins);
+    g.lastContractAt = g.playSeconds;
+    if (c.signature) g.signatureClients |= 1u << c.client;
     std::string msg = "CONTRACT DONE for " + std::string(CLIENTS[c.client].name) + ": " + contractText(c) + ". +" +
                       num(c.rewardTokens) + " tokens, +" + count(c.rewardShards, "shard");
     if (c.stake > 0) msg += ", stake returned";

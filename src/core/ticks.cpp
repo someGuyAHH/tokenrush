@@ -10,6 +10,7 @@
 #include "crew.hpp"
 #include "disasters.hpp"
 #include "game.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
@@ -54,6 +55,7 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
     contractsTick(g, log, rng);
     choicesTick(g, log, rng);
     disastersTick(g, log, rng);
+    hourglassTick(g);
     recordStats(g);
     checkGoals(g, log);
 }
