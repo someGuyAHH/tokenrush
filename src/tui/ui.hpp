@@ -129,6 +129,10 @@ ftxui::Component MineButton(Ui& ui);
 // on every frame, which flickers on Windows Terminal; this keeps that cursor hidden.)
 ftxui::Component TextBox(std::string* content, int* cursor, std::string placeholder,
                          std::function<void()> onEnter = nullptr, int width = 0);
+// A column of rows (like Container::Vertical) where the rows of buttons share one column:
+// moving up or down lands on the same column in the next row, not wherever that row was last.
+// Any child with two or more children of its own counts as a row; the rest are left alone.
+ftxui::Component Grid(ftxui::Components rows);
 
 // ----- picker.cpp -----
 }  // namespace tui

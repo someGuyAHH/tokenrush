@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
@@ -101,7 +104,30 @@ Color classicHue(Hue h) {
 }
 }  // namespace
 
-void useTheme(int theme) { g_theme = std::clamp(theme, 0, THEME_COUNT - 1); }
+// The terminal's own default background (OSC 11), so the strip of padding around the cells, which
+// no program can draw on, matches the theme instead of staying black. Classic, or leaving, puts the
+// terminal's own color back (OSC 111). Terminals that don't know these quietly ignore them.
+static void paintBackdrop(int theme) {
+    static int painted = 0;   // 0: the terminal's own color
+    int want = THEMES[theme].classic ? 0 : theme;
+    if (want == painted) return;
+    const char* noColor = std::getenv("NO_COLOR");
+    if (noColor && *noColor) return;
+    painted = want;
+    if (want == 0) {
+        std::cout << "\x1b]111\x1b\\" << std::flush;
+        return;
+    }
+    Rgb c = THEMES[theme].hue[(int)Hue::Background];
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "\x1b]11;#%02x%02x%02x\x1b\\", c.r, c.g, c.b);
+    std::cout << buf << std::flush;
+}
+
+void useTheme(int theme) {
+    g_theme = std::clamp(theme, 0, THEME_COUNT - 1);
+    paintBackdrop(g_theme);
+}
 int currentTheme() { return g_theme; }
 
 Color hueOf(int theme, Hue h) {
@@ -318,6 +344,50 @@ private:
 Component TextBox(std::string* content, int* cursor, std::string placeholder, std::function<void()> onEnter, int width) {
     return Make<TextBoxBase>(content, cursor, std::move(placeholder), std::move(onEnter), width);
 }
+
+// ----- Grids -----
+namespace {
+
+class GridBase : public ComponentBase {
+public:
+    explicit GridBase(Components rows) { Add(Container::Vertical(std::move(rows))); }
+
+    bool OnEvent(Event event) override {
+        Component before = ChildAt(0)->ActiveChild();
+        bool handled = ComponentBase::OnEvent(event);
+        Component row = ChildAt(0)->ActiveChild();
+        if (!row || row->ChildCount() < 2) return handled;
+        bool moved = handled && row != before && !event.is_mouse() && event != Event::Tab && event != Event::TabReverse;
+        if (moved) land(row);            // up or down: keep the column
+        else want_ = column(row);        // left, right, a click: that's the column now
+        return handled;
+    }
+
+private:
+    static int column(const Component& row) {
+        for (size_t i = 0; i < row->ChildCount(); ++i)
+            if (row->ChildAt(i) == row->ActiveChild()) return (int)i;
+        return 0;
+    }
+
+    // The wanted column, or the nearest one that can take focus. `want_` stays as it was, so
+    // passing through a shorter row and back lands on the old column again.
+    void land(const Component& row) const {
+        int n = (int)row->ChildCount();
+        for (int d = 0; d < n; ++d)
+            for (int c : {want_ - d, want_ + d})
+                if (c >= 0 && c < n && row->ChildAt((size_t)c)->Focusable()) {
+                    row->SetActiveChild(row->ChildAt((size_t)c));
+                    return;
+                }
+    }
+
+    int want_ = 0;
+};
+
+}  // namespace
+
+Component Grid(Components rows) { return Make<GridBase>(std::move(rows)); }
 
 // The big one. The gauge refills over the cooldown; clicks during the cooldown do nothing.
 Component MineButton(Ui& ui) {

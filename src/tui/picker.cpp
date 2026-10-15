@@ -113,7 +113,7 @@ std::string pickProfile(Profiles& profiles) {
 
         Components bottom = {input, createBtn};
         if (legacy) bottom.push_back(importBtn);
-        Component all = Container::Vertical({Container::Vertical(rows), Container::Horizontal(bottom), quitBtn});
+        Component all = Container::Vertical({Grid(rows), Container::Horizontal(bottom), quitBtn});
 
         Component ui = Renderer(all, [&] {
             Elements lines;

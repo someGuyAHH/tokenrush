@@ -172,7 +172,7 @@ Component ShopPage(Ui& ui) {
     Components all = rowsOfButtons;
     all.push_back(license);
     for (auto& b : themeBtns) all.push_back(b);
-    Component box = Container::Vertical(all);
+    Component box = Grid(all);
 
     // Previews: the mouse over a theme's row (anywhere on it), or the keyboard on its button,
     // shows the whole screen in that theme until it moves away. Nothing is bought or switched.
@@ -294,7 +294,7 @@ Component MarketPage(Ui& ui) {
         [&ui, amount] { long long n = amount(); return n > 0 && n <= MARKET_MAX_ORDER && n <= ui.snap.shards; });
     Components customRow = {amountBox, customBuy, customSell};
 
-    Component box = Container::Vertical({Container::Horizontal(buyRow), Container::Horizontal(sellRow), Container::Horizontal(customRow)});
+    Component box = Grid({Container::Horizontal(buyRow), Container::Horizontal(sellRow), Container::Horizontal(customRow)});
 
     return Renderer(box, [&ui, buyRow, sellRow, amountBox, customBuy, customSell, amount] {
         const GameState& g = ui.snap;
@@ -411,10 +411,10 @@ Component JobsPage(Ui& ui) {
                                  c.signature ? text("  SIG") | color(hue(Hue::Event)) | bold : text(""),
                                  text("  for "), clientName(g, c.client), filler()}));
             if (isEndurance(c))
-                rows.push_back(text(std::string("  Won by lasting until the end; fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") |
+                rows.push_back(text(std::string("    Won by lasting until the end; fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") |
                                color(hue(Hue::Warn)));
-            rows.push_back(tipLine(c, "  "));
-            rows.push_back(hbox({text("  "), progress(contractProgress(g, c), contractGoal(c), 14), text("  "),
+            rows.push_back(tipLine(c, "    "));
+            rows.push_back(hbox({text("    "), progress(contractProgress(g, c), contractGoal(c), 14), text("  "),
                                  text(duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text))),
                                  text("   "), hbox(pays), filler(), abandons[j]->Render()}));
         }
@@ -425,11 +425,12 @@ Component JobsPage(Ui& ui) {
         for (int i = 0; i < OFFER_COUNT; ++i) {
             if (i >= (int)g.offers.size()) continue;
             const Contract& o = g.offers[(size_t)i];
-            Element tag = o.signature ? text("SIG ") | color(hue(Hue::Event)) | bold
-                        : o.big       ? text("BIG ") | color(hue(Hue::Warn)) | bold : text("    ");
+            // The job's name at the margin, its details indented under it.
+            Element tag = o.signature ? text("  SIG") | color(hue(Hue::Event)) | bold
+                        : o.big       ? text("  BIG") | color(hue(Hue::Warn)) | bold : text("");
             Element terms = hbox({text(compact(o.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(o.rewardShards), text(" sh"),
                                   o.stake > 0 ? text("  stake " + num(o.stake)) | color(hue(Hue::Shards)) : text("")});
-            rows.push_back(hbox({tag, text(contractText(o)) | flex, text("  "), cell((isEndurance(o) ? "for " : "in ") + duration(o.duration), 11),
+            rows.push_back(hbox({hbox({text(contractText(o)) | bold, tag}) | flex, text("  "), cell((isEndurance(o) ? "for " : "in ") + duration(o.duration), 11),
                                  terms | size(WIDTH, EQUAL, 24), accepts[(size_t)i]->Render()}));
             rows.push_back(hbox({text("    from ") | muted(), clientName(g, o.client),
                                  text(std::string(", ") + CLIENT_STYLES[(int)CLIENTS[o.client].style].name + ", leaves in " + duration(o.expiresIn) +
@@ -506,7 +507,7 @@ Component CrewPage(Ui& ui) {
     for (int i = 0; i < MAX_CREW_SLOTS; ++i) rowsC.push_back(Container::Horizontal({trains[(size_t)i], sends[(size_t)i], fires[(size_t)i]}));
     rowsC.push_back(Container::Horizontal(trips));
     for (auto& h : hires) rowsC.push_back(h);
-    Component box = Container::Vertical(rowsC);
+    Component box = Grid(rowsC);
 
     return Renderer(box, [&ui, trains, fires, hires, sends, trips] {
         const GameState& g = ui.snap;
