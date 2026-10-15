@@ -1063,8 +1063,11 @@ Component ConsolePage(Ui& ui) {
 
         Elements rows;
         int focusAt = ui.consoleScroll > 0 ? (int)lines.size() - 1 - ui.consoleScroll : -1;
+        int width = Terminal::Size().dimx - 1;   // the scroll bar takes one
         for (int i = 0; i < (int)lines.size(); ++i) {
-            Element row = ansiLine(lines[(size_t)i]);
+            Elements pieces;
+            for (const std::string& piece : wrapAnsi(lines[(size_t)i], width)) pieces.push_back(ansiLine(piece));
+            Element row = pieces.size() == 1 ? pieces[0] : vbox(pieces);
             rows.push_back(i == focusAt ? row | focus : row);
         }
         Element prompt = hbox({ansiLine(ui.console->partial()), input->Render() | flex});

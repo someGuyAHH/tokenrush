@@ -134,6 +134,7 @@ ftxui::Element heatBar(int heat);
 ftxui::Element sparkline(const std::deque<double>& values);
 ftxui::Element progress(long long cur, long long target, int width);   // gauge + "cur/target"
 ftxui::Element ansiLine(const std::string& line);                     // a line with terminal color codes, drawn in color
+std::vector<std::string> wrapAnsi(const std::string& line, int width); // ...cut into rows that fit, colors carried over
 
 ftxui::Component Btn(std::function<std::string()> label, std::function<void()> onClick,
                      std::function<bool()> enabled = nullptr);

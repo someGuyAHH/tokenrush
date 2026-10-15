@@ -69,13 +69,20 @@ second click within 3 seconds.
 **The Console tab** is where everything can be typed: every command, with its menus and
 questions, in color, with Up/Down for earlier lines. PgUp/PgDn and the mouse wheel scroll back
 through its output (End, or just typing, comes back down). A few things only exist there:
-prompt styles, `wipe`, `log` with filters, and the `help` pages.
+prompt styles, `wipe`, `log` with filters, `predict`, and the `help` pages.
 
 **Commands:** type `help` in the Console, and `help <command>` (aliases work: `help ct`) for a full page on one
 command, with examples. `logout` goes back to the profile list, `cls`/`clear` clears the
 screen, and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the
 menu, `curios 3` buys curio 3, `buy`/`sell` take amounts like `2k`, and `log 50 bad` shows the
 last 50 bad-news messages.
+
+**Predictions:** `predict <what> <time|count>` multiplies your current rates out: `predict tokens 1h`
+(your income over an hour, by source), `predict jackpots 1000` (how many in 1000 mines, give or
+take, and what they pay; `predict jackpots 10min` does it at your mining pace), `predict shards
+2h` (Scouts minus wages), `predict heat 30min`, `predict paydays 1h`, `predict events 1h`, and
+`predict magnet 50` (the cost of 50 levels, the income they add, and how long they take to pay
+off). `predict` alone lists them.
 
 **Themes:** `theme` lists them, each with a preview line in its own colors. Classic (your
 terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with

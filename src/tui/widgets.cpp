@@ -221,6 +221,52 @@ Elements logLines(const LogEntry& e, int width, int maxLines) {
     return out;
 }
 
+// A line with color codes, cut into rows `width` columns wide at spaces (the color carries on into
+// the next row, which is indented by two). Codes take no room.
+std::vector<std::string> wrapAnsi(const std::string& line, int width) {
+    width = std::max(width, 20);
+    std::vector<std::string> out;
+    std::string cur, active, activeAtSpace;   // active: the codes in force (since the last reset)
+    int curW = 0;
+    size_t spaceAt = std::string::npos;       // in cur, just after the last space
+    int wAtSpace = 0;
+    for (size_t i = 0; i < line.size();) {
+        if (line[i] == '\x1b' && i + 1 < line.size() && line[i + 1] == '[') {   // a code: keep it, track it
+            size_t j = i + 2;
+            while (j < line.size() && !std::isalpha((unsigned char)line[j])) ++j;
+            std::string code = line.substr(i, j + 1 - i);
+            if (code == "\x1b[0m" || code == "\x1b[m") active.clear();
+            else active += code;
+            cur += code;
+            i = j + 1;
+            continue;
+        }
+        size_t len = 1;   // one UTF-8 character, one column
+        while (i + len < line.size() && ((unsigned char)line[i + len] & 0xC0) == 0x80) ++len;
+        if (curW >= width) {
+            std::string rest;
+            if (spaceAt != std::string::npos && wAtSpace > 2) {   // break at the last space
+                rest = activeAtSpace + cur.substr(spaceAt);
+                cur.erase(spaceAt);
+                curW -= wAtSpace;
+            } else {
+                rest = active;
+                curW = 0;
+            }
+            out.push_back(cur + "\x1b[0m");
+            cur = "  " + rest;
+            curW += 2;
+            spaceAt = std::string::npos;
+        }
+        cur += line.substr(i, len);
+        curW += 1;
+        if (line[i] == ' ') { spaceAt = cur.size(); wAtSpace = curW; activeAtSpace = active; }
+        i += len;
+    }
+    out.push_back(cur);
+    return out;
+}
+
 // Understands the codes the shell's paint() writes: reset, bold, the 16 basic colors (30-37,
 // 90-97), the 256-color palette (38;5;n) and 24-bit color (38;2;r;g;b, and 48;2;r;g;b for the
 // theme previews' backgrounds). Anything else is skipped.

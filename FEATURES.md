@@ -65,6 +65,18 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Clearing:** `cls`/`clear` empties the Console, scrollback included.
 - **Logging out:** `logout` goes back to the profile picker; `quit` closes the game.
 - **Background news** goes to the pinned log pane (and `log`), not into the Console.
+- **Long lines wrap** (`wrapAnsi` in `tui/widgets.cpp`): at spaces, with the color carried into the
+  next row (indented by two), so nothing gets squeezed off the edge.
+- **Predictions** (`shell/predict.cpp`): `predict <what> <time|count>`.
+  - Over a time (`1h`, `30min`, `2h30m`, `90s`): `tokens` (the last minute's steady income,
+    contracts aside, or the 5-minute average before there's a minute, × the time, and by source),
+    `shards` (Scouts at home at their odds, the Lucky Penny's jackpot shards, minus the paydays'
+    wages), `heat` (cooling, and when it reaches 0; Fever: it doesn't), `paydays`, `events` (and
+    disasters, once the Crew is open; the Lightning Rod counts).
+  - Over mines (`1000`, `5k`; a time turns into mines at your recent pace): `mines` (by hand, a
+    full streak), `jackpots`, `bonuses` (n × p, give or take √(n·p·(1−p)), and the pay of each).
+  - Upgrades: `predict <pickaxe|magnet|drone|bot> <n>`: the cost of n levels, the income they
+    add (`incomeEstimate` before and after, applied to your income) and the payback time.
 - **One-line shortcuts:**
   - `shop 1 10`: 10 Pickaxe levels.
   - `curios 3`: buy curio 3.
