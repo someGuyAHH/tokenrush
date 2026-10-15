@@ -142,7 +142,7 @@ bool startDisaster(GameState& g, DisasterKind k, std::mt19937& rng) {
     d.secondsLeft = DISASTERS[(int)k].warnSeconds;
     switch (k) {
         case DisasterKind::BotBreak: d.tokens = std::max(200LL, toTokens(botRatePerSec(g) * 60.0 + income(g) * 10.0)); break;
-        case DisasterKind::Fire:     d.tokens = std::max(500LL, toTokens(income(g) * 30.0)); break;
+        case DisasterKind::Fire:     d.tokens = std::max(500LL, toTokens(income(g) * 20.0)); break;
         case DisasterKind::Quake: {
             std::vector<int> st = crackable(g);
             d.target = st[std::uniform_int_distribution<size_t>(0, st.size() - 1)(rng)];

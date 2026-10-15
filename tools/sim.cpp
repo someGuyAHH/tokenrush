@@ -166,7 +166,7 @@ struct Sim {
     void curioPlan() {
         if (!isUnlocked(g, Feature::Curios)) return;
         int best = -1;
-        for (int i = 0; i < CURIO_COUNT; ++i)
+        for (int i = 0; i < SHOP_CURIO_COUNT; ++i)   // the Dealer's aren't for sale
             if (!hasBit(g.curiosOwned, i) && (best < 0 || CURIOS[i].cost < CURIOS[best].cost)) best = i;
         if (best >= 0 && CURIOS[best].cost * 4 <= g.tokens) {
             buyCurio(g, best);
@@ -246,8 +246,8 @@ int main(int argc, char** argv) {
 
     for (int seed = 1; seed <= seeds; ++seed) {
         Sim sim((unsigned)seed * 7919u, strat);
-        std::printf("\nseed %d\n  %5s %12s %12s %7s %7s %6s %5s %5s %5s %8s %6s\n", seed, "hour", "tokens", "lifetime",
-                    "shards", "price", "done", "fail", "heat", "crew", "crewMined", "audits");
+        std::printf("\nseed %d\n  %5s %12s %12s %7s %7s %6s %5s %5s %5s %8s %6s %6s %5s\n", seed, "hour", "tokens", "lifetime",
+                    "shards", "price", "done", "fail", "heat", "crew", "crewMined", "audits", "renown", "dis");
         int lastStage = 0;
         std::string stageTimes, unlockTimes;
         std::uint32_t lastUnlocked = sim.g.unlocked;
@@ -270,9 +270,9 @@ int main(int argc, char** argv) {
             }
             if (s % every == 0 || s == total) {
                 const GameState& g = sim.g;
-                std::printf("  %5.1f %12lld %12lld %7lld %7.1f %6lld %5lld %5d %5zu %9lld %6lld\n", s / 3600.0,
+                std::printf("  %5.1f %12lld %12lld %7lld %7.1f %6lld %5lld %5d %5zu %9lld %6lld %6d %2lld/%-2lld\n", s / 3600.0,
                             g.tokens, g.lifetimeEarned, g.shards, g.shardPrice, g.contractsDone, g.contractsFailed,
-                            g.heat, g.crew.size(), g.crewMined, g.audits);
+                            g.heat, g.crew.size(), g.crewMined, g.audits, renownOf(g), g.disastersStopped, g.disastersHit);
             }
         }
         const GameState& g = sim.g;

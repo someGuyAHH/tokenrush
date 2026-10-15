@@ -275,7 +275,7 @@ constexpr Title TITLES[] = {
     {28, "Magnate"},
     {40, "Legend"},
     {55, "Monolith-Maker"},
-    {68, "Kingpin"},
+    {62, "Kingpin"},
     {96, "Celestial"},   // every goal, Orrery included
 };
 static_assert(std::size(TITLES) == TITLE_COUNT);

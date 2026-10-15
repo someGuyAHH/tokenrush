@@ -309,11 +309,11 @@ void checkGoals(GameState& g, MessageLog& log) {
     }
 
     int titleAfter = titleIndex(renownOf(g));
-    if (titleAfter != titleBefore) {
-        log.push(Sev::Event, std::string("New title: ") + TITLES[titleAfter].name + "!");
-        for (int t = titleBefore + 1; t <= titleAfter; ++t)
-            if (g.titleReachedAt[t] == 0) g.titleReachedAt[t] = g.playSeconds;
-    }
+    if (titleAfter != titleBefore) log.push(Sev::Event, std::string("New title: ") + TITLES[titleAfter].name + "!");
+    // Record when each title was reached. This also catches titles reached without an announcement,
+    // like a save that loads already past a threshold that moved.
+    for (int t = 1; t <= titleAfter; ++t)
+        if (g.titleReachedAt[t] == 0) g.titleReachedAt[t] = std::max(1LL, g.playSeconds);
     for (const Note& n : syncUnlocks(g)) log.push(n);
 
     if (g.strain != Strain::None && !g.cured && g.orreryStage >= ORRERY_STAGE_COUNT) {

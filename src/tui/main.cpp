@@ -258,7 +258,8 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             pages->Render() | flex,
             text(ui.page == CONSOLE_PAGE
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
-                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   x stop a disaster   : console   ") + (profile.empty() ? "" : "p profile   ") +
+                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
+                           (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
                            "q quit") | tui::muted(),
         }));
     });

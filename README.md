@@ -48,26 +48,35 @@ passwords, for now). Each profile is a folder with its own save:
 - `--no-color` (or the `NO_COLOR` environment variable) turns colors off.
 
 A save from before profiles (the `.save` folder next to the exe) can be imported from the
-picker. The original is kept, renamed to `tokenrush.save.imported`.
+picker. The original is kept, renamed to `tokenrush.save.imported`. Profiles can be renamed from
+either picker (`r <n>` in the CLI, the Rename button in the TUI).
 
 Both editions read the same profiles, so you can switch between them, just not play the same
 profile in both at once.
 
 **TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (Mine, Shop, Goals, Stats, then
-Curios, Monolith, Market, Jobs, Crew, Orrery in unlock order; locked ones aren't shown), `m` to
-mine, `s` to save, `y`/`n` to answer an offer, `:` for the Console, `p` to switch profile, `q`
-or Ctrl+C to quit. Tab, the arrows and Enter move around and press buttons. While a text box
+Curios, Monolith, Market, Jobs, Crew, Orrery, Workshop, Stars in unlock order; locked ones
+aren't shown), `m` to mine, `s` to save, `y`/`n` to answer an offer, `x` to stop a disaster,
+`:` for the Console, `p` to switch profile, `q` or Ctrl+C to quit. Tab, the arrows and Enter move around and press buttons. While a text box
 has the keyboard (the Console, the Market's amount box), keys type into it and Esc steps out.
 Risky buttons (Fire, Abandon, Delete, and Buy when it would buy at a steep price) need a
 second click within 3 seconds.
 
 **The Console tab** is the CLI inside the TUI: the same commands, menus and questions, in
-color, with Up/Down for earlier lines. That's also where the CLI-only bits (prompt styles,
-`wipe`) live in the TUI.
+color, with Up/Down for earlier lines. PgUp/PgDn and the mouse wheel scroll back through its
+output (End, or just typing, comes back down). That's also where the CLI-only bits (prompt
+styles, `wipe`) live in the TUI.
 
-**CLI:** type `help`. `logout` goes back to the profile list, `cls`/`clear` clears the screen,
-and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the menu,
-`curios 3` buys curio 3, and `buy`/`sell` take amounts like `2k`.
+**CLI:** type `help`, and `help <command>` (aliases work: `help ct`) for a full page on one
+command, with examples. `logout` goes back to the profile list, `cls`/`clear` clears the
+screen, and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the
+menu, `curios 3` buys curio 3, `buy`/`sell` take amounts like `2k`, and `log 50 bad` shows the
+last 50 bad-news messages.
+
+**Themes:** `theme` lists them, each with a preview line in its own colors. Classic (your
+terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with
+shards. A theme belongs to the profile. Every theme but Classic is 24-bit color
+(`ESC[38;2;r;g;bm`), with its own background in the TUI.
 
 ## What's in the game
 
@@ -80,17 +89,24 @@ titles, and titles open the rest of the game, one piece at a time:
 | Hustler | 10 | the Monolith |
 | Baron | 18 | the Market |
 | Magnate | 28 | Contracts |
-| Legend | 40 | the Crew |
+| Legend | 40 | the Crew (and, from then on, disasters) |
 | Monolith-Maker | 55 | the Orrery |
+| Kingpin | 62 | the Workshop |
+| Celestial | 96 | every goal done |
 
-Once open, a feature stays open. Saves from before this kept everything they were already using.
-The table lives in `FEATURES` in `src/core/content.cpp`.
+Completing the Orrery opens the Constellations. Once open, a feature stays open. Saves from
+before this kept everything they were already using. The table lives in `FEATURES` in
+`src/core/content.cpp`.
 
 - **Mining, upgrades, curios, prompt styles, the Monolith.** The original game; the Monolith
   is the mid-game project. Upgrades can be bought 10 or 20 levels at a time (the Buy 10 and
   Buy 20 buttons, or `1 10` in the CLI shop). The Mine tab (and `status`) shows what you've
-  earned per second over the last 10 seconds, from every source. (Heists are gone. Saves that still mention them load fine; an old
-  heist contract is cancelled and its stake refunded.)
+  earned per second over the last 10 seconds, and where it came from. (Heists are gone. Saves
+  that still mention them load fine; an old heist contract is cancelled and its stake refunded.)
+- **Curios.** Four sets. Desk Toys (1.5K-25K), Relics (150K-6M) and Impossible Things
+  (25M-750M) are in the shop, spread from the early game to the very late one. Under the
+  Counter isn't sold anywhere: the Curio Dealer offers those (at 1.5x their worth), and a crew
+  expedition can turn one up.
 - **The Orrery.** The late-game project, built with shards (`orrery <n|all>` in the CLI, the
   Orrery tab in the TUI). Every stage unlocks something:
 
@@ -100,49 +116,75 @@ The table lives in `FEATURES` in `src/core/content.cpp`.
   | First Ring | 6,000 | Resonance: Drones and the Mining Bot scale with your mining |
   | Second Ring | 15,000 | a second contract slot |
   | Gearwork | 35,000 | crew can train up to level 8 |
-  | The Sun | 80,000 | the last goal, and the Celestial title |
+  | The Sun | 80,000 | the Clockwork Sky goal, and the Constellations |
 
   Token wealth can't rush it: every shard you buy pushes the price up, so a fortune buys only
   a few thousand shards before the price needs time to settle. `orrery all` keeps back your
   crew's next payday.
 - **Shards and the market.** A second currency, bought and sold with tokens. The price wanders,
   drifts back toward 150, and every shard you trade pushes it a little. Buying costs a bit
-  above the price and selling pays a bit below it (the spread).
+  above the price and selling pays a bit below it (the spread). The market screen keeps your
+  trading record: bought, sold, average prices, the net, and what went to the spread.
 - **Contracts.** Timed jobs on a board of three. Targets are sized from how fast you've
   actually been playing. Big jobs need a shard stake and pay more. Fail or abandon one and you
   lose the stake and gain **Heat**. One job at a time (two with the Orrery's Second Ring, as
-  long as they're different kinds).
+  long as they're different kinds). Besides earning, mining, jackpots, streaks and bot jobs
+  there are trade jobs, cool-your-heat-down jobs, and two endurance jobs, won by lasting until
+  the timer runs out: hold N shards, and hands off the mine.
+- **Clients and standing.** Every client remembers you (`clients`): standing from -10 to 10,
+  up when you deliver, down when you don't, and down with their rival when you work for them.
+  Burned clients post nothing; Trusted ones pay 30% more and post signature jobs (longer, no
+  stake, double pay). Styles: Shady (40% more pay, but their money adds heat), Miners (mining
+  by hand only), Merchants (paid in shards), Small fry (forgiving).
 - **Heat.** Widens the market spread. From 3 up, audits can seize part of your tokens.
   It cools slowly on its own; big jobs you finish cool it by 1.
 - **Crew.** Up to four named hires (five with the Orrery), paid in shards every 5 minutes
-  (their level in shards each).
-  Miners mine, Brokers improve the market, Scouts find shards, Fixers handle heat and audits.
-  Anyone you can't pay quits.
-
+  (their level in shards each). Miners mine, Brokers improve the market, Scouts find shards,
+  Fixers handle heat, audits and disasters. Anyone you can't pay quits, and leaves a keepsake
+  on your shelf; the Stats tab remembers everyone who left.
 - **Crew traits and promotions.** About two in three candidates have a trait, always a
   trade-off: Diligent (works 25% harder), Greedy (+50% work, double wages), Frugal (half the
   wages, 15% less work), Quick Learner (half-price training), Ambitious (cheaper promotions),
   Loyal (stays through one missed payday), Night Owl (works twice as hard while you're not
   mining). A member at their level cap can be **promoted** for shards: +3 levels of cap and
   every level counts 25% more. Each promotion costs 3x the last (300, 900, 2,700...), so
-  there's no limit, just a point where it stops paying.
+  there's no limit, just a point where it stops paying. A third star earns you a keepsake.
+- **Expeditions.** Send a member away (`expedition <n> <short|long|deep>`, 10/30/60 minutes):
+  they don't work meanwhile but come back with shards, and sometimes a curio no shop sells, a
+  trait or a level, or an injury.
+- **The Workshop.** Gadgets built once from a curio you own (it stays on the shelf) plus
+  shards, equipped in three slots, each a trade-off: the Tuning Fork makes your streak last
+  longer but halves your jackpots, the Night Shift doubles the bot but your own mining pays
+  less, and so on (`workshop`, `craft`, `equip`, `unequip`).
+- **Disasters.** Once the Crew is open, every 20-35 minutes something goes wrong: a power
+  surge, a bot breakdown, a vault fire, thieves, a quake under the Orrery, a short circuit in
+  your gadgets. Each starts with a warning and can be stopped (`respond`, or the word it names:
+  douse, chase, brace, oil, unplug). If it hits, Drones burn out for a while, shards burn,
+  tokens are stolen, or something breaks until you `repair` it. Fixers soften all of it.
 - **Offers.** Every 10-15 minutes someone makes you an offer; answer yes or no within 45
   seconds (ignoring it is a no). A shady broker selling cheap shards for heat, an investor
   who usually pays back 1.3x (and sometimes vanishes), a rival betting you can't mine 40
   times in a minute, a crew member asking for a raise, an auditor you can bribe when heat is
-  high. Each only shows up once the features it involves are open.
+  high, a dealer with a curio no shop sells. Each only shows up once the features it involves
+  are open.
+- **Events.** Meteor Shower, Drone Overclock, Gold Rush, and once you have a crew, Payday
+  Rush (they work twice as hard, and payday comes when it ends).
 - **Infected profiles.** A quarter of new profiles are Infected with one strain that makes
   that game harder: Fever (heat never cools on its own), Rust (upgrades cost double), Static
   (a wilder market with twice the spread), Mutiny (double crew wages), Leech (1% of your
   tokens drains every 5 minutes) or Amnesia (your streak fades after 6 seconds). Completing
   the Orrery cures it. Nothing carries over between profiles, so a fresh profile you don't
   like can simply be deleted.
-- **Stats.** The Stats tab (`stats` in the CLI): your records, when you reached each title,
-  and a chart of everything you've earned over your play time (log scale, a point every 5
-  minutes, kept in the save).
+- **Secret goals.** Fifteen of them, shown only as a hint until found. They pay shards
+  instead of renown, so they never stand between you and a title.
+- **The Constellations.** What's left once the Orrery is complete: ten constellations on a
+  sky map, each lit by one hard feat (`stars`). No power, just the sky.
+- **Stats.** The Stats tab (`stats` in the CLI): your records, income by source, former crew,
+  when you reached each title, and a chart of everything you've earned over your play time
+  (log scale, a point every 5 minutes, kept in the save).
 
-The bot, crew, market and contract timers only run while the game is open. Idle earnings
-from Drones are capped at 12 hours.
+The bot, crew, market, contract, expedition and disaster timers only run while the game is
+open. Idle earnings from Drones are capped at 12 hours.
 
 ## Layout
 
@@ -151,19 +193,22 @@ from Drones are capped at 12 hours.
 | `src/core/` | The game itself. Never prints, never reads input. |
 | `core/state.hpp/.cpp` | `GameState`, the message log (with severities), `Shared` |
 | `core/actions.hpp/.cpp` | Everything the player can do: mine, buy, build... |
-| `core/market`, `core/contracts`, `core/crew` | The shard market, contracts and heat, the crew |
+| `core/market`, `core/contracts`, `core/crew` | The shard market, contracts, heat and standing, the crew and expeditions |
+| `core/disasters.hpp/.cpp` | Disasters: warnings, responses, damage and repairs |
+| `core/stars.hpp/.cpp` | The Constellations: feats and the sky map |
 | `core/choices.hpp/.cpp` | Offers (choice events), the Investor's loan, the rival's race |
 | `core/ticks.hpp/.cpp` | One second of the world, with time passed in |
 | `core/workers.hpp/.cpp` | The five background threads that call the ticks |
 | `core/game.hpp/.cpp` | Rules: costs, passive income, events, goals, titles |
-| `core/content.hpp/.cpp` | Data tables: curios, goals, titles, roles, crew names, contract kinds |
+| `core/content.hpp/.cpp` | Data tables: curios, goals, secret goals, titles, themes, gadgets, roles, crew names, contract kinds, clients |
 | `core/save.hpp/.cpp` | INI save file: one field table drives read, write and validation |
 | `core/platform`, `core/util` | Executable path; formatting and parsing helpers |
 | `core/session.hpp/.cpp` | Options, loading, the worker threads: the startup both editions share |
-| `core/profiles.hpp/.cpp` | Where profiles live; list, create, delete, import an old save |
+| `core/profiles.hpp/.cpp` | Where profiles live; list, create, rename, delete, import an old save |
 | `src/shell/` | The typed commands, shared by the CLI and the TUI's Console tab |
 | `shell/dispatch.hpp/.cpp` | One typed line -> the right command |
-| `shell/commands.cpp`, `spending.cpp`, `economy.cpp` | The screens |
+| `shell/help.cpp` | The command table: names, aliases, `help` and `help <command>` |
+| `shell/commands.cpp`, `spending.cpp`, `economy.cpp`, `workshop.cpp` | The screens |
 | `shell/term.hpp/.cpp` | Colors (`NO_COLOR` aware), charts, padding; `out()`/`in()`, which the Console redirects |
 | `src/cli/` | The command-line edition |
 | `cli/main.cpp` | Startup, options, the input loop, Ctrl+C, shutdown order |
@@ -185,16 +230,20 @@ ignored, missing keys keep their defaults, and a file that can't be read is move
 
 Crew members are numbered sections (`[crew.1]`, `[crew.2]`...), active contracts are
 `[contract.1]` and `[contract.2]`, `[progress] unlocked` lists the features that are open,
-`[infection]` holds an Infected profile's strain, and `[history] samples` is the Stats chart. To add a field to the save, add one line to `saveFields()` in
-`src/core/save.cpp`.
+`[infection]` holds an Infected profile's strain, and `[history] samples` is the Stats chart.
+Version 9 adds `[cosmetics] theme`, `[jobs] standing`, `[workshop]`, `[disasters]`, `[stars]`,
+`[income]`, `[ledger]`, `[keepsakes]` and `[formercrew]` (one line per entry). To add a field to
+the save, add one line to `saveFields()` in `src/core/save.cpp`.
 
 ## Balance simulator
 
 `tools/sim.cpp` links only `src/core` and plays the game with a scripted player, one simulated
-second per loop, so hours of play take a moment. It prints a progress table per seed.
+second per loop, so hours of play take a moment. It prints a progress table per seed (with renown and disasters
+stopped/hit), when each feature unlocked and when each curio was bought.
 
     python build.py --sim                 # Windows; or `make sim` elsewhere
     .\target\debug\sim.exe 4 3 normal     # 4 hours, 3 seeds; strategies: normal, trader, idle, noecon
+    .\target\debug\sim.exe 4 3 normal 10  # the same, a table row every 10 minutes (default 30)
 
 Use it after changing numbers: `noecon` is the old game for comparison, and `trader` checks
 that playing the market alone can't beat actually playing.
