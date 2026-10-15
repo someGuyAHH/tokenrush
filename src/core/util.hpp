@@ -20,7 +20,7 @@ inline bool hasBit(std::uint32_t mask, int i) { return ((mask >> i) & 1u) != 0; 
 
 std::string num(long long v);                                   // 1234567 -> "1,234,567"
 std::string perSecond(double v);
-bool parseAmount(const std::string& text, long long& out);   // "2000", "2,000", "2k", "1.5m" (positive whole numbers)                              // 12.34 -> "12.3", 26100000 -> "26.1M"
+bool parseAmount(const std::string& text, long long& out);   // "2000", "2,000", "2k", "1.5m", "3b", "2t" (positive whole numbers)                              // 12.34 -> "12.3", 26100000 -> "26.1M"
 std::string compact(long long v);
 // A block chart, `height` rows tall (top row first), one column per value, on a log scale so
 // a run that grew from 100 to 100B still shows its shape. Uses the ▁▂▃▄▅▆▇█ characters.

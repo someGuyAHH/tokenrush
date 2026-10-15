@@ -149,6 +149,20 @@ struct Task {
     std::string waiting;         // why it didn't run the last time it wanted to ("" = it did, or didn't need to)
 };
 
+// ----- Between profiles (exchange.hpp) -----
+struct Transfer {                // tokens on their way to another running game (not saved)
+    std::string id;
+    std::string to;              // the profile's name
+    long long amount = 0;
+    long long settles = 0;       // how much of it pays off what you owe them, or lends to them (the rest is a gift)
+    std::time_t sent = 0;
+};
+struct LoanAsk {                 // someone asked you to lend them tokens, or you asked them (not saved)
+    std::string who;
+    long long amount = 0;
+    std::time_t until = 0;
+};
+
 struct GameState {
     long long tokens = 0;
     long long shards = 0;
@@ -297,6 +311,12 @@ struct GameState {
     int taskSlots = 0;
     std::vector<Task> tasks;
     std::array<long long, 60> taskFeeWindow{};   // fees paid in each of the last 60 seconds, by playSeconds % 60 (not saved)
+
+    // Between profiles: what other profiles owe you (+) or you owe them (-), by name
+    std::vector<std::pair<std::string, long long>> balances;
+    std::vector<Transfer> outgoing;  // (not saved: both games have to be running)
+    std::vector<LoanAsk> asksIn;     // asking you
+    std::vector<LoanAsk> asksOut;    // you, asking them
 
     std::time_t lastUpdate = 0;  // for passive
     std::time_t lastMine = 0;    // for streak timeout

@@ -27,6 +27,7 @@
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
 #include "core/disasters.hpp"
+#include "core/exchange.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/profiles.hpp"
@@ -163,6 +164,11 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     StartReport start = startGame(s, ui.rng);
     for (const Note& n : start.notes) s.log.push(n);
     s.log.push(Sev::Event, start.fresh ? "Welcome to TokenRush. Click MINE to get going." : "Welcome back.");
+    if (!profile.empty()) {   // pay and borrow between profiles: the profiles folder's parent is the meeting place
+        std::string why, warning;
+        if (!exchangeStart(dir.parent_path().parent_path(), profile, why, warning)) s.log.push(Sev::Warn, "Pay and borrow are off: " + why);
+        else if (!warning.empty()) s.log.push(Sev::Bad, warning);
+    }
 
     Workers workers;
     workers.start(s);
@@ -326,6 +332,10 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     // Single exit path: stop the console and the workers first, so nothing changes after the final save.
     console.stop();
     workers.stop();
+    {
+        std::lock_guard lk(s.m);
+        exchangeStop(s.g);   // unclaimed payments come back before the final save
+    }
     bool saved = saveNow(s);
     tui::useTheme(0);   // the profile picker is nobody's: back to Classic
     setTheme(0);

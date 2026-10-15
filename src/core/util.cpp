@@ -74,6 +74,7 @@ bool parseAmount(const std::string& text, long long& out) {
     if (t.back() == 'k') mult = 1e3;
     else if (t.back() == 'm') mult = 1e6;
     else if (t.back() == 'b') mult = 1e9;
+    else if (t.back() == 't') mult = 1e12;
     if (mult > 1.0) t.pop_back();
     if (t.empty() || t.find_first_not_of("0123456789.") != std::string::npos || std::count(t.begin(), t.end(), '.') > 1) return false;
     double v = std::stod(t) * mult;

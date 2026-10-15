@@ -110,6 +110,7 @@ void Workers::start(Shared& s) {
     threads_.emplace_back(automationThread, std::ref(s));
     threads_.emplace_back(crewThread, std::ref(s));
     threads_.emplace_back(autosaveThread, std::ref(s));
+    threads_.emplace_back(exchangeThread, std::ref(s));
 }
 
 void Workers::stop() {

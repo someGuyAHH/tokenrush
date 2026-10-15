@@ -677,6 +677,27 @@ const std::vector<Field>& saveFields() {
                           24 * 3600, investing));
         f.push_back(boolAt("investment", "scam", [](GameState& g) -> bool& { return g.investment.scam; }, investing));
         f.push_back(numAt("tasks", "slots", [](GameState& g) -> int& { return g.taskSlots; }, 0, TASK_SLOTS_MAX));
+        // Between profiles: "Alpha: 5000000000 ; Beta: -300" (+ they owe you, - you owe them)
+        f.push_back(Field{
+            "exchange", "balances",
+            [](const GameState& g) {
+                std::string out;
+                for (const auto& [name, b] : g.balances) out += (out.empty() ? "" : " ; ") + name + ": " + std::to_string(b);
+                return out;
+            },
+            [](GameState& g, const std::string& text) {
+                g.balances.clear();
+                for (const std::string& part : splitFields(text)) {
+                    size_t colon = part.rfind(':');
+                    long long b = 0;
+                    if (colon == std::string::npos || !parseNumber(trim(part.substr(colon + 1)), b)) return false;
+                    std::string name = trim(part.substr(0, colon));
+                    if (name.empty() || name.size() > 24) return false;
+                    if (b != 0) g.balances.push_back({name, b});
+                }
+                return true;
+            },
+            [](const GameState& g) { return !g.balances.empty(); }});
         addTaskFields(f);
         addCrewFields(f);
         addContractFields(f);

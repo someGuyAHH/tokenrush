@@ -4,6 +4,7 @@
 #include <random>
 
 #include "crew.hpp"
+#include "exchange.hpp"
 #include "game.hpp"
 #include "market.hpp"
 #include "save.hpp"
@@ -42,6 +43,13 @@ void crewThread(std::stop_token st, Shared& s) {
     while (sleepFor(st, 1s)) {
         std::lock_guard lk(s.m);
         crewTick(s.g, s.log, nowSec(), rng);
+    }
+}
+
+void exchangeThread(std::stop_token st, Shared& s) {
+    while (sleepFor(st, 1s)) {
+        std::lock_guard lk(s.m);
+        exchangeTick(s.g, s.log);
     }
 }
 

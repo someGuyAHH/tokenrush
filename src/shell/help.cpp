@@ -340,6 +340,25 @@ const std::vector<CommandInfo>& commands() {
           {"task license", "buy the Automation License"}, {"task slot", "buy another slot"}},
          {"repair", "expedition", "shop"}, TASKS, PROGRESS},
 
+        {Cmd::Pay, {"pay", "give"}, "pay [<profile> [amount]]", "Send tokens to another profile that's running too",
+         {"Two profiles can trade tokens while both games are open at once (in two windows, on this computer). Only "
+          "tokens: never shards. 'pay' alone shows who's running, who owes whom, and any requests.",
+          "A payment first pays off what you owe them, then lends them what they asked for with 'borrow' (they owe you "
+          "that), and anything more is a gift. Without an amount, 'pay <profile>' pays what they asked for, or else "
+          "what you owe them.",
+          "The tokens leave your game at once and arrive in theirs within a second or two. If their game doesn't pick "
+          "them up within 20 seconds (it closed, say), they come back to you. A payment is never lost or doubled: "
+          "exactly one of the two games gets it. Both games keep a note of the balance between you."},
+         {{"pay", "who's running, and who owes what"}, {"pay Beta 5B", "send Beta 5 billion tokens"},
+          {"pay Beta", "lend what Beta asked for, or pay back what you owe"}, {"pay Big Bob 250M", "names with spaces work"}},
+         {"borrow"}, -1, BUSINESS},
+        {Cmd::Borrow, {"borrow"}, "borrow <profile> <amount>", "Ask another running profile to lend you tokens",
+         {"Sends a request to the other profile's game: its log says what you asked for, and 'pay <you>' there lends it "
+          "(then you owe them). The request stands for 5 minutes. Both games have to be open, and it's only tokens.",
+          "Paying them back is just 'pay <profile> <amount>' (or 'pay <profile>' for all of it): it goes to the debt first."},
+         {{"borrow Alpha 10B", "ask Alpha for 10 billion tokens"}, {"pay Alpha", "pay it all back later"}},
+         {"pay"}, -1, BUSINESS},
+
         // ----- Progress and other -----
         {Cmd::Stars, {"stars", "sky", "constellations"}, "stars", "The Constellations: the sky map and the feats that light it",
          {"Once the Orrery is complete, the sky around it opens: ten constellations, each lit by one hard feat, like a "

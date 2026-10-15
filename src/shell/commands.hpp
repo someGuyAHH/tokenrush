@@ -23,7 +23,7 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
-    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair, Stars, Task,
+    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair, Stars, Task, Pay, Borrow,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -73,5 +73,7 @@ void doHire(Shared& s, const std::string& arg);
 void doFire(Shared& s, const std::string& arg);
 void doTrain(Shared& s, const std::string& arg);
 void doPromote(Shared& s, const std::string& arg);
+void doPay(Shared& s, const std::string& args);          // <profile> [amount]; nothing: who's running, who owes what
+void doBorrow(Shared& s, const std::string& args);       // <profile> <amount>
 void doTask(Shared& s, const std::string& args);         // list, add, edit, on/off, license... (shell/tasks.cpp)
 void doExpedition(Shared& s, const std::string& args);   // <n> <short|long|deep>; anything less explains

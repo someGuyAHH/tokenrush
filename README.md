@@ -187,6 +187,10 @@ before this kept everything they were already using. The table lives in `FEATURE
   happen; it waits and says why. Each run costs 0.3 seconds of income per instruction, and fees
   stop at a fifth of your income. Mistakes are pointed at while you type. See the Tasks tab, or
   `help task` in the Console.
+- **Between profiles.** Two profiles open at the same time (two windows) can trade tokens,
+  never shards: `pay Beta 5B` sends some, `borrow Alpha 10B` asks for a loan (their
+  `pay <you>` lends it), and both games remember who owes whom. A payment is never lost or
+  doubled: if the other game doesn't pick it up within 20 seconds, it comes back.
 - **Offers.** Every 10-15 minutes someone makes you an offer; answer yes or no within 45
   seconds (ignoring it is a no). A shady broker selling cheap shards for heat, an investor
   who usually pays back 1.3x (and sometimes vanishes), a rival betting you can't mine 40
@@ -259,7 +263,8 @@ Version 9 adds `[cosmetics] theme`, `[jobs] standing`, `[workshop]`, `[disasters
 the save, add one line to `saveFields()` in `src/core/save.cpp`. Version 10 adds `[tasks] slots` and
 `[task.1]`...`[task.8]` (each task's text as written, plus its on/quiet switches and counters),
 and a tenth title time for Overseer, plus `[cosmetics] customThemeOwned` and `customTheme` (17 hex
-colors).
+colors), and `[exchange] balances` (who owes whom between profiles). The games running at the same
+time meet in an `exchange` folder next to `profiles` (see FEATURES.md).
 
 ## Balance simulator
 

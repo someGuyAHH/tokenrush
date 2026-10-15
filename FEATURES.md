@@ -577,12 +577,34 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   the fees of the last minute against the limit, the box (checked as you type, with the cost
   of a run), and what tasks can read and do.
 
+## Between profiles (`core/exchange.*`; `pay`, `borrow`)
+- Two profiles that are **running at the same time** (two windows, one computer, one profiles
+  folder) can move **tokens** between them. Never shards (Script's rule). Not with `--save-dir`.
+- `pay <profile> [amount]`: the tokens leave at once. A payment first pays off what you owe them,
+  then lends what they asked for, and the rest is a gift. Without an amount: what they asked
+  for, or else what you owe. `pay` alone: who's running, the balances, open requests.
+- `borrow <profile> <amount>`: a request in their log, standing for 5 minutes; their `pay <you>`
+  lends it. Names with spaces work (`pay Big Bob 250M`); amounts take k, M, B and T.
+- **No server:** the games meet in `<data>/exchange/` (next to `profiles/`):
+  - `<name>/alive`: each game's heartbeat, every 2 s; older than 8 s means it isn't running.
+    A fresh heartbeat with another session id at start means the same profile is open in two
+    windows, which gets a warning.
+  - `<name>/<id>.pay` and `<id>.ask`: files written to a temporary name, then renamed in.
+  - **Exactly once:** the receiver claims a payment by renaming it (`.taken`), then credits it;
+    a payer who sees no claim within 20 s takes it back by renaming it (`.back`), then refunds.
+    One rename wins, so a payment is never both delivered and refunded, and never lost.
+    Quitting takes back anything unclaimed before the final save.
+- **Balances** (`[exchange] balances`, "+ they owe you, - you owe them") are kept by both games,
+  each updating its side when the payment lands (the receiver on claiming, the payer when the
+  file is gone). Received tokens aren't income (no goals, no income rate).
+
 ---
 
 ## Under the hood
 - **`src/core/`:** the game. It never prints or reads input; actions return `Notes`.
 - **Threads:**
-  - The workers: world, market, automation, crew, autosave every 30 s. All lock `Shared::m`.
+  - The workers: world, market, automation, crew, autosave every 30 s, and the exchange between
+    profiles. All lock `Shared::m`.
   - Lock order: `saveMtx` → `m`.
 - **World tick order** (`worldTick`): passive income, play time, streak expiry, events, Leech,
   contracts and heat, offers, disasters, tasks, the Hourglass, stats, then `checkGoals` (which also pays
