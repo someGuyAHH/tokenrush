@@ -1,21 +1,17 @@
 # TokenRush
 
-A token-mining idle game with background automation, in two editions that share one game
-and one save:
+A token-mining idle game with background automation, full screen in the terminal: a pinned log,
+tabs, a clickable MINE button, and a **Console** tab where every command can be typed.
 
-- **tokenrush-tui**: full screen. A pinned log, tabs, and a clickable MINE button.
-- **tokenrush-cli**: the classic typed-command version.
-
-C++20. The full-screen edition uses [FTXUI](https://github.com/ArthurSonzogni/FTXUI) 7.0.3.
+C++20, with [FTXUI](https://github.com/ArthurSonzogni/FTXUI) 7.0.3. (There used to be a separate
+command-line edition, `tokenrush-cli`. It's gone: its commands live on in the Console tab.)
 
 ## Build
 
 Windows (Python 3.10+ and MSYS2 MinGW g++ on the PATH), into `target\debug\`:
 
-    python build.py              # both editions
-    python build.py --cli        # just tokenrush-cli.exe
-    python build.py --tui        # just tokenrush-tui.exe
-    python build.py --sim        # the balance simulator
+    python build.py              # tokenrush-tui.exe
+    python build.py --sim        # the balance simulator (add --tui to build both)
     python build.py --rebuild    # ignore what's already built and compile everything
 
 Builds are incremental: each `.cpp` is compiled to its own `.o` in `target\debug\obj\`, with a
@@ -24,7 +20,7 @@ changed are compiled again (edit one `.cpp`, one file compiles; edit a header, o
 that include it do), and an exe is only relinked when one of its objects changed. Times go to
 `target\debug\build-times.log`. (`build.ps1` is the older PowerShell version of the same thing.)
 
-The TUI needs FTXUI's amalgamated header and a compiled object in `dependencies\`:
+The game needs FTXUI's amalgamated header and a compiled object in `dependencies\`:
 `ftxui.hpp` and `ftxui.o`, built once with
 
     g++ -std=c++20 -O2 -DUNICODE -D_UNICODE -DNOMINMAX -c ftxui.cpp -o ftxui.o
@@ -34,9 +30,8 @@ Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
 ## Run
 
     tokenrush-tui [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color]
-    tokenrush-cli   (same options)
 
-Both start with a **profile picker**: choose a profile, make a new one, or delete one (no
+It starts with a **profile picker**: choose a profile, make a new one, or delete one (no
 passwords, for now). Each profile is a folder with its own save:
 
     Windows:      %LOCALAPPDATA%\TokenRush\profiles\<name>\tokenrush.save
@@ -49,10 +44,8 @@ passwords, for now). Each profile is a folder with its own save:
 
 A save from before profiles (the `.save` folder next to the exe) can be imported from the
 picker. The original is kept, renamed to `tokenrush.save.imported`. Profiles can be renamed from
-either picker (`r <n>` in the CLI, the Rename button in the TUI).
+the picker (its rename button).
 
-Both editions read the same profiles, so you can switch between them, just not play the same
-profile in both at once.
 
 **TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (Mine, Shop, Goals, Stats, then
 Curios, Monolith, Market, Jobs, Crew, Orrery, Workshop, Stars in unlock order; locked ones
@@ -62,12 +55,12 @@ has the keyboard (the Console, the Market's amount box), keys type into it and E
 Risky buttons (Fire, Abandon, Delete, and Buy when it would buy at a steep price) need a
 second click within 3 seconds.
 
-**The Console tab** is the CLI inside the TUI: the same commands, menus and questions, in
-color, with Up/Down for earlier lines. PgUp/PgDn and the mouse wheel scroll back through its
-output (End, or just typing, comes back down). That's also where the CLI-only bits (prompt
-styles, `wipe`) live in the TUI.
+**The Console tab** is where everything can be typed: every command, with its menus and
+questions, in color, with Up/Down for earlier lines. PgUp/PgDn and the mouse wheel scroll back
+through its output (End, or just typing, comes back down). A few things only exist there:
+prompt styles, `wipe`, `log` with filters, and the `help` pages.
 
-**CLI:** type `help`, and `help <command>` (aliases work: `help ct`) for a full page on one
+**Commands:** type `help` in the Console, and `help <command>` (aliases work: `help ct`) for a full page on one
 command, with examples. `logout` goes back to the profile list, `cls`/`clear` clears the
 screen, and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the
 menu, `curios 3` buys curio 3, `buy`/`sell` take amounts like `2k`, and `log 50 bad` shows the
@@ -100,14 +93,14 @@ before this kept everything they were already using. The table lives in `FEATURE
 
 - **Mining, upgrades, curios, prompt styles, the Monolith.** The original game; the Monolith
   is the mid-game project. Upgrades can be bought 10 or 20 levels at a time (the Buy 10 and
-  Buy 20 buttons, or `1 10` in the CLI shop). The Mine tab (and `status`) shows what you've
+  Buy 20 buttons, or `shop 1 10` in the Console). The Mine tab (and `status`) shows what you've
   earned per second over the last 10 seconds, and where it came from. (Heists are gone. Saves
   that still mention them load fine; an old heist contract is cancelled and its stake refunded.)
 - **Curios.** Four sets. Desk Toys (1.5K-25K), Relics (150K-6M) and Impossible Things
   (25M-750M) are in the shop, spread from the early game to the very late one. Under the
   Counter isn't sold anywhere: the Curio Dealer offers those (at 1.5x their worth), and a crew
   expedition can turn one up.
-- **The Orrery.** The late-game project, built with shards (`orrery <n|all>` in the CLI, the
+- **The Orrery.** The late-game project, built with shards (`orrery <n|all>` in the Console, the
   Orrery tab in the TUI). Every stage unlocks something:
 
   | Stage | Shards | Unlocks |
@@ -130,7 +123,8 @@ before this kept everything they were already using. The table lives in `FEATURE
   lose the stake and gain **Heat**. One job at a time (two with the Orrery's Second Ring, as
   long as they're different kinds). Besides earning, mining, jackpots, streaks and bot jobs
   there are trade jobs, cool-your-heat-down jobs, and two endurance jobs, won by lasting until
-  the timer runs out: hold N shards, and hands off the mine.
+  the timer runs out: hold N shards, and hands off the mine. Every offer and job shows a tip
+  (Easy to Out of reach, and why), judged from your actual pace every 5 seconds.
 - **Clients and standing.** Every client remembers you (`clients`): standing from -10 to 10,
   up when you deliver, down when you don't, and down with their rival when you work for them.
   Burned clients post nothing; Trusted ones pay 30% more and post signature jobs (longer, no
@@ -179,7 +173,7 @@ before this kept everything they were already using. The table lives in `FEATURE
   instead of renown, so they never stand between you and a title.
 - **The Constellations.** What's left once the Orrery is complete: ten constellations on a
   sky map, each lit by one hard feat (`stars`). No power, just the sky.
-- **Stats.** The Stats tab (`stats` in the CLI): your records, income by source, former crew,
+- **Stats.** The Stats tab (`stats` in the Console): your records, income by source, former crew,
   when you reached each title, and a chart of everything you've earned over your play time
   (log scale, a point every 5 minutes, kept in the save).
 
@@ -203,17 +197,14 @@ open. Idle earnings from Drones are capped at 12 hours.
 | `core/content.hpp/.cpp` | Data tables: curios, goals, secret goals, titles, themes, gadgets, roles, crew names, contract kinds, clients |
 | `core/save.hpp/.cpp` | INI save file: one field table drives read, write and validation |
 | `core/platform`, `core/util` | Executable path; formatting and parsing helpers |
-| `core/session.hpp/.cpp` | Options, loading, the worker threads: the startup both editions share |
+| `core/session.hpp/.cpp` | Options, loading, the worker threads, the shutdown order |
 | `core/profiles.hpp/.cpp` | Where profiles live; list, create, rename, delete, import an old save |
-| `src/shell/` | The typed commands, shared by the CLI and the TUI's Console tab |
+| `src/shell/` | The typed commands, run by the Console tab |
 | `shell/dispatch.hpp/.cpp` | One typed line -> the right command |
 | `shell/help.cpp` | The command table: names, aliases, `help` and `help <command>` |
 | `shell/commands.cpp`, `spending.cpp`, `economy.cpp`, `workshop.cpp` | The screens |
 | `shell/term.hpp/.cpp` | Colors (`NO_COLOR` aware), charts, padding; `out()`/`in()`, which the Console redirects |
-| `src/cli/` | The command-line edition |
-| `cli/main.cpp` | Startup, options, the input loop, Ctrl+C, shutdown order |
-| `cli/profiles.cpp` | The profile picker |
-| `src/tui/` | The full-screen UI (FTXUI) |
+| `src/tui/` | The game's UI (FTXUI) |
 | `tui/main.cpp` | Startup, the frame layout (log, status bar, tabs), global keys, shutdown |
 | `tui/pages.cpp` | One function per tab |
 | `tui/console.hpp/.cpp` | The Console tab's engine: the shell's command loop on its own thread |

@@ -1,4 +1,5 @@
-// TokenRush, full-screen edition (FTXUI). Same game and same save as tokenrush-cli.
+// TokenRush (FTXUI). The game's only front end: tabs and buttons, and the Console tab for typing
+// commands (src/shell).
 //
 // Threads:
 //   main       - FTXUI's event loop: draws frames and runs button clicks

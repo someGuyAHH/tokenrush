@@ -1,7 +1,6 @@
 # Builds TokenRush into target\debug\.
-#   .\build.ps1            tokenrush-cli.exe and tokenrush-tui.exe
-#   .\build.ps1 -Cli       only the command-line version
-#   .\build.ps1 -Tui       only the full-screen version (needs dependencies\ftxui.hpp + ftxui.o)
+#   .\build.ps1            tokenrush-tui.exe (needs dependencies\ftxui.hpp + ftxui.o)
+#   .\build.ps1 -Tui       the same
 #   .\build.ps1 -Sim       the balance simulator, sim.exe (see README)
 #   .\build.ps1 -Rebuild   ignore the saved hashes and compile everything again
 #
@@ -9,13 +8,13 @@
 # covers the .cpp, every header it includes (g++ writes that list into a .d file while compiling)
 # and the compiler flags. A file is only compiled again when that hash changes, so editing one
 # .cpp recompiles one file, and editing a header recompiles exactly the files that include it.
-# The core is compiled once and shared by both editions. An exe is only relinked when one of
-# its objects changed.
+# The core is compiled once and shared by the game and the simulator. An exe is only relinked
+# when one of its objects changed.
 #
 # Every build's time is printed and appended to target\debug\build-times.log.
-param([switch]$Cli, [switch]$Tui, [switch]$Sim, [switch]$Rebuild)
+param([switch]$Tui, [switch]$Sim, [switch]$Rebuild)
 $ErrorActionPreference = "Stop"
-if (-not ($Cli -or $Tui -or $Sim)) { $Cli = $true; $Tui = $true }
+if (-not ($Tui -or $Sim)) { $Tui = $true }
 
 $root = $PSScriptRoot
 $src  = Join-Path $root "src"
@@ -163,9 +162,7 @@ function Build([string]$name, [string[]]$sources, [string[]]$linkExtra) {
 $total = [System.Diagnostics.Stopwatch]::StartNew()
 
 $core = @(Sources "core")
-$shell = @(Sources "shell")   # the typed commands: the CLI, and the TUI's Console tab
-
-if ($Cli) { Build "tokenrush-cli.exe" ($core + $shell + @(Sources "cli")) @() }
+$shell = @(Sources "shell")   # the typed commands, run by the TUI's Console tab
 
 if ($Tui) {
     $ftxuiObj = Join-Path $deps "ftxui.o"

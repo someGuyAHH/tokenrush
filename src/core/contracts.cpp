@@ -7,6 +7,7 @@
 
 #include "crew.hpp"
 #include "game.hpp"
+#include "market.hpp"
 #include "stars.hpp"
 #include "util.hpp"
 
@@ -232,6 +233,156 @@ bool broken(const GameState& g, const Contract& c) {
 
 }  // namespace
 
+// ----- Tips -----
+const char* const TIP_NAMES[] = {"Easy", "Doable", "Tight", "Unlikely", "Out of reach"};
+static_assert(std::size(TIP_NAMES) == (int)TipLevel::Count);
+
+namespace {
+
+// How long it would take at your pace, against the time there is.
+TipLevel byPace(double pace, double time) {
+    double r = time > 0 ? pace / time : 99.0;
+    if (r <= 0.5) return TipLevel::Easy;
+    if (r <= 0.85) return TipLevel::Doable;
+    if (r <= 1.1) return TipLevel::Tight;
+    if (r <= 2.0) return TipLevel::Unlikely;
+    return TipLevel::OutOfReach;
+}
+
+// Mining by hand: how many mines a second it asks of you. The MINE button takes four at most.
+TipLevel byMineRate(double perSec) {
+    if (perSec <= 0.35) return TipLevel::Easy;
+    if (perSec <= 0.7) return TipLevel::Doable;
+    if (perSec <= 1.2) return TipLevel::Tight;
+    if (perSec <= 3.0) return TipLevel::Unlikely;
+    return TipLevel::OutOfReach;
+}
+
+std::string every(double perSec) {   // "a mine every 2s", "2 mines a second"
+    if (perSec >= 1.0) return fixed(perSec, 1) + " mines a second";
+    return "a mine every " + fixed(1.0 / std::max(perSec, 0.001), perSec >= 0.1 ? 1 : 0) + "s";
+}
+
+std::string paceText(double pace, double time) {
+    if (pace > 3600.0 * 24) return "at your pace it would take forever";
+    return "at your pace about " + duration(std::llround(pace)) + " of the " + duration(std::llround(time)) + " you have";
+}
+
+}  // namespace
+
+void judgeContract(const GameState& g, Contract& c, bool running) {
+    double time = running ? c.secondsLeft : c.duration;
+    long long left = running ? std::max(0LL, contractGoal(c) - contractProgress(g, c)) : contractGoal(c);
+    double lately = g.mineRate;   // your manual mines a second, over the last couple of minutes
+    std::string latelyText = lately >= 0.05 ? " (lately " + every(lately) + ")" : " (you haven't been mining lately)";
+    TipLevel level = TipLevel::Doable;
+    std::string why;
+
+    switch (c.kind) {
+        case ContractKind::Earn: {
+            double rate = std::max({g.incomeRate, recentEarnRate(g), 0.001});
+            level = byPace((double)left / rate, time);
+            why = paceText((double)left / rate, time) + ".";
+            break;
+        }
+        case ContractKind::Mine: {
+            double need = (double)left / std::max(time, 1.0);
+            level = byMineRate(need);
+            why = "needs " + every(need) + latelyText + ".";
+            break;
+        }
+        case ContractKind::Jackpots: {
+            double mines = (double)left / std::max(jackpotChance(g), 0.001);
+            double need = mines / std::max(time, 1.0);
+            level = byMineRate(need);
+            if (level < TipLevel::Tight) level = (TipLevel)((int)level + 1);   // luck decides, so never quite easy
+            why = "about " + num(std::llround(mines)) + " mines at your odds (" + every(need) + "), and luck decides.";
+            break;
+        }
+        case ContractKind::Streak: {
+            double need = (double)left / std::max(time, 1.0);
+            level = byMineRate(need * 0.6);   // steady mining is easier than fast mining
+            why = "keep mining at least every " + std::to_string(streakTimeout(g)) + "s for " + num(left) + " more mines.";
+            break;
+        }
+        case ContractKind::BotEarn: {
+            double rate = botRatePerSec(g);
+            if (rate <= 0.0) { level = TipLevel::OutOfReach; why = g.botBroken ? "the Mining Bot is broken: repair it first." : "the Mining Bot isn't running."; break; }
+            level = byPace((double)left / rate, time);
+            why = paceText((double)left / rate, time) + ". More Bot levels help.";
+            break;
+        }
+        case ContractKind::Trade: {
+            long long batch = std::min<long long>(std::max(1LL, left), 50);
+            long long batchCost = buyCost(g, batch);
+            long long spread = toTokens((double)left * g.shardPrice * marketSpread(g));
+            if (!isUnlocked(g, Feature::Market)) { level = TipLevel::OutOfReach; why = "the Market isn't open yet."; break; }
+            if (g.tokens + sellValue(g, g.shards) < batchCost && g.shards < batch) {
+                level = TipLevel::OutOfReach;
+                why = "you can't afford even a batch of " + num(batch) + " shards right now.";
+                break;
+            }
+            level = spread * 4 < g.tokens ? TipLevel::Easy : spread < g.tokens ? TipLevel::Doable : TipLevel::Tight;
+            why = "buy and sell back in batches of " + num(batch) + "; costs about " + num(spread) + " tokens in spread.";
+            break;
+        }
+        case ContractKind::Hold: {
+            long long have = running ? g.shards : g.shards - c.stake;
+            long long spare = have - c.target;
+            bool payday = !g.crew.empty() && g.paydayClock < time;
+            if (spare < 0) {
+                level = running ? TipLevel::OutOfReach : TipLevel::Unlikely;
+                why = "you'd need " + num(-spare) + " more shards on hand" + (running ? "." : " to take it.");
+            } else if (payday && spare < totalWages(g)) {
+                level = TipLevel::Tight;
+                why = "payday in " + duration(g.paydayClock) + " takes " + num(totalWages(g)) + " shards and would drop you below " +
+                      num(c.target) + ": buy a few first.";
+            } else {
+                level = spare > totalWages(g) * 2 + 20 ? TipLevel::Easy : TipLevel::Doable;
+                why = "just don't spend below " + num(c.target) + " shards (" + num(spare) + " to spare" +
+                      (payday ? ", payday included" : "") + ").";
+            }
+            break;
+        }
+        case ContractKind::CoolOff: {
+            if (infected(g, Strain::Fever)) {
+                level = TipLevel::Unlikely;
+                why = "Fever stops heat cooling by itself: only a bribe or a big job will do it.";
+                break;
+            }
+            long long drop = running ? left : c.target;
+            double cooling = drop <= 0 ? 0.0 : (double)g.heatClock + (double)(drop - 1) * heatCoolSeconds(g);
+            level = byPace(cooling, time);
+            why = "heat cools a point every " + duration(heatCoolSeconds(g)) + " by itself" +
+                  (level >= TipLevel::Tight ? "; a bribe, or finishing a big job, speeds it up." : ".");
+            break;
+        }
+        case ContractKind::HandsOff: {
+            double passive = passiveRatePerSec(g) + botRatePerSec(g);
+            level = passive > 0 ? TipLevel::Easy : TipLevel::Doable;
+            why = "just don't mine by hand" + std::string(passive > 0 ? ": Drones and the Bot make about " + perSecond(passive) + "/s meanwhile."
+                                                                       : ". You'll earn almost nothing meanwhile.");
+            break;
+        }
+        case ContractKind::Count:
+            break;
+    }
+
+    if (!running && g.shards < c.stake) {   // can't even take it yet
+        level = std::max(level, TipLevel::Unlikely);
+        why = "the stake is " + num(c.stake) + " shards and you have " + num(g.shards) + ". Otherwise: " + why;
+    }
+    if (running && c.secondsLeft <= 0) { level = TipLevel::OutOfReach; why = "time's up."; }
+    c.tipLevel = (int)level;
+    c.tip = why;
+}
+
+void judgeAll(GameState& g) {
+    for (Contract& c : g.offers) judgeContract(g, c, false);
+    for (Contract& c : g.contracts) judgeContract(g, c, true);
+    g.tipClock = TIP_EVERY;
+}
+
 bool isEndurance(const Contract& c) { return c.kind != ContractKind::Count && CONTRACT_KINDS[(int)c.kind].endurance; }
 
 long long contractProgress(const GameState& g, const Contract& c) {
@@ -303,6 +454,7 @@ Notes acceptContract(GameState& g, int idx) {
     if (c.kind == ContractKind::Streak) g.contractStreak = g.contractPeakStreak = 0;   // a fresh streak, not the one you're on
     c.start = contractStat(g, c.kind);
     c.secondsLeft = c.duration;
+    judgeContract(g, c, true);
     g.contracts.push_back(c);
     g.offers.erase(g.offers.begin() + idx);
     if (g.offerClock <= 0) g.offerClock = OFFER_EVERY;
@@ -323,7 +475,10 @@ Notes abandonContract(GameState& g, int idx) {
 
 void fillOfferBoard(GameState& g, std::mt19937& rng) {
     if (!g.offers.empty()) return;
-    while ((int)g.offers.size() < OFFER_COUNT) g.offers.push_back(makeOffer(g, rng));
+    while ((int)g.offers.size() < OFFER_COUNT) {
+        g.offers.push_back(makeOffer(g, rng));
+        judgeContract(g, g.offers.back(), false);
+    }
     g.offerClock = OFFER_EVERY;
 }
 
@@ -412,6 +567,7 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     checkContract(g, log);   // endurance jobs whose time just ran out are won
 
     // The offer board
+    if (--g.tipClock <= 0) judgeAll(g);   // the tips follow your pace, a few seconds at a time
     for (Contract& o : g.offers) --o.expiresIn;
     std::erase_if(g.offers, [](const Contract& o) { return o.expiresIn <= 0; });
 
@@ -419,6 +575,7 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
         fillOfferBoard(g, rng);
     } else if ((int)g.offers.size() < OFFER_COUNT && --g.offerClock <= 0) {
         g.offers.push_back(makeOffer(g, rng));
+        judgeContract(g, g.offers.back(), false);
         g.offerClock = OFFER_EVERY;
         if (isUnlocked(g, Feature::Contracts)) {
             const Contract& o = g.offers.back();

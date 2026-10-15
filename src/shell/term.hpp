@@ -1,11 +1,9 @@
 #pragma once
-// Colors, output and small text helpers for the command-line UI.
+// Colors, output and small text helpers for the typed commands (the TUI's Console tab).
 //
-// Commands print to out() and read from in(), never to std::cout/std::cin directly: in the
-// CLI those are the terminal, and in the TUI's console tab they're the console's own buffer
-// (see redirectThisThread).
-// Colors are off when NO_COLOR is set (https://no-color.org), when --no-color is passed,
-// or when output isn't a terminal (piped to a file, for example).
+// Commands print to out() and read from in(), never to std::cout/std::cin directly: the Console
+// points them at its own buffers for its thread (see redirectThisThread), and says whether that
+// thread gets colors (not when NO_COLOR is set, https://no-color.org, or --no-color was passed).
 
 #include <deque>
 #include <iosfwd>
@@ -15,20 +13,16 @@
 
 enum class Style { Plain, Header, Good, Bad, Warn, Event, Muted, Tokens, Shards, Heat, Bold };
 
-void initTerminal(bool forceNoColor);   // call once at startup
-bool colorOn();
+bool colorOn();   // this thread prints in color
 // The theme paint() draws with (an index into THEMES). Classic uses the original 16/256-color
 // codes; every other theme writes 24-bit codes (ESC[38;2;r;g;bm). Safe to call from any thread.
 void setTheme(int theme);
 int currentTheme();
 std::ostream& out();
 std::istream& in();
-// Points out()/in() at other streams for the calling thread only (nullptr: back to the terminal).
+// Points out()/in() at other streams for the calling thread only (nullptr: back to std::cout/cin, uncolored).
 void redirectThisThread(std::ostream* out, std::istream* in, bool color);
-bool cursorControl();   // the terminal understands escape codes for moving the cursor (even if colors are off)
 
-void clearScreen();
-void returnToPrompt(size_t promptWidth);   // undo the line break from an empty Enter
 size_t visibleWidth(const std::string& s); // length on screen: skips escape codes, counts UTF-8 characters
 
 std::string paint(Style st, const std::string& text);

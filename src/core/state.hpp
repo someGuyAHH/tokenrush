@@ -16,7 +16,7 @@ inline constexpr double SHARD_FAIR_PRICE = 150.0;   // where the shard price dri
 
 // ----- Messages -----
 // How a message should look. The core only says what kind of news it is;
-// each UI decides what that means (colors in the CLI, later a styled log pane).
+// the front end decides what that means (colors in the log pane and the Console).
 enum class Sev { Info, Good, Bad, Warn, Event };
 
 struct Note {
@@ -125,6 +125,8 @@ struct Contract {
     long long rewardTokens = 0;
     long long rewardShards = 0;
     int expiresIn = 0;           // offers only: seconds until it leaves the board
+    int tipLevel = -1;           // how it looks right now: a TipLevel (contracts.hpp); -1 = not judged yet (not saved)
+    std::string tip;             // ...and why, in a sentence (not saved)
 };
 
 struct GameState {
@@ -159,6 +161,7 @@ struct GameState {
     std::vector<Contract> contracts;    // the jobs you're working on (1 slot, 2 with the Orrery's Second Ring)
     std::vector<Contract> offers;       // regenerated after loading (not saved)
     int offerClock = 0;                 // seconds until a fresh offer appears
+    int tipClock = 0;                   // seconds until the tips are judged again (not saved)
     std::array<int, CLIENT_COUNT> standing{};   // with each client, -10..10 (see contracts.hpp)
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far
@@ -273,8 +276,8 @@ struct GameState {
 };
 
 // ----- The message log -----
-// Background threads never print; they push here. The CLI prints the pending
-// entries before each prompt; a full-screen UI can draw recent() in a pinned pane.
+// Background threads never print; they push here. The TUI draws recent() in its pinned log pane,
+// and the Console's 'log' command shows more of it.
 struct LogEntry {
     std::string stamp;   // "14:03:22"
     Sev sev;
@@ -286,14 +289,11 @@ public:
     void push(Sev sev, const std::string& text);
     void push(const Note& n) { push(n.sev, n.text); }
 
-    std::vector<LogEntry> drain();               // entries nobody has shown yet
-    bool hasPending();
-    std::vector<LogEntry> recent(size_t n);      // the last n, shown or not
+    std::vector<LogEntry> recent(size_t n);      // the last n (the log keeps HISTORY_MAX)
 
 private:
     static constexpr size_t HISTORY_MAX = 400;
     std::mutex m_;
-    std::deque<LogEntry> pending_;
     std::deque<LogEntry> history_;
 };
 

@@ -1,5 +1,5 @@
 # Linux / macOS (Windows: use build.py)
-#   make            tokenrush-cli and tokenrush-tui
+#   make            tokenrush-tui
 #   make sim        the headless balance simulator (tools/sim.cpp)
 # The TUI needs dependencies/ftxui.hpp and dependencies/ftxui.cpp (FTXUI 7.0.3, amalgamated).
 CXX      ?= g++
@@ -8,15 +8,11 @@ CPPFLAGS += -Isrc
 
 CORE := $(wildcard src/core/*.cpp)
 SHELL_SRC := $(wildcard src/shell/*.cpp)
-CLI  := $(wildcard src/cli/*.cpp)
 TUI  := $(wildcard src/tui/*.cpp)
-HDRS := $(wildcard src/core/*.hpp src/shell/*.hpp src/cli/*.hpp src/tui/*.hpp)
+HDRS := $(wildcard src/core/*.hpp src/shell/*.hpp src/tui/*.hpp)
 OBJ   = $(patsubst src/%.cpp,build/%.o,$(1))
 
-all: tokenrush-cli tokenrush-tui
-
-tokenrush-cli: $(call OBJ,$(CORE) $(SHELL_SRC) $(CLI))
-	$(CXX) $(CXXFLAGS) $^ -o $@
+all: tokenrush-tui
 
 tokenrush-tui: $(call OBJ,$(CORE) $(SHELL_SRC) $(TUI)) build/ftxui.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
@@ -41,6 +37,6 @@ build/tools/%.o: tools/%.cpp $(HDRS)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 
 clean:
-	rm -rf build tokenrush-cli tokenrush-tui sim
+	rm -rf build tokenrush-tui sim
 
 .PHONY: all clean

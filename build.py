@@ -1,8 +1,7 @@
 """Builds TokenRush into target/debug/.
 
-    python build.py              tokenrush-cli.exe and tokenrush-tui.exe
-    python build.py --cli        only the command-line version
-    python build.py --tui        only the full-screen version (needs dependencies/ftxui.hpp + ftxui.o)
+    python build.py              tokenrush-tui.exe (needs dependencies/ftxui.hpp + ftxui.o)
+    python build.py --tui        the same
     python build.py --sim        the balance simulator, sim.exe (see README)
     python build.py --rebuild    ignore the saved hashes and compile everything again
 
@@ -10,8 +9,8 @@ Incremental: every .cpp becomes its own .o in target/debug/obj/, next to a .hash
 covers the .cpp, every header it includes (g++ writes that list into a .d file while compiling)
 and the compiler flags. A file is only compiled again when that hash changes, so editing one
 .cpp recompiles one file, and editing a header recompiles exactly the files that include it.
-The core is compiled once and shared by both editions. An exe is only relinked when one of its
-objects changed.
+The core is compiled once and shared by the game and the simulator. An exe is only relinked when
+one of its objects changed.
 
 Every build that does something is timed and appended to target/debug/build-times.log.
 Needs Python 3.10+ and g++ on the PATH; nothing else.
@@ -191,22 +190,18 @@ def run(command: list[str], /, *, failure: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Builds TokenRush into target/debug/.")
-    parser.add_argument("--cli", action="store_true", help="build tokenrush-cli.exe")
     parser.add_argument("--tui", action="store_true", help="build tokenrush-tui.exe")
     parser.add_argument("--sim", action="store_true", help="build the balance simulator, sim.exe")
     parser.add_argument("--rebuild", action="store_true", help="ignore the saved hashes and compile everything")
     args = parser.parse_args()
-    if not (args.cli or args.tui or args.sim):
-        args.cli = args.tui = True
+    if not (args.tui or args.sim):
+        args.tui = True
 
     OBJ_DIR.mkdir(parents=True, exist_ok=True)
     builder = Builder(rebuild=args.rebuild)
     start = time.perf_counter()
     core = sources("core")
-    shell = sources("shell")   # the typed commands: the CLI, and the TUI's Console tab
-
-    if args.cli:
-        builder.build(Target("tokenrush-cli.exe", core + shell + sources("cli"), []))
+    shell = sources("shell")   # the typed commands, run by the TUI's Console tab
 
     if args.tui:
         ftxui_obj = DEPS / "ftxui.o"

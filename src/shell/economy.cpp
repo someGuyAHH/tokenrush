@@ -1,5 +1,5 @@
 // The shard economy screens: the market, contracts and the crew.
-// Same rule as everywhere in the CLI: lock, call the core, unlock, then print.
+// Same rule as every command: lock, call the core, unlock, then print.
 
 #include <algorithm>
 #include <iostream>
@@ -133,6 +133,14 @@ void doSell(Shared& s, const std::string& arg) {
 }
 
 // ----- Contracts -----
+// "Tight: needs a mine every 1.4s." in the tip's color
+static std::string tipText(const Contract& c) {
+    if (c.tipLevel < 0) return "";
+    static const Style styles[] = {Style::Good, Style::Header, Style::Warn, Style::Heat, Style::Bad};
+    Style st = styles[std::clamp(c.tipLevel, 0, (int)TipLevel::Count - 1)];
+    return paint(st, std::string(TIP_NAMES[c.tipLevel]) + ": " + c.tip);
+}
+
 // "-10 .. 10" as a little bar around a center line: "---##|-----" is -4, "-----|###--" is +6.
 static std::string standingBar(int v) {
     std::string left(5, '-'), right(5, '-');
@@ -177,6 +185,7 @@ void doContracts(Shared& s) {
                   << paint(c.secondsLeft <= CONTRACT_WARN_AT ? Style::Warn : Style::Plain, duration(c.secondsLeft) + " left") << "\n";
         if (isEndurance(c))
             out() << "  " << paint(Style::Warn, std::string("Won by lasting until the end. Fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") << "\n";
+        if (std::string tip = tipText(c); !tip.empty()) out() << "  " << tip << "\n";
         out() << "  Pays " << paint(Style::Tokens, num(c.rewardTokens) + " tokens") << " + "
                   << paint(Style::Shards, count(c.rewardShards, "shard"));
         if (c.stake > 0) out() << " and your " << num(c.stake) << "-shard stake back";
@@ -195,6 +204,7 @@ void doContracts(Shared& s) {
                                          duration(o.expiresIn)) << "\n";
         if (o.kind != ContractKind::Count && CONTRACT_KINDS[(int)o.kind].endurance)
             out() << "       " << paint(Style::Warn, std::string("Endurance: last until the end without ") + CONTRACT_KINDS[(int)o.kind].rule + ".") << "\n";
+        if (std::string tip = tipText(o); !tip.empty()) out() << "       " << tip << "\n";
     }
     out() << paint(Style::Muted, "Fail or abandon a job and you lose the stake and gain heat (big jobs: +2), and the client remembers. "
                                      "Heat widens market spreads, and from " + std::to_string(auditMinHeat(g)) + " up, audits can seize tokens.") << "\n";

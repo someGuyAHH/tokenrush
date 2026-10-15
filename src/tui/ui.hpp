@@ -1,5 +1,5 @@
 #pragma once
-// The full-screen UI, built on FTXUI. Like the CLI, it only talks to the game through
+// The full-screen UI, built on FTXUI. It only talks to the game through
 // src/core: buttons call core actions under the game lock, and everything on screen is
 // drawn from `Ui::snap`, a copy of the game taken once at the start of every frame.
 // No drawing code holds the game lock, so a button can never deadlock against a frame.
@@ -7,7 +7,7 @@
 //   ui.hpp / main.cpp   the Ui struct, startup, the frame layout, global keys
 //   widgets.cpp         buttons, the Mine button, colors, small reusable elements
 //   pages.cpp           one function per tab
-//   console.cpp         the Console tab's engine: the CLI's command loop on its own thread
+//   console.cpp         the Console tab's engine: the typed commands' loop on its own thread
 //   picker.cpp          the profile picker shown before the game
 
 #include <chrono>
@@ -115,6 +115,10 @@ ftxui::Component Btn(std::function<std::string()> label, std::function<void()> o
                      std::function<bool()> enabled = nullptr);
 ftxui::Component Btn(const std::string& label, std::function<void()> onClick,
                      std::function<bool()> enabled = nullptr);
+// A quiet, borderless button: muted text that brightens and underlines when it has the keyboard
+// or the mouse. `warn` (if given) turns it the Bad color, e.g. while a delete is armed.
+ftxui::Component FlatBtn(std::function<std::string()> label, std::function<void()> onClick,
+                         std::function<bool()> warn = nullptr);
 ftxui::Component MineButton(Ui& ui);
 // A one-line text box with a drawn caret. (FTXUI's own Input moves the terminal's real cursor
 // on every frame, which flickers on Windows Terminal; this keeps that cursor hidden.)

@@ -3,39 +3,14 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
-#include <cstdlib>
-#include <cstdio>
 #include <iostream>
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <io.h>
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
 namespace {
-bool g_color = false;
-bool g_vt = false;   // escape codes work (Windows needs them switched on first)
-
-// The TUI's console runs commands on its own thread, printing into its own buffer.
+// The Console runs commands on its own thread, printing into its own buffer, and says whether
+// that thread gets colors. Anything else printing (nothing, normally) gets plain text.
 thread_local std::ostream* t_out = nullptr;
 thread_local std::istream* t_in = nullptr;
-thread_local int t_color = -1;   // -1: follow g_color
-
-bool stdoutIsTerminal() {
-#ifdef _WIN32
-    return _isatty(_fileno(stdout)) != 0;
-#else
-    return isatty(STDOUT_FILENO) != 0;
-#endif
-}
+thread_local bool t_color = false;
 
 std::atomic<int> g_theme{0};
 
@@ -86,25 +61,7 @@ std::string codeFor(int theme, Style st) {
 void setTheme(int theme) { g_theme = std::clamp(theme, 0, THEME_COUNT - 1); }
 int currentTheme() { return g_theme; }
 
-void initTerminal(bool forceNoColor) {
-#ifdef _WIN32
-    SetConsoleOutputCP(CP_UTF8);   // for the chart and heat bar characters
-#endif
-    g_vt = stdoutIsTerminal();
-#ifdef _WIN32
-    if (g_vt) {
-        // Windows Terminal understands escape codes already; the old console needs this switch.
-        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD mode = 0;
-        g_vt = h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode) &&
-               SetConsoleMode(h, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    }
-#endif
-    const char* noColor = std::getenv("NO_COLOR");
-    g_color = g_vt && !forceNoColor && !(noColor && *noColor);
-}
-
-bool colorOn() { return t_color >= 0 ? t_color == 1 : g_color; }
+bool colorOn() { return t_color; }
 
 std::ostream& out() { return t_out ? *t_out : std::cout; }
 std::istream& in() { return t_in ? *t_in : std::cin; }
@@ -112,27 +69,8 @@ std::istream& in() { return t_in ? *t_in : std::cin; }
 void redirectThisThread(std::ostream* o, std::istream* i, bool color) {
     t_out = o;
     t_in = i;
-    t_color = o ? (color ? 1 : 0) : -1;
+    t_color = o && color;
 }
-bool cursorControl() { return g_vt; }
-
-void clearScreen() {
-    if (g_vt) {
-        std::cout << "\x1b[2J\x1b[3J\x1b[H" << std::flush;   // clear screen, clear scrollback, cursor home
-        return;
-    }
-#ifdef _WIN32
-    std::system("cls");
-#else
-    std::cout << std::string(60, '\n') << std::flush;    // not a terminal we can steer: just push it away
-#endif
-}
-
-void returnToPrompt(size_t promptWidth) {
-    // Up one line, then to the column right after the prompt.
-    std::cout << "\x1b[1A\x1b[" << (promptWidth + 1) << "G" << std::flush;
-}
-
 size_t visibleWidth(const std::string& s) {
     size_t width = 0;
     for (size_t i = 0; i < s.size(); ++i) {

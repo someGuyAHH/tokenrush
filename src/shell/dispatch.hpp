@@ -1,7 +1,6 @@
 #pragma once
-// Runs one typed command line. The CLI's input loop and the TUI's console tab both use this,
-// so a command behaves the same in both (menus and "are you sure?" questions included: they
-// read their answers from in(), see term.hpp).
+// Runs one typed command line, for the TUI's Console tab (menus and "are you sure?" questions
+// included: they read their answers from in(), see term.hpp).
 
 #include <random>
 #include <string>

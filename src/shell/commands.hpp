@@ -1,13 +1,15 @@
 #pragma once
-// The command-line UI. Everything here runs on the main thread, and it is the only code
-// that prints or reads input. The game rules live in src/core; these functions lock the
-// state, call into the core, and turn what comes back into colored text.
+// The typed commands: what the TUI's Console tab runs, on the Console's own thread. They print
+// to out() and read from in() (shell/term.hpp), which the Console points at its own buffers.
+// The game rules live in src/core; these functions lock the state, call into the core, and turn
+// what comes back into colored text.
 //
-//   dispatch.cpp  one typed line -> the right function below (shared by the CLI and the TUI console)
+//   dispatch.cpp  one typed line -> the right function below
 //   help.cpp      the command table: names, aliases, 'help' and 'help <command>'
 //   commands.cpp  status, stats, goals, log, mining, offers, auto, wipe
 //   spending.cpp  shop, curios, prompt styles, the Monolith
-//   economy.cpp   market, contracts, crew
+//   economy.cpp   market, contracts, clients, crew, expeditions
+//   workshop.cpp  gadgets
 
 #include <random>
 #include <string>
@@ -32,7 +34,6 @@ int commandFeature(Cmd c);               // the Feature a command needs, or -1 (
 bool commandAllowed(Shared& s, Cmd c);           // false (after saying why) for a feature that isn't unlocked yet
 void printHelp(Shared& s, const std::string& topic = "");   // only lists what's unlocked; a topic explains one command (help.cpp)
 void printStatus(Shared& s);
-void printPending(Shared& s);                    // background messages, shown before each prompt
 std::string promptText(Shared& s);               // "[Title] > "
 void doMine(Shared& s, std::mt19937& rng);
 void doStats(Shared& s);
@@ -48,14 +49,10 @@ void doWipe(Shared& s);
 void doShop(Shared& s, const std::string& args);     // no args: the shop menu; "1 10": buy right away
 void doCurios(Shared& s, const std::string& arg);    // no arg: the shelf menu; "3": buy that one
 void doPrompt(Shared& s, const std::string& arg);
-void doTheme(Shared& s, const std::string& arg);
-void doStars(Shared& s);                             // the Constellations: the sky map and the feats     // no arg: every theme with a preview; "3" or "glacier": buy or switch
+void doTheme(Shared& s, const std::string& arg);     // no arg: every theme with a preview; "3" or "glacier": buy or switch
+void doStars(Shared& s);                             // the Constellations: the sky map and the feats
 void doBuild(Shared& s, const std::string& arg); // empty arg just shows the Monolith
 void doOrrery(Shared& s, const std::string& arg); // empty arg just shows the Orrery
-
-// ----- profiles.cpp -----
-class Profiles;
-std::string pickProfile(Profiles& profiles);   // the chosen profile's name, or "" to quit
 
 // ----- workshop.cpp -----
 void doWorkshop(Shared& s);

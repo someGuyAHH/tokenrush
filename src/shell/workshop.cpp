@@ -1,5 +1,5 @@
 // The Workshop: gadgets built from curios, three slots to equip them in.
-// Same rule as everywhere in the CLI: lock, call the core, unlock, then print.
+// Same rule as every command: lock, call the core, unlock, then print.
 
 #include <iostream>
 

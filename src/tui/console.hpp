@@ -1,12 +1,12 @@
 #pragma once
-// The Console tab: the CLI, running inside the TUI.
+// The Console tab: the game's typed commands (src/shell), inside the TUI.
 //
-// It runs the same command loop as tokenrush-cli (shell/dispatch.cpp) on a thread of its own.
+// It runs the command loop (shell/dispatch.cpp) on a thread of its own.
 // That thread's out()/in() (shell/term.hpp) point at two streams owned by this class:
 //   - input:  lines the player submits in the tab, handed over one at a time; a command that
 //             asks a question (the shop menu, "type WIPE to confirm") simply waits for the next
 //   - output: everything the commands print, colors included, kept as lines for the tab to draw
-// The game itself is only touched through the commands, which lock it like they do in the CLI.
+// The game itself is only touched through the commands, which lock it like a button click does.
 
 #include <condition_variable>
 #include <deque>
