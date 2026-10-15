@@ -140,7 +140,7 @@ Element logPane(Shared& s) {
     for (auto it = blocks.rbegin(); it != blocks.rend(); ++it)
         for (Element& line : *it) rows.push_back(line);
     while ((int)rows.size() < n) rows.push_back(text(""));   // fixed height, so nothing jumps
-    if (THEMES[tui::currentTheme()].classic) return window(text(" LOG ") | bold, vbox(rows));
+    if (themeClassic(tui::currentTheme())) return window(text(" LOG ") | bold, vbox(rows));
     // Themed: a quiet frame with an accent title on the slightly lighter panel color, so the
     // messages stand out from the border and the log from the page below.
     return window(text(" LOG ") | bold | color(tui::hue(Hue::Accent)), vbox(rows)) | color(tui::hue(Hue::Muted)) |
@@ -210,7 +210,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     tabOpt.focused_entry = &tabFocus;
     auto classicTab = tabOpt.entries_option.transform;   // FTXUI's own look, kept for the Classic theme
     tabOpt.entries_option.transform = [classicTab](const EntryState& st) {
-        if (THEMES[tui::currentTheme()].classic) return classicTab(st);
+        if (themeClassic(tui::currentTheme())) return classicTab(st);
         // Themed: the open tab is a chip in the accent color, the rest are quiet.
         if (st.active) return text(st.label) | bold | color(tui::hue(Hue::Background)) | bgcolor(tui::hue(Hue::Accent));
         Element e = text(st.label) | color(tui::hue(st.focused ? Hue::Text : Hue::Muted));
@@ -278,7 +278,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             danger,
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),
             tabBar->Render(),
-            THEMES[tui::currentTheme()].classic ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
+            themeClassic(tui::currentTheme()) ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
             text(ui.page == CONSOLE_PAGE
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")

@@ -38,9 +38,8 @@ std::string rgbCode(Rgb c, bool bold) {
 }
 
 std::string codeFor(int theme, Style st) {
-    const ThemeInfo& t = THEMES[std::clamp(theme, 0, THEME_COUNT - 1)];
-    if (t.classic) return classicCode(st);
-    auto hue = [&](Hue h, bool bold = false) { return rgbCode(t.hue[(int)h], bold); };
+    if (themeClassic(theme)) return classicCode(st);
+    auto hue = [&](Hue h, bool bold = false) { return rgbCode(themeRgb(theme, h), bold); };
     switch (st) {
         case Style::Plain:  return "";
         case Style::Header: return hue(Hue::Accent, true);
@@ -58,7 +57,7 @@ std::string codeFor(int theme, Style st) {
 }
 }  // namespace
 
-void setTheme(int theme) { g_theme = std::clamp(theme, 0, THEME_COUNT - 1); }
+void setTheme(int theme) { g_theme = std::clamp(theme, 0, CUSTOM_THEME); }
 int currentTheme() { return g_theme; }
 
 bool colorOn() { return t_color; }
@@ -94,8 +93,7 @@ std::string paintIn(int theme, Style st, const std::string& text) {
 
 std::string paintHue(Hue h, const std::string& text, bool bold) {
     if (!colorOn() || text.empty()) return text;
-    const ThemeInfo& t = THEMES[g_theme];
-    if (!t.classic) return rgbCode(t.hue[(int)h], bold) + text + "\x1b[0m";
+    if (!themeClassic(g_theme)) return rgbCode(themeRgb(g_theme, h), bold) + text + "\x1b[0m";
     static const char* const classic[HUE_COUNT] = {
         "39", "90", "36", "32", "31", "33", "35", "38;5;220", "38;5;81", "38;5;208",   // Text .. Heat
         "49", "48;5;236", "44", "97", "100", "37", "38;5;154",                        // Background .. Infected

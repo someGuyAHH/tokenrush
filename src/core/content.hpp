@@ -1,4 +1,6 @@
 #pragma once
+
+#include <array>
 // Static game data: events, curios, prompt styles, the Monolith, goals, titles, crew and contracts.
 // The tables live in content.cpp. The *_COUNT constants here are checked against the
 // real table sizes with static_asserts there, so a forgotten update fails the build.
@@ -54,6 +56,22 @@ struct ThemeInfo {
     Rgb hue[HUE_COUNT];   // indexed by Hue
 };
 extern const ThemeInfo THEMES[];
+
+// The custom theme: one per profile, every color picked by hand (actions.hpp). Its colors are the
+// profile's own, so there's no entry for it in THEMES; themeRgb() and friends cover both.
+inline constexpr int CUSTOM_THEME = THEME_COUNT;          // themeSel for it
+inline constexpr int THEME_CHOICES = THEME_COUNT + 1;     // the built-in themes and the custom one
+inline constexpr long long CUSTOM_THEME_COST = 15000;     // shards, once
+struct HueInfo { const char* name; const char* use; };
+extern const HueInfo HUES[];                              // "Quiet text": "hints, labels and borders"
+using Palette = std::array<Rgb, HUE_COUNT>;
+void setCustomPalette(const Palette& colors);             // the profile being played (any thread may read it)
+Palette customPalette();
+Rgb themeRgb(int theme, Hue h);                           // any theme's color (Classic's are close stand-ins)
+bool themeClassic(int theme);                             // drawn with the terminal's own named colors
+const char* themeName(int theme);
+const char* themeId(int theme);                           // what the save file says ("custom")
+double contrastRatio(Rgb a, Rgb b);                       // 1 (none) to 21 (black on white)
 
 // ----- The Monolith (endgame megaproject) -----
 inline constexpr int MONO_STAGE_COUNT = 5;

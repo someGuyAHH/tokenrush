@@ -83,6 +83,12 @@ shards; on the Shop tab, hovering a theme previews the whole screen in it. A the
 the profile. Every theme but Classic is 24-bit color
 (`ESC[38;2;r;g;bm`), with its own background in the TUI.
 
+**The custom theme** (15,000 shards, once) is yours to color by hand. It starts as a copy of the
+theme you're using; then the Shop's editor lets you change each of its 17 colors (by R/G/B
+steps or a hex code), shows how readable the text is, and draws a fixed sample scene that uses
+every color, while the whole screen shows your colors as you go. In the Console:
+`theme custom`, `theme custom accent #ff8800`, `theme custom from neon`.
+
 ## What's in the game
 
 A new game starts with just mining, the shop and the goals. Goals earn renown, renown earns
@@ -252,7 +258,8 @@ Version 9 adds `[cosmetics] theme`, `[jobs] standing`, `[workshop]`, `[disasters
 `[income]`, `[ledger]`, `[keepsakes]` and `[formercrew]` (one line per entry). To add a field to
 the save, add one line to `saveFields()` in `src/core/save.cpp`. Version 10 adds `[tasks] slots` and
 `[task.1]`...`[task.8]` (each task's text as written, plus its on/quiet switches and counters),
-and a tenth title time for Overseer.
+and a tenth title time for Overseer, plus `[cosmetics] customThemeOwned` and `customTheme` (17 hex
+colors).
 
 ## Balance simulator
 

@@ -1,6 +1,9 @@
 #include "content.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstdint>
 #include <iterator>
 
 // ----- Events -----
@@ -314,6 +317,70 @@ const FeatureInfo FEATURES[] = {
     {"Tasks",        "tasks",     8, "rules that run your errands for a fee (with a license)"}, // Overseer
 };
 static_assert(std::size(FEATURES) == FEATURE_COUNT);
+
+// ----- The custom theme -----
+const HueInfo HUES[] = {
+    {"Text",              "most of the writing"},
+    {"Quiet text",        "hints, labels and borders"},
+    {"Accent",            "headings, markers, the tab you're on"},
+    {"Good",              "good news, things that worked"},
+    {"Bad",               "bad news, damage, danger"},
+    {"Warning",           "warnings and tight spots"},
+    {"Event",             "events and big moments"},
+    {"Tokens",            "token amounts, the MINE button"},
+    {"Shards",            "shard amounts"},
+    {"Heat",              "the heat bar"},
+    {"Background",        "the whole screen"},
+    {"Panel",             "the log, and the row you're on"},
+    {"Button",            "buttons you can use"},
+    {"Button text",       "the words on them"},
+    {"Button (off)",      "buttons you can't use yet"},
+    {"Button text (off)", "the words on those"},
+    {"Infected",          "an infected profile's strain"},
+};
+static_assert(std::size(HUES) == HUE_COUNT);
+
+namespace {
+// Packed 0xRRGGBB per color, so the UI thread can change it while the Console's thread prints.
+std::array<std::atomic<std::uint32_t>, HUE_COUNT> g_custom{};
+}  // namespace
+
+void setCustomPalette(const Palette& colors) {
+    for (int i = 0; i < HUE_COUNT; ++i) {
+        const Rgb& c = colors[(size_t)i];
+        g_custom[(size_t)i].store((std::uint32_t)c.r << 16 | (std::uint32_t)c.g << 8 | c.b, std::memory_order_relaxed);
+    }
+}
+
+Palette customPalette() {
+    Palette p{};
+    for (int i = 0; i < HUE_COUNT; ++i) {
+        std::uint32_t v = g_custom[(size_t)i].load(std::memory_order_relaxed);
+        p[(size_t)i] = Rgb{(unsigned char)(v >> 16), (unsigned char)(v >> 8), (unsigned char)v};
+    }
+    return p;
+}
+
+Rgb themeRgb(int theme, Hue h) {
+    if (theme == CUSTOM_THEME) {
+        std::uint32_t v = g_custom[(size_t)h].load(std::memory_order_relaxed);
+        return Rgb{(unsigned char)(v >> 16), (unsigned char)(v >> 8), (unsigned char)v};
+    }
+    return THEMES[std::clamp(theme, 0, THEME_COUNT - 1)].hue[(int)h];
+}
+
+bool themeClassic(int theme) { return theme != CUSTOM_THEME && THEMES[std::clamp(theme, 0, THEME_COUNT - 1)].classic; }
+const char* themeName(int theme) { return theme == CUSTOM_THEME ? "Custom" : THEMES[std::clamp(theme, 0, THEME_COUNT - 1)].name; }
+const char* themeId(int theme) { return theme == CUSTOM_THEME ? "custom" : THEMES[std::clamp(theme, 0, THEME_COUNT - 1)].id; }
+
+double contrastRatio(Rgb a, Rgb b) {
+    auto lum = [](Rgb c) {
+        auto ch = [](unsigned char v) { double s = v / 255.0; return s <= 0.03928 ? s / 12.92 : std::pow((s + 0.055) / 1.055, 2.4); };
+        return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+    };
+    double x = lum(a), y = lum(b);
+    return (std::max(x, y) + 0.05) / (std::min(x, y) + 0.05);
+}
 
 // ----- Gadgets -----
 const GadgetInfo GADGETS[] = {

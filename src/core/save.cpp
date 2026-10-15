@@ -571,14 +571,30 @@ const std::vector<Field>& saveFields() {
         // An unknown theme (hand-edited, or from a newer build) falls back to Classic: it's
         // only a look, not worth rejecting the whole save over.
         Field{"cosmetics", "theme",
-              [](const GameState& g) -> std::string { return THEMES[std::clamp(g.themeSel, 0, THEME_COUNT - 1)].id; },
+              [](const GameState& g) -> std::string { return themeId(std::clamp(g.themeSel, 0, CUSTOM_THEME)); },
               [](GameState& g, const std::string& text) {
                   std::string t = lower(trim(text));
-                  g.themeSel = 0;
+                  g.themeSel = t == "custom" ? CUSTOM_THEME : 0;   // checked against customThemeOwned after loading
                   for (int i = 0; i < THEME_COUNT; ++i)
                       if (t == THEMES[i].id) g.themeSel = i;
                   return true;
               }},
+        boolField("cosmetics", "customThemeOwned", &GameState::customThemeOwned),
+        // The custom theme's colors, in Hue order: "#cccccc, #767676, ..."
+        Field{"cosmetics", "customTheme",
+              [](const GameState& g) {
+                  std::string out;
+                  for (int i = 0; i < HUE_COUNT; ++i) out += (i ? ", " : "") + hexColor(g.customTheme[(size_t)i]);
+                  return out;
+              },
+              [](GameState& g, const std::string& text) {
+                  std::stringstream ss(text);
+                  std::string item;
+                  for (int i = 0; i < HUE_COUNT; ++i)
+                      if (!std::getline(ss, item, ',') || !parseHexColor(item, g.customTheme[(size_t)i])) return false;
+                  return true;
+              },
+              [](const GameState& g) { return g.customThemeOwned; }},
 
         maskField("workshop", "built", &GameState::gadgetsOwned, GADGET_COUNT, [](int i) { return GADGETS[i].id; }),
         // The slots: "tuningfork, -, lavacore". Unknown gadgets leave the slot empty.

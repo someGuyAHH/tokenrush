@@ -42,7 +42,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Goals:    doGoals(s); break;
         case Cmd::Curios:   doCurios(s, arg); break;
         case Cmd::Prompt:   doPrompt(s, rest); break;
-        case Cmd::Theme:    doTheme(s, arg); break;
+        case Cmd::Theme:    doTheme(s, rest); break;
         case Cmd::Stars:    doStars(s); break;
         case Cmd::Orrery:   doOrrery(s, arg); break;
         case Cmd::Monolith: doBuild(s, ""); break;

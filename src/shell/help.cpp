@@ -244,14 +244,22 @@ const std::vector<CommandInfo>& commands() {
           "style once; after that you can change its text for free."},
          {{"prompt", "list the styles"}, {"prompt 3", "buy or switch to style 3"}, {"prompt custom >_<", "your own prompt"}},
          {}, -1, SPENDING},
-        {Cmd::Theme, {"theme", "themes"}, "theme [n|name]", "Change how the game looks: color themes, with previews",
+        {Cmd::Theme, {"theme", "themes"}, "theme [n|name] | theme custom [<color> <#hex> | from <theme>]", "Change how the game looks: color themes, with previews",
          {"A theme recolors everything: headings, tokens, shards, good and bad news, and in the full-screen edition the "
           "background and buttons too. The list shows each theme as a preview line in its own colors.",
           "Classic and Dusk are free. The others are bought once with shards and then stay yours to switch between. "
           "A theme belongs to the profile: another profile keeps its own.",
           "Classic uses your terminal's own color palette, so it looks like the game always did. The other themes use "
-          "24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show."},
-         {{"theme", "every theme, with a preview"}, {"theme 2", "switch to Dusk"}, {"theme glacier", "names work too"}},
+          "24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show.",
+          "The custom theme (15,000 shards, once) is yours to color by hand: it starts as a copy of the theme you're "
+          "using, then every one of its 17 colors can be changed for free. The Shop has an editor for it, with a "
+          "preview that uses every color and a check of how readable the text is. Here, 'theme custom' switches to it "
+          "and lists its colors, 'theme custom <color> <#hex>' changes one (the color names are text, quiettext, accent, "
+          "good, bad, warning, event, tokens, shards, heat, background, panel, button, buttontext, buttonoff, "
+          "buttontextoff and infected), and 'theme custom from <theme>' starts it over from another theme you own."},
+         {{"theme", "every theme, with a preview"}, {"theme 2", "switch to Dusk"}, {"theme glacier", "names work too"},
+          {"theme custom", "switch to your custom theme (buying it the first time)"},
+          {"theme custom accent #ff8800", "make the accent orange"}, {"theme custom from neon", "start over from Neon's colors"}},
          {"prompt"}, -1, SPENDING},
         {Cmd::Monolith, {"monolith"}, "monolith", "Look at the Monolith, the mid-game build",
          {"The Monolith is a five-stage build you pour tokens into: Foundation, Pillars, Spire, Crown and Beacon. "

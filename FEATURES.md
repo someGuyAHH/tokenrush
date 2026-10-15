@@ -249,7 +249,24 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     redraws the whole screen in that theme (`Ui::previewTheme`) until it moves away or you leave
     the tab. Nothing is bought or switched; the Console keeps the real theme.
   - An unknown theme id in a save falls back to Classic instead of rejecting the save.
-  - Custom themes may come later (Script's idea); not yet.
+  - **The custom theme (v10):** one per profile, 15,000 shards once (`CUSTOM_THEME_COST`; it's
+    `themeSel` `CUSTOM_THEME`, saved as `theme = custom`). It starts as a copy of the theme in use
+    (or, in the Console, any theme you own), then all 17 colors are free to change.
+    - Its colors are the profile's (`[cosmetics] customTheme`, 17 hex codes in `Hue` order). A
+      process-wide atomic copy (`setCustomPalette`, refreshed from the snapshot every frame) is
+      what the TUI, the terminal backdrop and the Console's painter read, through `themeRgb()`.
+    - **The editor** (Shop → Custom → "edit its colors", `tui/theme_editor.cpp`): the 17 roles on
+      the left (the keyboard and the selection move together), R/G/B nudges of ±1 and ±16 (a
+      Grid, so Up/Down keeps the step) and a hex box (`#ff8800` or `#f80`), how readable the main
+      pairs are (contrast ratios: 4.5:1 and up is easy, under 3 is hard), and a fixed scene on
+      the right that uses every color (a log, the status bar, tab chips, a job with tips and a
+      gauge, buttons on and off, the row you're on, a disaster, an infection, a hint). While
+      it's open the whole screen is drawn in the custom theme. "Start over from" copies another
+      owned theme's colors (two clicks). Changes save as they're made.
+    - **Console:** `theme custom` (switch to it, buying it the first time, and list its colors),
+      `theme custom <color> <#hex>` (color names: text, quiettext, accent, good, bad, warning,
+      event, tokens, shards, heat, background, panel, button, buttontext, buttonoff,
+      buttontextoff, infected), `theme custom from <theme>`.
 
 ## The Monolith (mid-game, tokens) (`core/actions.cpp: buildMonolith`)
 - **Stages:** Foundation 5K, Pillars 20K, Spire 60K, Crown 150K, Beacon 400K tokens.
@@ -614,8 +631,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   didn't fit typing; that reasoning still holds for the Console.)
 - **Help is detailed.** `help <command>` is a full page (what, how, examples, related), not a
   sentence. A new command gets its page in the `shell/help.cpp` table.
-- **Themes are per profile**, Classic stays the terminal's own colors, and custom themes are a
-  "maybe later", not a now.
+- **Themes are per profile**, and Classic stays the terminal's own colors. The custom theme is one
+  slot, bought dearly (15,000 shards), edited by hand with fixed preview scenes.
 - **Disasters** (Script's decisions): they damage machines, stockpiles, and builds and gear, never
   the crew; they can be stopped when the logic allows (put out the fire, chase the thieves); they
   always warn first; lasting damage means broken until repaired; Fixers soften them; they start

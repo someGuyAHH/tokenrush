@@ -32,8 +32,17 @@ Notes buyCurio(GameState& g, int idx);
 Notes choosePrompt(GameState& g, int idx);   // buys it first if needed; idx PROMPT_COUNT = your custom prompt
 
 // Themes: bought once with shards (the free ones are everyone's), then switch freely.
+// idx CUSTOM_THEME is the profile's custom theme.
 bool themeOwned(const GameState& g, int idx);
-Notes chooseTheme(GameState& g, int idx);   // buys it first if needed
+Notes chooseTheme(GameState& g, int idx);   // buys it first if needed (the custom one starts as a copy of the current theme)
+
+// The custom theme: bought once (CUSTOM_THEME_COST shards), starting as a copy of a theme you own;
+// after that every color can be changed for free.
+Notes buyCustomTheme(GameState& g, int base);
+Notes setCustomColor(GameState& g, Hue h, Rgb c);
+Notes copyIntoCustom(GameState& g, int base);   // start over from another theme's colors
+bool parseHexColor(const std::string& text, Rgb& out);   // "#ff8800", "ff8800" or "#f80"
+std::string hexColor(Rgb c);                             // "#ff8800"
 
 // The custom prompt: any 1-5 printable characters, for 30x the priciest prompt style.
 // Buying it is a one-off; after that, changing the text is free.

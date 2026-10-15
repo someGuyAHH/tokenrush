@@ -1,7 +1,9 @@
 #include "actions.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <string>
 
 #include "crew.hpp"
@@ -192,10 +194,66 @@ Notes choosePrompt(GameState& g, int idx) {
 
 // ----- Themes -----
 bool themeOwned(const GameState& g, int idx) {
+    if (idx == CUSTOM_THEME) return g.customThemeOwned;
     return idx >= 0 && idx < THEME_COUNT && (THEMES[idx].cost == 0 || hasBit(g.themesOwned, idx));
 }
 
+static Palette paletteOf(const GameState& g, int theme) {
+    if (theme == CUSTOM_THEME) return g.customTheme;
+    Palette p{};
+    for (int h = 0; h < HUE_COUNT; ++h) p[(size_t)h] = THEMES[std::clamp(theme, 0, THEME_COUNT - 1)].hue[h];
+    return p;
+}
+
+Notes buyCustomTheme(GameState& g, int base) {
+    if (g.customThemeOwned) return {{Sev::Info, "You already have a custom theme. Change its colors any time, for free."}};
+    if (base < 0 || base >= THEME_COUNT || !themeOwned(g, base)) return {{Sev::Warn, "Start it from a theme you own."}};
+    if (g.shards < CUSTOM_THEME_COST)
+        return {{Sev::Warn, "The custom theme costs " + count(CUSTOM_THEME_COST, "shard") + ". You have " + num(g.shards) + "."}};
+    g.shards -= CUSTOM_THEME_COST;
+    g.customThemeOwned = true;
+    g.customTheme = paletteOf(g, base);
+    g.themeSel = CUSTOM_THEME;
+    return {{Sev::Good, std::string("Bought the custom theme, starting as a copy of ") + THEMES[base].name + ". Edit its colors in the Shop, or with 'theme custom'."}};
+}
+
+Notes setCustomColor(GameState& g, Hue h, Rgb c) {
+    if (!g.customThemeOwned) return {{Sev::Warn, "You don't have a custom theme yet (" + count(CUSTOM_THEME_COST, "shard") + ")."}};
+    if ((int)h < 0 || (int)h >= HUE_COUNT) return {{Sev::Warn, "No such color."}};
+    g.customTheme[(size_t)h] = c;
+    return {{Sev::Info, std::string(HUES[(int)h].name) + " is now " + hexColor(c) + "."}};
+}
+
+Notes copyIntoCustom(GameState& g, int base) {
+    if (!g.customThemeOwned) return {{Sev::Warn, "You don't have a custom theme yet (" + count(CUSTOM_THEME_COST, "shard") + ")."}};
+    if (base < 0 || base >= THEME_COUNT || !themeOwned(g, base)) return {{Sev::Warn, "You can only start over from a theme you own."}};
+    g.customTheme = paletteOf(g, base);
+    return {{Sev::Good, std::string("Your custom theme starts over from ") + THEMES[base].name + "'s colors."}};
+}
+
+bool parseHexColor(const std::string& text, Rgb& out) {
+    std::string t = trim(text);
+    if (!t.empty() && t[0] == '#') t.erase(0, 1);
+    if (t.size() == 3) t = std::string{t[0], t[0], t[1], t[1], t[2], t[2]};
+    if (t.size() != 6 || !std::all_of(t.begin(), t.end(), [](char ch) { return std::isxdigit((unsigned char)ch) != 0; })) return false;
+    unsigned long v = std::stoul(t, nullptr, 16);
+    out = Rgb{(unsigned char)(v >> 16), (unsigned char)(v >> 8), (unsigned char)v};
+    return true;
+}
+
+std::string hexColor(Rgb c) {
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "#%02x%02x%02x", c.r, c.g, c.b);
+    return buf;
+}
+
 Notes chooseTheme(GameState& g, int idx) {
+    if (idx == CUSTOM_THEME) {
+        if (!g.customThemeOwned) return buyCustomTheme(g, std::clamp(g.themeSel, 0, THEME_COUNT - 1));
+        if (g.themeSel == CUSTOM_THEME) return {{Sev::Info, "You're already using your custom theme."}};
+        g.themeSel = CUSTOM_THEME;
+        return {{Sev::Info, "Theme: your custom one."}};
+    }
     if (idx < 0 || idx >= THEME_COUNT) return {{Sev::Warn, "No such theme."}};
     const ThemeInfo& t = THEMES[idx];
     if (idx == g.themeSel) return {{Sev::Info, std::string("You're already using ") + t.name + "."}};

@@ -65,6 +65,14 @@ struct Ui {
     // drawn over the whole screen instead of the profile's own; -1 = none
     int previewTheme = -1;
     int hoverTheme = -1;
+    // ...and its custom theme editor (shopMode 1)
+    int shopMode = 0;
+    int themeRole = 0;         // the color being edited (a Hue)
+    std::string themeHex;      // the hex box
+    int themeHexCursor = 0;
+    int themeHexFor = -1;      // the role and color the box was last filled from
+    int themeBaseArmed = -1;   // "start over from" asks twice
+    Clock::time_point themeBaseUntil{};
 
     // Goals tab
     int goalSelected = 0;
@@ -163,6 +171,8 @@ ftxui::Component OrreryPage(Ui& ui);
 ftxui::Component WorkshopPage(Ui& ui);
 ftxui::Component StarsPage(Ui& ui);
 ftxui::Component TasksPage(Ui& ui);   // tasks_page.cpp
+ftxui::Component ThemeEditor(Ui& ui); // theme_editor.cpp: the custom theme, opened from the Shop
+ftxui::Element themeScene(int theme); // a fixed scene using every color of a theme
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);
 ftxui::Component ConsolePage(Ui& ui);

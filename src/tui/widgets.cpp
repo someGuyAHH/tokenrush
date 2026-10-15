@@ -27,6 +27,7 @@ void Ui::snapshot() {
         snap = s.g;
         snapTime = nowSec();
     }
+    setCustomPalette(snap.customTheme);   // this profile's custom theme, for whoever draws it
     useTheme(previewTheme >= 0 ? previewTheme : snap.themeSel);   // a theme being previewed in the Shop wins
     setTheme(snap.themeSel);   // the Console tab prints through the shell, which keeps its own copy (never a preview)
 }
@@ -109,49 +110,48 @@ Color classicHue(Hue h) {
 // no program can draw on, matches the theme instead of staying black. Classic, or leaving, puts the
 // terminal's own color back (OSC 111). Terminals that don't know these quietly ignore them.
 static void paintBackdrop(int theme) {
-    static int painted = 0;   // 0: the terminal's own color
-    int want = THEMES[theme].classic ? 0 : theme;
+    static long painted = -1;   // the color last set, 0xRRGGBB; -1: the terminal's own
+    Rgb c = themeRgb(theme, Hue::Background);
+    long want = themeClassic(theme) ? -1 : (long)c.r << 16 | (long)c.g << 8 | c.b;   // the custom one can change while you edit it
     if (want == painted) return;
     const char* noColor = std::getenv("NO_COLOR");
     if (noColor && *noColor) return;
     painted = want;
-    if (want == 0) {
+    if (want < 0) {
         std::cout << "\x1b]111\x1b\\" << std::flush;
         return;
     }
-    Rgb c = THEMES[theme].hue[(int)Hue::Background];
     char buf[32];
     std::snprintf(buf, sizeof buf, "\x1b]11;#%02x%02x%02x\x1b\\", c.r, c.g, c.b);
     std::cout << buf << std::flush;
 }
 
 void useTheme(int theme) {
-    g_theme = std::clamp(theme, 0, THEME_COUNT - 1);
+    g_theme = std::clamp(theme, 0, CUSTOM_THEME);
     paintBackdrop(g_theme);
 }
 int currentTheme() { return g_theme; }
 
 Color hueOf(int theme, Hue h) {
-    const ThemeInfo& t = THEMES[std::clamp(theme, 0, THEME_COUNT - 1)];
-    if (t.classic) return classicHue(h);
-    Rgb c = t.hue[(int)h];
+    if (themeClassic(theme)) return classicHue(h);
+    Rgb c = themeRgb(theme, h);
     return Color::RGB(c.r, c.g, c.b);
 }
 
 Color hue(Hue h) { return hueOf(g_theme, h); }
 
 Decorator muted() {
-    if (THEMES[g_theme].classic) return dim;
+    if (themeClassic(g_theme)) return dim;
     return color(hue(Hue::Muted));
 }
 
 Decorator track() {
-    if (THEMES[g_theme].classic) return nothing;
+    if (themeClassic(g_theme)) return nothing;
     return bgcolor(hue(Hue::Panel));
 }
 
 Element themed(Element e) {
-    if (THEMES[g_theme].classic) return e;
+    if (themeClassic(g_theme)) return e;
     return e | color(hue(Hue::Text)) | bgcolor(hue(Hue::Background));
 }
 

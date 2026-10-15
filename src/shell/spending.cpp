@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cctype>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -230,7 +231,8 @@ void doStars(Shared& s) {
 // ----- Themes -----
 // One line in a theme's own colors, on its own background: what the game would look like.
 static std::string swatch(int theme) {
-    const ThemeInfo& t = THEMES[theme];
+    bool classic = themeClassic(theme);
+    Rgb bgc = themeRgb(theme, Hue::Background), fgc = themeRgb(theme, Hue::Text);
     struct Part { Style st; const char* text; };
     static const Part parts[] = {
         {Style::Header, "Heading"}, {Style::Plain, "  "}, {Style::Tokens, "1,234 tokens"}, {Style::Plain, "  "},
@@ -239,12 +241,8 @@ static std::string swatch(int theme) {
         {Style::Event, "EVENT"}, {Style::Plain, " "}, {Style::Heat, "heat"}, {Style::Plain, " "}, {Style::Muted, "quiet"},
     };
     if (!colorOn()) return "";
-    std::string bg = t.classic ? "" : "\x1b[48;2;" + std::to_string(t.hue[(int)Hue::Background].r) + ";" +
-                                          std::to_string(t.hue[(int)Hue::Background].g) + ";" +
-                                          std::to_string(t.hue[(int)Hue::Background].b) + "m";
-    std::string text = t.classic ? "" : "\x1b[38;2;" + std::to_string(t.hue[(int)Hue::Text].r) + ";" +
-                                            std::to_string(t.hue[(int)Hue::Text].g) + ";" +
-                                            std::to_string(t.hue[(int)Hue::Text].b) + "m";
+    std::string bg = classic ? "" : "\x1b[48;2;" + std::to_string(bgc.r) + ";" + std::to_string(bgc.g) + ";" + std::to_string(bgc.b) + "m";
+    std::string text = classic ? "" : "\x1b[38;2;" + std::to_string(fgc.r) + ";" + std::to_string(fgc.g) + ";" + std::to_string(fgc.b) + "m";
     std::string out = bg + text + " ";
     for (const Part& p : parts) {
         std::string painted = paintIn(theme, p.st, p.text);
@@ -254,7 +252,67 @@ static std::string swatch(int theme) {
     return out + " \x1b[0m";
 }
 
-void doTheme(Shared& s, const std::string& arg) {
+// "Button (off)" -> "buttonoff": how a color is named after 'theme custom'.
+static std::string hueKey(const std::string& s) {
+    std::string k;
+    for (char c : s) if (std::isalpha((unsigned char)c)) k += (char)std::tolower((unsigned char)c);
+    return k;
+}
+
+static int hueByName(const std::string& word) {
+    std::string w = hueKey(word);
+    if (w == "muted" || w == "quiet") return (int)Hue::Muted;
+    if (w == "warn") return (int)Hue::Warn;
+    if (w == "bg") return (int)Hue::Background;
+    for (int h = 0; h < HUE_COUNT; ++h) if (w == hueKey(HUES[h].name)) return h;
+    return -1;
+}
+
+static void printCustomColors(const GameState& g) {
+    out() << paint(Style::Bold, "Your custom theme") << paint(Style::Muted, "   ('theme custom <color> <#hex>' to change one)") << "\n";
+    for (int h = 0; h < HUE_COUNT; ++h) {
+        Rgb c = g.customTheme[(size_t)h];
+        out() << "  " << paintRgb(c, "██") << " " << padRight(hueKey(HUES[h].name), 15) << padRight(hexColor(c), 9)
+              << paint(Style::Muted, HUES[h].use) << "\n";
+    }
+}
+
+// theme custom [ <color> <#hex> | from <theme> ]
+static void doCustomTheme(Shared& s, const std::string& args) {
+    std::stringstream ss(args);
+    std::string a, b;
+    ss >> a >> b;
+    Notes notes;
+    int now;
+    {
+        std::lock_guard lk(s.m);
+        GameState& g = s.g;
+        if (a.empty()) {
+            notes = chooseTheme(g, CUSTOM_THEME);
+        } else if (lower(a) == "from") {
+            int base = -1;
+            for (int i = 0; i < THEME_COUNT; ++i) if (lower(b) == THEMES[i].id) base = i;
+            if (base < 0) { out() << "Usage: theme custom from <classic|dusk|glacier|...>\n"; return; }
+            notes = copyIntoCustom(g, base);
+        } else {
+            int h = hueByName(a);
+            Rgb c;
+            if (h < 0) { out() << "No color called " << a << ". 'theme custom' lists them (text, quiettext, accent, ...).\n"; return; }
+            if (!parseHexColor(b, c)) { out() << "Usage: theme custom " << hueKey(HUES[h].name) << " #rrggbb\n"; return; }
+            notes = setCustomColor(g, (Hue)h, c);
+        }
+        now = g.themeSel;
+        if (g.customThemeOwned) setCustomPalette(g.customTheme);
+    }
+    setTheme(now);
+    printNotes(notes);
+    std::lock_guard lk(s.m);
+    if (s.g.customThemeOwned && (a.empty() || lower(a) == "from")) printCustomColors(s.g);
+}
+
+void doTheme(Shared& s, const std::string& args) {
+    std::string arg = lower(trim(args));
+    if (arg == "custom" || arg.rfind("custom ", 0) == 0) { doCustomTheme(s, trim(args.substr(6))); return; }
     if (arg.empty()) {
         std::lock_guard lk(s.m);
         const GameState& g = s.g;
@@ -268,16 +326,22 @@ void doTheme(Shared& s, const std::string& arg) {
                   << paint(Style::Muted, t.blurb) << "\n";
             if (std::string sw = swatch(i); !sw.empty()) out() << "     " << sw << "\n";
         }
+        std::string state = g.themeSel == CUSTOM_THEME ? paint(Style::Good, "in use") : g.customThemeOwned ? std::string("owned")
+                                                                                         : paint(Style::Shards, count(CUSTOM_THEME_COST, "shard"));
+        out() << "  " << THEME_CHOICES << ") " << paint(Style::Bold, padRight("Custom", 11)) << padVisible(state, 14)
+              << paint(Style::Muted, "every color picked by hand ('theme custom')") << "\n";
+        if (g.customThemeOwned) if (std::string sw = swatch(CUSTOM_THEME); !sw.empty()) out() << "     " << sw << "\n";
         out() << "Use 'theme <n>' (or its name) to buy or switch. Classic uses your terminal's own colors; the others are 24-bit color.\n";
         return;
     }
 
     int idx = -1;
     long long n;
+    if (parseLongLong(arg, n) && n == THEME_CHOICES) { doCustomTheme(s, ""); return; }
     if (parseLongLong(arg, n) && n >= 1 && n <= THEME_COUNT) idx = (int)n - 1;
     for (int i = 0; i < THEME_COUNT && idx < 0; ++i)
         if (lower(arg) == THEMES[i].id) idx = i;
-    if (idx < 0) { out() << "Usage: theme [1-" << THEME_COUNT << " or a name]  (see 'theme')\n"; return; }
+    if (idx < 0) { out() << "Usage: theme [1-" << THEME_CHOICES << " or a name]  (see 'theme')\n"; return; }
 
     Notes notes;
     int now;

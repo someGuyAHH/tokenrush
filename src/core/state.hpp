@@ -286,6 +286,8 @@ struct GameState {
     std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
     std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)
     std::uint32_t themesOwned = 0;   // bit i = THEMES[i] bought (free ones count as owned anyway)
+    bool customThemeOwned = false;   // the custom theme (themeSel CUSTOM_THEME), bought once
+    Palette customTheme{};           // its colors, by Hue
     int monolithStage = 0;           // stages completed
     long long monolithProgress = 0;  // tokens poured into the current stage
     int orreryStage = 0;             // stages completed
