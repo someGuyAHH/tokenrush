@@ -9,23 +9,8 @@ void MessageLog::push(Sev sev, const std::string& text) {
     std::ostringstream os;
     os << std::put_time(std::localtime(&t), "%H:%M:%S");   // localtime is only ever called under m_
 
-    LogEntry e{os.str(), sev, text};
-    pending_.push_back(e);
-    history_.push_back(std::move(e));
+    history_.push_back(LogEntry{os.str(), sev, text});
     if (history_.size() > HISTORY_MAX) history_.pop_front();
-    if (pending_.size() > HISTORY_MAX) pending_.pop_front();   // nobody is draining (e.g. a headless run)
-}
-
-std::vector<LogEntry> MessageLog::drain() {
-    std::lock_guard lk(m_);
-    std::vector<LogEntry> out(pending_.begin(), pending_.end());
-    pending_.clear();
-    return out;
-}
-
-bool MessageLog::hasPending() {
-    std::lock_guard lk(m_);
-    return !pending_.empty();
 }
 
 std::vector<LogEntry> MessageLog::recent(size_t n) {

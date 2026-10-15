@@ -1,6 +1,6 @@
 #pragma once
 // Starting and stopping a game session: command-line options, loading the save, the
-// background threads, and the shutdown order. Shared by both front ends (cli and tui).
+// background threads, and the shutdown order (the TUI's startup, kept out of the UI code).
 
 #include <filesystem>
 #include <random>

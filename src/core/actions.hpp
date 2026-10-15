@@ -1,6 +1,6 @@
 #pragma once
 // Everything the player can DO, with no printing and no input. Each action takes the state
-// (the caller holds Shared::m), changes it, and reports back. The CLI turns the results
+// (the caller holds Shared::m), changes it, and reports back. The front end turns the results
 // into colored text; a full-screen UI can turn the same results into buttons and toasts.
 
 #include <array>

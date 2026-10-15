@@ -1,5 +1,6 @@
 #include "console.hpp"
 
+#include <cstdlib>
 #include <istream>
 #include <ostream>
 #include <random>
@@ -98,10 +99,12 @@ std::streamsize Console::OutBuf::xsputn(const char* s, std::streamsize n) {
 void Console::run(std::stop_token st) {
     std::istream in(&inBuf_);
     std::ostream out(&outBuf_);
-    redirectThisThread(&out, &in, true);
+    const char* noColor = std::getenv("NO_COLOR");   // --no-color sets it too (tui/main.cpp)
+    redirectThisThread(&out, &in, !(noColor && *noColor));
     std::mt19937 rng(makeSeed() ^ 0x27d4eb2fu);
 
-    out << "The same commands as tokenrush-cli. Type 'help' to see them. Esc goes back to the other tabs.\n";
+    out << "Everything in the game can be typed here. 'help' lists the commands, 'help <command>' explains one. "
+           "Esc goes back to the other tabs.\n";
     bool blankLine = false;
     while (!st.stop_requested()) {
         out << (blankLine ? "\n" : "") << promptText(s_) << std::flush;

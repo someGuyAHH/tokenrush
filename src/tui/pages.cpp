@@ -956,7 +956,7 @@ Component StatsPage(Ui& ui) {
 }
 
 // ----- Console -----
-// The CLI in a tab: shell/dispatch.cpp runs each line on the Console's own thread (console.cpp).
+// The typed commands in a tab: shell/dispatch.cpp runs each line on the Console's own thread (console.cpp).
 // The output scrolls: PgUp/PgDn or the mouse wheel go back through it, typing comes back down.
 Component ConsolePage(Ui& ui) {
     Component input = TextBox(&ui.consoleLine, &ui.consoleCursor, "", [&ui] {

@@ -1,5 +1,5 @@
 // The shard economy screens: the market, contracts and the crew.
-// Same rule as everywhere in the CLI: lock, call the core, unlock, then print.
+// Same rule as every command: lock, call the core, unlock, then print.
 
 #include <algorithm>
 #include <iostream>

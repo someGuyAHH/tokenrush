@@ -5,17 +5,18 @@ This file covers what the game does, the numbers behind it, where each piece liv
 design decisions made along the way. When a number here and the code disagree, the code wins:
 the tunables live in the headers named next to each section.
 
-Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
+Current save version: **9**. C++20, with FTXUI 7.0.3.
 
 ---
 
-## The two editions
+## The game: one edition, tokenrush-tui
 
-- **tokenrush-cli**: typed commands (`help` lists them). This is the edition Script plays most.
-- **tokenrush-tui**: full screen. A pinned log at the top, a status bar, tabs, clickable everything.
-- Both play the **same game and the same profiles/saves**, just not the same profile at once.
-- The typed commands live in `src/shell/` and are shared: the CLI's input loop and the TUI's
-  **Console** tab both run them through `runCommand()` (`shell/dispatch.cpp`).
+- Full screen: a pinned log at the top, a status bar, tabs, clickable everything, and the
+  **Console** tab, where every command can be typed.
+- **The command-line edition (tokenrush-cli) is discontinued.** Its commands, menus and questions
+  all live on in the Console: `src/shell/` runs each typed line through `runCommand()`
+  (`shell/dispatch.cpp`) on the Console's own thread. `src/cli/` and the `--cli` build options are
+  gone; old saves and profiles play exactly as before.
 
 ### TUI layout and keys
 - Tabs, in order: **Mine, Shop, Goals, Stats**, then **Curios, Monolith, Market, Jobs, Crew,
@@ -53,17 +54,17 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **Text boxes** draw their own caret (`TextBox` in `tui/widgets.cpp`). FTXUI's Input moves the
   real cursor every frame, which flickered on Windows Terminal.
 
-### CLI specifics
+### The Console's commands
 - **Help:** `help` lists what's open, by section; `help <command>` (any alias: `help ct`) is a
   full page: usage, aliases, what it does and how it works, examples, related commands, and
   which title opens it if it's still locked. One table in `shell/help.cpp` holds every command:
   `parseCmd()`, the locks (`commandFeature()`) and both kinds of help all read it.
 - **Log:** `log [n] [good|bad|warn|event|info]` (either order; plurals work): the last 20 by
   default. The log keeps the last 400 messages of the session.
-- **Empty Enter** does nothing: the cursor goes back after the prompt.
-- **Clearing the screen:** `cls`/`clear`.
-- **Logging out:** `logout` goes back to the profile picker.
-- **Background news** prints before each prompt.
+- **Empty Enter** does nothing.
+- **Clearing:** `cls`/`clear` empties the Console, scrollback included.
+- **Logging out:** `logout` goes back to the profile picker; `quit` closes the game.
+- **Background news** goes to the pinned log pane (and `log`), not into the Console.
 - **One-line shortcuts:**
   - `shop 1 10`: 10 Pickaxe levels.
   - `curios 3`: buy curio 3.
@@ -71,14 +72,18 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 
 ---
 
-## Profiles (`core/profiles.*`, pickers in `cli/profiles.cpp`, `tui/picker.cpp`)
+## Profiles (`core/profiles.*`, the picker in `tui/picker.cpp`)
 - One folder per profile, no passwords:
   - Windows: `%LOCALAPPDATA%\TokenRush\profiles\<name>\tokenrush.save`
   - Linux/macOS: `~/.local/share/tokenrush/...`
 - The picker can create, play, rename and delete profiles, and can import a pre-profiles save
   (the `.save` folder next to the exe).
-- **Renaming** (`Profiles::rename`): `r <n>` in the CLI picker; the Rename button in the TUI's,
-  which sends the keyboard to the name box (Esc cancels). A case-only change ("bob" to "Bob")
+- **Renaming** (`Profiles::rename`): the rename button, which sends the keyboard to the name box
+  (Esc cancels).
+- **The picker's look** is deliberately quiet: no inverted bar or button blocks. The row with
+  the keyboard or the mouse gets the Panel color and an accent `›`; rename, delete, create and
+  quit are flat text buttons (`FlatBtn` in `tui/widgets.cpp`) that brighten on focus; an armed
+  delete turns red. Token counts are compact (2.24T). A case-only change ("bob" to "Bob")
   goes through a temporary folder name, since Windows and macOS see those as the same folder.
 - Options:
   - `--profile <name>`
@@ -116,7 +121,8 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **Jackpot:** chance min(20%, 1% + 0.5%/Magnet); adds base × (80 + 20 × Magnet). Halved by
   the Tuning Fork (`jackpotChance`).
 - **Night Shift:** mining by hand pays ×0.75 (`handMult`).
-- **Cooldowns:** the TUI MINE button has a 250 ms cooldown; the CLI has none (typing is the limit).
+- **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown; typing `mine` in the Console has
+  none (typing is the limit).
 
 ## Upgrades (`core/game.cpp`), Shop tab / `shop`
 - **Costs:**
@@ -216,11 +222,11 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **Keepsakes:** a crew member who quits unpaid, or earns their third star, leaves one on the
   shelf ("Mara's Lucky Wrench"; six items per role, picked by a hash of who they are). The last
   30 are kept.
-- **Prompt styles (CLI prompt, shown in the TUI Console too):**
+- **Prompt styles (the Console's prompt):**
   - The styles: `> ` free, `$ ` 500, `>>> ` 1.5K, `~> ` 3K, `[#] ` 7.5K, `<3 ` 15K.
   - The **custom prompt** (`prompt custom <text>`): 1–5 printable characters for 30× the
     priciest style (450,000). Changing the text afterwards is free.
-- **Themes (`THEMES`; `theme` in the CLI, the Shop tab in the TUI):** kept per profile
+- **Themes (`THEMES`; `theme` in the Console, or the Shop tab):** kept per profile
   (`[cosmetics] theme`, `themesOwned`). Each is a palette of 17 roles (`Hue`: Text, Muted, Accent,
   Good, Bad, Warn, Event, Tokens, Shards, Heat, Background, Panel, Button, ButtonText, ButtonOff,
   ButtonOffText, Infected).
@@ -234,7 +240,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
   | Verdigris | 1,500 shards | patina green, brass, sea glass |
   | Neon | 3,000 shards | hot pink and cyan on purple |
 
-  - The CLI writes `ESC[38;2;r;g;bm` for every theme but Classic (`codeFor` in `shell/term.cpp`);
+  - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Classic (`codeFor` in `shell/term.cpp`);
     the theme list shows each one as a swatch line on its own background (`ESC[48;2;...m`).
   - The TUI draws from `hue()`; the Console tab parses the 24-bit codes back (`ansiLine`).
   - An unknown theme id in a save falls back to Classic instead of rejecting the save.
@@ -270,6 +276,12 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
   the stake comes out first) and **Hands off** (no mining by hand; offered once something else earns
   for you). Only one job of each kind at a time, and Hands off can't run beside a mining job.
 - **Kind pay:** Trade and Cool off ×0.8, Hold ×0.6, Hands off ×1.2 of the usual reward.
+- **Tips** (`judgeContract` in `contracts.cpp`): every offer and running job carries one, Easy /
+  Doable / Tight / Unlikely / Out of reach and why, shown on the Jobs tab and in `contracts`.
+  They're judged again every 5 s (`TIP_EVERY`) from your recent pace (income EMA, mine rate),
+  odds, wallet, shards and paydays, heat cooling, and the stake. Mining jobs are judged by the
+  mines per second they need (the MINE button takes 4 at most); time-based ones by how long they'd
+  take at your pace against the time left.
 - **Sizing:** targets come from how fast you've actually been playing (an EMA of income and mine
   rate), so jobs stay a stretch at every stage.
 - **Big jobs (35%):**
@@ -283,7 +295,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **Gadgets:** Forged Papers give new offers 25% more time for 20% less pay; the Fog Machine
   doubles heat cooling but halves contract shards.
 
-### Clients and standing (`CLIENTS`, `TIERS`; `clients` in the CLI, the grid on the Jobs tab)
+### Clients and standing (`CLIENTS`, `TIERS`; `clients` in the Console, the grid on the Jobs tab)
 - **Standing** with each of the 12 clients, -10..10 (`[jobs] standing`). Finishing a job: +1 (big or
   signature +2), and **their rival -1**. Failing or abandoning: -2 (big -3; small fry -1).
 
@@ -338,7 +350,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **Training:** 6 × level² shards, up to the level cap: 5, or 8 after the Gearwork, plus 3 per star.
 - **Promotions:** available at the cap. Each costs 300 × 3^stars shards (300, 900, 2.7K, 8.1K…;
   30% less if Ambitious) and gives **+3 levels of cap** and **+25% per level**. There's no hard
-  limit; it just stops being worth it. The TUI Train button turns into Promote; the CLI has
+  limit; it just stops being worth it. The Train button turns into Promote; the Console has
   `promote <n>`.
 - **Wage** = level (×2 Greedy, half Frugal, ×2 Mutiny) + raises. Still paid while away.
 - **Former crew:** everyone who quits or is fired is remembered (`[formercrew]`, the last 40),
@@ -375,7 +387,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
   6. **Curio Dealer** (Curios open): one of the Under the Counter curios you don't have and can
      afford, at 1.5× its worth (`DEALER_MARKUP`).
 - **The Debug Duck** gadget: offers twice as often, but 20 s to answer (`choiceSeconds`).
-- **Answering:** `yes`/`no` (`y`/`n`) in the CLI or Console; `y`/`n` keys or the OFFER bar in the TUI.
+- **Answering:** `y`/`n` keys or the OFFER bar, or `yes`/`no` in the Console.
 - **Test builds:** `-DTOKENRUSH_TEST_OFFERS` makes the first offer arrive after 3 s. Never use
   it in `build.py`.
 
@@ -492,7 +504,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
 - **World tick order** (`worldTick`): passive income, play time, streak expiry, events, Leech,
   contracts and heat, offers, disasters, the Hourglass, stats, then `checkGoals` (which also pays
   secret goals and lights constellations).
-- **The theme** the CLI paints with is a process-wide atomic (`setTheme` in `shell/term.cpp`), set
+- **The theme** the Console's commands paint with is a process-wide atomic (`setTheme` in `shell/term.cpp`), set
   when a profile loads, by `theme`, and by the TUI every frame (for its Console); back to Classic
   for the profile pickers.
 - **The TUI:**
@@ -514,7 +526,7 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
   - Doubles are saved floored to 4 decimals.
   - **Token cap:** token totals saturate at 10^18 (`TOKEN_CAP`, `addTokens`).
 - **Builds:**
-  - `python build.py [--cli] [--tui] [--sim] [--rebuild]`: incremental, with per-file hashes
+  - `python build.py [--tui] [--sim] [--rebuild]`: incremental, with per-file hashes
     covering the source, the headers it includes and the flags.
   - `build.ps1` is the older PowerShell version of the same thing.
   - `make` on Linux/macOS.
@@ -528,8 +540,10 @@ Current save version: **9**. C++20; the full-screen edition uses FTXUI 7.0.3.
   game feel unfair. Things that add new things to do are welcome; things that add bigger numbers
   aren't. Crew promotions are fine because they're per member and within one save.
 - **The Monolith stays as it is**, as the mid-game project.
-- **The CLI is the main edition.** Features should work in the CLI first. (A "Golden Meteor"
-  click event was rejected because it doesn't fit the CLI.)
+- **One edition, with a Console.** The separate CLI was discontinued (Script's call) and folded into
+  the Console tab. Every feature still gets a typed command in the Console (with its `help` page),
+  as well as its place in the tabs. (A "Golden Meteor" click event was once rejected because it
+  didn't fit typing; that reasoning still holds for the Console.)
 - **Help is detailed.** `help <command>` is a full page (what, how, examples, related), not a
   sentence. A new command gets its page in the `shell/help.cpp` table.
 - **Themes are per profile**, Classic stays the terminal's own colors, and custom themes are a

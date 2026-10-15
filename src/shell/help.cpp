@@ -336,7 +336,7 @@ const std::vector<CommandInfo>& commands() {
           "explains that command in detail, with examples."},
          {{"help", "the list"}, {"help market", "about the market"}, {"help ct", "aliases work: this is 'contracts'"}},
          {}, -1, PROGRESS},
-        {Cmd::Clear, {"cls", "clear"}, "cls", "Clear the screen", {"Clears the screen (and, in the CLI, the scrollback)."},
+        {Cmd::Clear, {"cls", "clear"}, "cls", "Clear the screen", {"Clears the Console's output, scrollback included."},
          {}, {}, -1, PROGRESS},
         {Cmd::Logout, {"logout", "profile", "profiles"}, "logout", "Save and go back to the profile list",
          {"Saves and goes back to the profile picker, where you can switch to another profile, make one or delete one. "

@@ -1,4 +1,4 @@
-// Headless balance simulator. It links the game's core (no CLI, no threads) and plays it
+// Headless balance simulator. It links the game's core (no UI, no threads) and plays it
 // with a simple scripted player, fast-forwarding time one second per loop. Use it to catch
 // exploit loops and to check that new systems pay off without taking over the game.
 //
@@ -49,7 +49,7 @@ struct Sim {
     std::time_t t = 1'800'000'000;
     Strategy strat;
     Tally tally;
-    double mineRate = 0.5;   // manual mines per second (about what you can type in the CLI)
+    double mineRate = 0.5;   // manual mines per second (a steady player, not a frantic one)
 
     Sim(unsigned seed, Strategy s) : rng(seed), strat(s) {
         g.lastUpdate = t;
@@ -216,7 +216,6 @@ struct Sim {
 
         if (g.crew.size() < crewBefore) tally.quits += (int)(crewBefore - g.crew.size());
         tally.maxHeat = std::max(tally.maxHeat, g.heat);
-        log.drain();
         ++t;
     }
 };

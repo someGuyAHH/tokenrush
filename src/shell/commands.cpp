@@ -48,10 +48,6 @@ std::string promptText(Shared& s) {
     return "[" + paint(Style::Bold, TITLES[titleIndex(renownOf(g))].name) + "] " + promptOf(g);
 }
 
-void printPending(Shared& s) {
-    for (const LogEntry& e : s.log.drain()) printEntry(e);
-}
-
 void printStatus(Shared& s) {
     std::lock_guard lk(s.m);
     GameState& g = s.g;
