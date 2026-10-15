@@ -5,6 +5,7 @@
 #include "commands.hpp"
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/util.hpp"
@@ -33,6 +34,8 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Mine:     doMine(s, rng); break;
         case Cmd::Shop:     doShop(s, rest); break;
         case Cmd::Auto:     doAuto(s, arg); break;
+        case Cmd::Respond:  doRespond(s); break;
+        case Cmd::Repair:   doRepair(s, arg); break;
         case Cmd::Log:      doLog(s, rest); break;
         case Cmd::Save:     out() << (saveNow(s) ? paint(Style::Good, "Saved.") : paint(Style::Bad, "Save failed.")) << "\n"; break;
         case Cmd::Wipe:     doWipe(s); setTheme(0); break;
@@ -73,6 +76,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         std::lock_guard lk(s.m);
         checkContract(s.g, s.log);
         checkRace(s.g, s.log);
+        checkDisaster(s.g, s.log);
         checkGoals(s.g, s.log);
     }
     return result;

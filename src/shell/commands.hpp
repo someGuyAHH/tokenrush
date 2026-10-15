@@ -21,7 +21,7 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
-    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition,
+    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -38,6 +38,8 @@ void doMine(Shared& s, std::mt19937& rng);
 void doStats(Shared& s);
 void doAnswer(Shared& s, std::mt19937& rng, bool yes);   // the open offer (choice event)
 void doAuto(Shared& s, const std::string& arg);
+void doRespond(Shared& s);                       // the disaster that's coming: stop it
+void doRepair(Shared& s, const std::string& arg); // no arg: what's broken; "2" or "all": fix it
 void doGoals(Shared& s);
 void doLog(Shared& s, const std::string& args);   // [n] [good|bad|warn|event|info]
 void doWipe(Shared& s);

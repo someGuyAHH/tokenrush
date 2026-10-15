@@ -571,6 +571,17 @@ const std::vector<Field>& saveFields() {
 
         numField("crew", "paydayClock", &GameState::paydayClock, 0, 24 * 3600),
 
+        numField("disasters", "clock",          &GameState::disasterClock, 0, 24 * 3600),
+        numField("disasters", "dronesDown",     &GameState::dronesDown, 0, MAX_LEVEL),
+        numField("disasters", "dronesDownSecs", &GameState::dronesDownSecs, 0, 24 * 3600),
+        numField("disasters", "paused",         &GameState::machinesPaused, 0, 24 * 3600),
+        boolField("disasters", "botBroken",     &GameState::botBroken),
+        maskField("disasters", "cracked",       &GameState::orreryCracked, ORRERY_STAGE_COUNT, [](int i) { return ORRERY[i].name; }),
+        maskField("disasters", "gadgetsBroken", &GameState::gadgetsBroken, GADGET_COUNT, [](int i) { return GADGETS[i].id; }),
+        numField("disasters", "unplugged",      &GameState::gadgetsUnplugged, 0, 24 * 3600),
+        numField("stats", "disastersHit",       &GameState::disastersHit),
+        numField("stats", "disastersStopped",   &GameState::disastersStopped),
+
         numField("orrery", "stage",    &GameState::orreryStage, 0, ORRERY_STAGE_COUNT),
         numField("orrery", "progress", &GameState::orreryProgress),
 
@@ -681,6 +692,9 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
         g.promptSel = 0;
     }
     g.autoOn = g.autoOn && g.autoUnlocked;
+    g.orreryCracked &= (1u << g.orreryStage) - 1;            // only built stages can be cracked
+    g.gadgetsBroken &= g.gadgetsOwned;
+    if (g.bot == 0) g.botBroken = false;
     if (!themeOwned(g, g.themeSel)) g.themeSel = 0;          // a hand-edited theme you never bought
     for (size_t i = 0; i < g.gadgetSlots.size(); ++i) {      // equipped gadgets must be built, and in one slot only
         int x = g.gadgetSlots[i];

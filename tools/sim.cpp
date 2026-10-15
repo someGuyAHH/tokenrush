@@ -24,6 +24,7 @@
 #include "core/actions.hpp"
 #include "core/contracts.hpp"
 #include "core/crew.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/ticks.hpp"
@@ -73,7 +74,10 @@ struct Sim {
         std::uniform_real_distribution<double> uni(0.0, 1.0);
         bool econ = strat == Strategy::Normal || strat == Strategy::Idle;
 
-        if ((strat == Strategy::Normal || strat == Strategy::NoEcon) && uni(rng) < mineRate) mine(g, t, rng);
+        // Chasing thieves: mine as fast as you can.
+        bool chasing = disasterPending(g) && g.disaster.chasing;
+        if ((strat == Strategy::Normal || strat == Strategy::NoEcon) && (chasing || uni(rng) < mineRate)) mine(g, t, rng);
+        if (strat == Strategy::Normal) disasterPlan();
 
         // Upgrades: buy the cheapest one we can afford, every few seconds.
         if (strat != Strategy::Trader && t % 5 == 0) {
@@ -170,6 +174,19 @@ struct Sim {
         }
     }
 
+    // A player who's around stops most disasters (when the warning has been up a few seconds),
+    // and repairs whatever breaks once it's affordable.
+    void disasterPlan() {
+        std::uniform_real_distribution<double> uni(0.0, 1.0);
+        if (disasterPending(g) && !g.disaster.chasing && g.disaster.secondsLeft == DISASTERS[g.disaster.kind].warnSeconds - 5) {
+            if (uni(rng) < 0.7) respondDisaster(g);
+        }
+        if (t % 30 == 0 && anythingBroken(g)) {
+            for (const Repair& r : repairs(g))
+                if (r.tokens * 3 <= g.tokens && r.shards + totalWages(g) <= g.shards) { repair(g, -1); break; }
+        }
+    }
+
     void buildMonolithWhenRich() {
         if (g.monolithStage < MONO_STAGE_COUNT && g.tokens > MONO[g.monolithStage].cost * 3)
             buildMonolith(g, MONO[g.monolithStage].cost - g.monolithProgress);
@@ -194,6 +211,7 @@ struct Sim {
         automationTick(g, log, t, rng, clocks);
         crewTick(g, log, t, rng);
         checkContract(g, log);
+        checkDisaster(g, log);
         checkGoals(g, log);
 
         if (g.crew.size() < crewBefore) tally.quits += (int)(crewBefore - g.crew.size());

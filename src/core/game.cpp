@@ -24,9 +24,12 @@ int botIntervalOf(const GameState& g) {
 }
 
 // ----- Gadgets -----
+bool gadgetEquipped(const GameState& g, Gadget x) {
+    return hasBit(g.gadgetsOwned, (int)x) && std::find(g.gadgetSlots.begin(), g.gadgetSlots.end(), (int)x) != g.gadgetSlots.end();
+}
+
 bool gadgetOn(const GameState& g, Gadget x) {
-    if (!hasBit(g.gadgetsOwned, (int)x)) return false;
-    return std::find(g.gadgetSlots.begin(), g.gadgetSlots.end(), (int)x) != g.gadgetSlots.end();
+    return gadgetEquipped(g, x) && !hasBit(g.gadgetsBroken, (int)x) && g.gadgetsUnplugged <= 0;
 }
 
 long long passiveCapSeconds(const GameState& g) { return gadgetOn(g, Gadget::LavaCore) ? 4LL * 3600 : PASSIVE_CAP_SECONDS; }
@@ -66,10 +69,11 @@ int activeEvent(const GameState& g, std::time_t t) {
 EventFx fxNow(const GameState& g, std::time_t t) { return eventFx(activeEvent(g, t)); }
 
 // ----- Orrery perks -----
-int crewCap(const GameState& g)       { return g.orreryStage >= 1 ? 5 : 4; }
-bool hasResonance(const GameState& g) { return g.orreryStage >= 2; }
-int contractSlots(const GameState& g) { return g.orreryStage >= 3 ? 2 : 1; }
-int crewLevelCap(const GameState& g)  { return g.orreryStage >= 4 ? 8 : 5; }
+bool stageWorks(const GameState& g, int stage) { return g.orreryStage > stage && !hasBit(g.orreryCracked, stage); }
+int crewCap(const GameState& g)       { return stageWorks(g, 0) ? 5 : 4; }
+bool hasResonance(const GameState& g) { return stageWorks(g, 1); }
+int contractSlots(const GameState& g) { return stageWorks(g, 2) ? 2 : 1; }
+int crewLevelCap(const GameState& g)  { return stageWorks(g, 3) ? 8 : 5; }
 
 // ----- Income -----
 void earn(GameState& g, long long amount, Source src) {
@@ -98,11 +102,13 @@ double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_B
 double passiveRatePerSec(const GameState& g) {
     double perDrone = 0.5;
     if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
-    return perDrone * (double)g.drone * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0);
+    if (g.machinesPaused > 0) return 0.0;                       // breakers pulled
+    int working = std::max(0, g.drone - g.dronesDown);           // some may be burnt out by a surge
+    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0);
 }
 
 double botRatePerSec(const GameState& g) {
-    if (g.bot <= 0) return 0.0;
+    if (g.bot <= 0 || g.botBroken || g.machinesPaused > 0) return 0.0;
     if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g);
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);

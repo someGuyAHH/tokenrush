@@ -7,6 +7,7 @@
 
 #include "core/contracts.hpp"
 #include "core/crew.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/util.hpp"
@@ -29,7 +30,19 @@ bool armed(int idx, int armedIdx, Clock::time_point until) { return idx == armed
 // ----- Mine -----
 Component MinePage(Ui& ui) {
     Component mineBtn = MineButton(ui);
-    return Renderer(mineBtn, [&ui, mineBtn] {
+    // Repair buttons for whatever a disaster broke (one per item, in repairs() order).
+    constexpr int REPAIR_ROWS = 6;
+    Components fixes;
+    for (int i = 0; i < REPAIR_ROWS; ++i) {
+        Component b = Btn("Repair", [&ui, i] { ui.run([i](GameState& g) { return repair(g, i); }); },
+                          [&ui, i] {
+                              std::vector<Repair> list = repairs(ui.snap);
+                              return i < (int)list.size() && ui.snap.tokens >= list[(size_t)i].tokens && ui.snap.shards >= list[(size_t)i].shards;
+                          });
+        fixes.push_back(Maybe(b, [&ui, i] { return i < (int)repairs(ui.snap).size(); }));
+    }
+    Component box = Container::Vertical({mineBtn, Container::Vertical(fixes)});
+    return Renderer(box, [&ui, mineBtn, fixes] {
         const GameState& g = ui.snap;
         std::time_t t = ui.snapTime;
 
@@ -77,6 +90,19 @@ Component MinePage(Ui& ui) {
                  (g.bot > 0 ? "   Bot every " + std::to_string(botIntervalOf(g)) + "s" : "")) | muted(),
         });
 
+        Elements broken;
+        std::vector<Repair> list = repairs(g);
+        if (!list.empty()) {
+            broken.push_back(hbox({text("Broken by disasters") | bold | color(hue(Hue::Bad)),
+                                   text(fixerSoften(g) < 1.0 ? "   (your Fixers got you a discount)" : "") | muted()}));
+            for (size_t i = 0; i < list.size() && i < fixes.size(); ++i) {
+                const Repair& r = list[i];
+                Element cost = r.tokens > 0 ? hbox({tokens(r.tokens), text(" tokens")}) : hbox({shards(r.shards), text(" shards")});
+                broken.push_back(hbox({cell(r.what, 28), text(r.effect) | muted() | size(WIDTH, EQUAL, 34), cost | size(WIDTH, EQUAL, 20),
+                                       fixes[i]->Render()}));
+            }
+        }
+
         return vbox({
             text(""),
             mineBtn->Render() | hcenter,
@@ -87,6 +113,7 @@ Component MinePage(Ui& ui) {
             rate | hcenter,
             split.empty() ? text("") : text(split) | muted() | hcenter,
             vbox(info) | hcenter,
+            broken.empty() ? text("") : vbox(broken) | hcenter,
             filler(),
             stats | hcenter,
         });
@@ -653,7 +680,7 @@ Component OrreryPage(Ui& ui) {
 Component WorkshopPage(Ui& ui) {
     Components btns;
     for (int i = 0; i < GADGET_COUNT; ++i) {
-        auto equippedNow = [&ui, i] { return gadgetOn(ui.snap, (Gadget)i); };
+        auto equippedNow = [&ui, i] { return gadgetEquipped(ui.snap, (Gadget)i); };
         btns.push_back(Btn(
             [&ui, i, equippedNow] {
                 if (!hasBit(ui.snap.gadgetsOwned, i)) return "Build " + num(GADGETS[i].cost) + " sh";
@@ -662,7 +689,7 @@ Component WorkshopPage(Ui& ui) {
             [&ui, i] {
                 ui.run([i](GameState& g) {
                     if (!hasBit(g.gadgetsOwned, i)) return craftGadget(g, i);
-                    return gadgetOn(g, (Gadget)i) ? unequipGadget(g, i) : equipGadget(g, i);
+                    return gadgetEquipped(g, (Gadget)i) ? unequipGadget(g, i) : equipGadget(g, i);
                 });
             },
             [&ui, i, equippedNow] {
@@ -687,8 +714,10 @@ Component WorkshopPage(Ui& ui) {
         Elements rows = {hbox(slots), text("")};
         for (int i = 0; i < GADGET_COUNT; ++i) {
             const GadgetInfo& x = GADGETS[i];
-            bool built = hasBit(g.gadgetsOwned, i), on = gadgetOn(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
-            Element name = text(x.name) | bold | color(on ? hue(Hue::Good) : built ? hue(Hue::Text) : hue(Hue::Muted));
+            bool built = hasBit(g.gadgetsOwned, i), on = gadgetEquipped(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
+            bool dead = hasBit(g.gadgetsBroken, i);
+            Element name = text(x.name + std::string(dead ? " (broken)" : "")) | bold |
+                           color(dead ? hue(Hue::Bad) : on ? hue(Hue::Good) : built ? hue(Hue::Text) : hue(Hue::Muted));
             Element right = curio || built ? btns[(size_t)i]->Render() : text("needs its curio") | muted();
             rows.push_back(hbox({name | size(WIDTH, EQUAL, 16), text("+ ") | color(hue(Hue::Good)), text(x.plus) | flex, text(" "), right}));
             rows.push_back(hbox({text("from " + theCurio(x.curio)) | muted() | size(WIDTH, EQUAL, 34), text("- ") | color(hue(Hue::Bad)),
@@ -807,7 +836,11 @@ Component StatsPage(Ui& ui) {
             business.push_back(row("Contracts", plain(num(g.contractsDone) + " done, " + num(g.contractsFailed) + " failed")));
             business.push_back(row("Audits", plain(num(g.audits))));
         }
-        if (isUnlocked(g, Feature::Crew)) business.push_back(row("Crew mined", tokens(g.crewMined)));
+        if (isUnlocked(g, Feature::Crew)) {
+            business.push_back(row("Crew mined", tokens(g.crewMined)));
+            business.push_back(row("Expeditions", plain(num(g.expeditionsDone))));
+            business.push_back(row("Disasters", plain(num(g.disastersStopped) + " stopped, " + num(g.disastersHit) + " hit")));
+        }
         if (!business.empty()) {
             mining.push_back(text(""));
             mining.push_back(heading("Business"));

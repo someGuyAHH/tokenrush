@@ -52,8 +52,8 @@ void doWorkshop(Shared& s) {
     out() << "\n\n";
     for (int i = 0; i < GADGET_COUNT; ++i) {
         const GadgetInfo& x = GADGETS[i];
-        bool built = hasBit(g.gadgetsOwned, i), on = gadgetOn(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
-        std::string state = on ? paint(Style::Good, "equipped") : built ? std::string("built")
+        bool built = hasBit(g.gadgetsOwned, i), on = gadgetEquipped(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
+        std::string state = hasBit(g.gadgetsBroken, i) ? paint(Style::Bad, "BROKEN") : on ? paint(Style::Good, "equipped") : built ? std::string("built")
                           : curio ? paint(Style::Shards, count(x.cost, "shard")) : paint(Style::Muted, "needs curio");
         out() << "  " << padLeft(std::to_string(i + 1), 2) << ") " << paint(Style::Bold, padRight(x.name, 15)) << padVisible(state, 17)
               << paint(Style::Good, "+ ") << x.plus << "\n"

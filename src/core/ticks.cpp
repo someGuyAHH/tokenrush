@@ -8,6 +8,7 @@
 #include "choices.hpp"
 #include "contracts.hpp"
 #include "crew.hpp"
+#include "disasters.hpp"
 #include "game.hpp"
 #include "util.hpp"
 
@@ -52,6 +53,7 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
 
     contractsTick(g, log, rng);
     choicesTick(g, log, rng);
+    disastersTick(g, log, rng);
     recordStats(g);
     checkGoals(g, log);
 }
@@ -95,7 +97,7 @@ static void autoBuy(GameState& g, MessageLog& log) {
 }
 
 void automationTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng, AutomationClocks& c) {
-    if (g.bot > 0 && ++c.bot >= botIntervalOf(g)) {
+    if (g.bot > 0 && !g.botBroken && g.machinesPaused <= 0 && ++c.bot >= botIntervalOf(g)) {
         c.bot = 0;
         long long gain = botMine(g, t, rng);
         earn(g, gain, Source::Bot);

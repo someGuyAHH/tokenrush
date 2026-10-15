@@ -93,6 +93,17 @@ struct Race {                    // the Rival Miner's bet (not saved: quitting m
     int secondsLeft = 0;
 };
 
+// ----- Disasters (see disasters.hpp) -----
+struct Disaster {                // the warning that's running, if any (not saved: quitting drops it)
+    int kind = -1;               // a DisasterKind, or -1 for none
+    int secondsLeft = 0;
+    long long tokens = 0;        // what stopping it costs
+    long long shards = 0;
+    int target = -1;             // a Quake's Orrery stage, a Short Circuit's gadget
+    bool chasing = false;        // Thieves: you're after them
+    long long chaseStart = 0;    // manualMines when the chase began
+};
+
 // ----- History -----
 struct HistorySample {           // one point on the Stats chart
     long long playSeconds = 0;
@@ -200,6 +211,19 @@ struct GameState {
     int choiceClock = 0;             // seconds until the next one (0 = not set yet; not saved)
     Investment investment;
     Race race;
+
+    // Disasters and the damage they leave
+    Disaster disaster;
+    int disasterClock = 0;           // seconds of play until the next one (0 = not set yet)
+    int dronesDown = 0;              // Drones burnt out by a Power Surge...
+    int dronesDownSecs = 0;          // ...until this runs out
+    int machinesPaused = 0;          // seconds the Drones and Bot stay off (breakers pulled)
+    bool botBroken = false;          // until repaired
+    std::uint32_t orreryCracked = 0; // bit i = ORRERY[i] cracked: its perk is off until repaired
+    std::uint32_t gadgetsBroken = 0; // bit i = GADGETS[i] broken until repaired
+    int gadgetsUnplugged = 0;        // seconds every gadget stays off (unplugged against a Short Circuit)
+    long long disastersHit = 0;
+    long long disastersStopped = 0;
 
     // Infection (see content.hpp): a strain, until the Orrery cures it
     Strain strain = Strain::None;

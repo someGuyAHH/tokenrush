@@ -16,6 +16,7 @@
 // type instead, and Esc steps out. Tab/arrows/Enter work too, and everything is clickable.
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -24,6 +25,7 @@
 #include "console.hpp"
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/profiles.hpp"
@@ -98,6 +100,14 @@ Element statusBar(const tui::Ui& ui) {
         else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | tui::muted());
         second.push_back(tui::progress(contractProgress(g, c), contractGoal(c), 8));
         second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, tui::hue(Hue::Warn), tui::hue(Hue::Muted))));
+    }
+    if (anythingBroken(g) || g.dronesDown > 0) {
+        std::string list;
+        for (const Repair& r : repairs(g)) list += (list.empty() ? "" : ", ") + r.what;
+        if (g.dronesDown > 0) list += (list.empty() ? "" : ", ") + num(g.dronesDown) + " Drones (back in " + duration(g.dronesDownSecs) + ")";
+        if (second.size() > 1) second.push_back(text("   "));
+        second.push_back(text("Broken: " + list) | color(tui::hue(Hue::Bad)));
+        second.push_back(text("   "));
     }
     if (int next = nextUnlock(g); next >= 0 && g.contracts.empty()) {
         const Title& t = TITLES[FEATURES[next].title];
@@ -206,9 +216,19 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     Component noBtn = tui::Btn("No (n)", [answer] { answer(false); });
     Component offerBar = Maybe(Container::Horizontal({yesBtn, noBtn}), [&ui] { return hasChoice(ui.snap); });
 
-    // The offer bar comes last in the focus order, so an offer showing up never moves the keyboard
-    // onto its Yes button (a stray Enter would accept). Click it, or press y / n.
-    Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar}), [&] {
+    // ----- Disasters -----
+    auto respond = [&ui] { ui.run([](GameState& g) { return respondDisaster(g); }); };
+    Component respondBtn = tui::Btn([&ui] {
+        if (!disasterPending(ui.snap)) return std::string("");
+        std::string verb = DISASTERS[ui.snap.disaster.kind].verb;
+        verb[0] = (char)std::toupper((unsigned char)verb[0]);
+        return verb + " (x)";
+    }, respond);
+    Component dangerBar = Maybe(respondBtn, [&ui] { return disasterPending(ui.snap); });
+
+    // The offer and danger bars come last in the focus order, so one showing up never moves the
+    // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
+    Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar, dangerBar}), [&] {
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
         // On the Console, the typing line always has the keyboard.
@@ -220,16 +240,25 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
                           paragraph(choiceText(ui.snap)) | flex, text("  " + std::to_string(ui.snap.choice.secondsLeft) + "s  ") | tui::muted(),
                           yesBtn->Render(), text(" "), noBtn->Render()});
         }
+        Element danger = text("") | size(HEIGHT, EQUAL, 0);
+        if (disasterPending(ui.snap)) {
+            danger = hbox({text(" DANGER ") | bgcolor(tui::hue(Hue::Bad)) | color(tui::hue(Hue::ButtonText)) | bold, text(" "),
+                           text(std::string(DISASTERS[ui.snap.disaster.kind].name) + ": ") | bold | color(tui::hue(Hue::Bad)),
+                           paragraph(disasterText(ui.snap)) | flex,
+                           text("  " + std::to_string(ui.snap.disaster.secondsLeft) + "s  ") | color(tui::hue(Hue::Warn)) | bold,
+                           respondBtn->Render()});
+        }
         return tui::themed(vbox({
             logPane(s),
             statusBar(ui),
+            danger,
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),
             tabBar->Render(),
             THEMES[tui::currentTheme()].classic ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
             text(ui.page == CONSOLE_PAGE
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
-                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   : console   ") + (profile.empty() ? "" : "p profile   ") +
+                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   x stop a disaster   : console   ") + (profile.empty() ? "" : "p profile   ") +
                            "q quit") | tui::muted(),
         }));
     });
@@ -248,6 +277,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (e == Event::Character('m')) { ui.mineNow(); return true; }
         if (e == Event::Character('s')) { ui.saveNow(); return true; }
         if (e == Event::Character('y') && hasChoice(ui.snap)) { answer(true); return true; }
+        if (e == Event::Character('x') && disasterPending(ui.snap)) { respond(); return true; }
         if (e == Event::Character('n') && hasChoice(ui.snap)) { answer(false); return true; }
         if (e == Event::Character(':')) { showPage(CONSOLE_PAGE); return true; }
         if (e == Event::Character('p') && !profile.empty()) { end = SessionEnd::Logout; screen.Exit(); return true; }

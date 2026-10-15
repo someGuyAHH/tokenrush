@@ -84,6 +84,25 @@ const std::vector<CommandInfo>& commands() {
           "asked for a raise: they sulk and work at half effort for 10 minutes."},
          {{"no", "turn it down"}, {"n", "the same"}},
          {"yes"}, -1, PLAYING},
+        {Cmd::Respond, {"respond", "douse", "chase", "brace", "oil", "unplug"}, "respond", "Stop the disaster that's coming",
+         {"Once the Crew is open, something goes wrong every 20 to 35 minutes of play. It always starts with a warning in the "
+          "log (and on the status screen) that says what's coming, what stopping it takes, and how long you have. "
+          "'respond' does whatever this one needs; the words in the warning (douse, chase, brace, oil, unplug) all work too.",
+          "Power Surge: brace pulls the breakers (Drones and Bot stop for a minute); otherwise half your Drones burn out for "
+          "about ten minutes. Bot Breakdown: oil costs a few tokens; otherwise the Bot stops until you repair it. Vault Fire: "
+          "douse pays the firefighters; otherwise 8-15% of your shards burn. Thieves: chase, then mine 15 times before they "
+          "get away; otherwise 5-10% of your tokens are gone. Quake: brace shores the Orrery up with a few shards; otherwise a "
+          "stage cracks and its perk is off until repaired. Short Circuit: unplug turns your gadgets off for two minutes; "
+          "otherwise one burns out until repaired.",
+          "Fixers soften all of it: less damage and cheaper repairs, up to half with enough of them."},
+         {{"respond", "stop it"}, {"douse", "the same, during a Vault Fire"}, {"chase", "start chasing thieves (then mine!)"}},
+         {"repair", "status", "crew"}, CREW, PLAYING},
+        {Cmd::Repair, {"repair", "fix"}, "repair [n|all]", "Fix what disasters broke",
+         {"Lists everything that's broken (the Mining Bot, a cracked Orrery stage, a burnt-out gadget), what it costs to fix "
+          "and what's off until then. The Bot is repaired with tokens; Orrery stages and gadgets with shards. Fixers make "
+          "repairs cheaper. Burnt-out Drones don't need you: they come back on their own."},
+         {{"repair", "what's broken"}, {"repair 1", "fix the first"}, {"repair all", "fix everything you can afford"}},
+         {"respond"}, CREW, PLAYING},
         {Cmd::Auto, {"auto"}, "auto [on|off]", "Show or toggle the Auto-Buyer",
          {"The Auto-Buyer license costs 2,000 tokens (shop item 5). Once you own it, every 5 seconds it buys "
           "your cheapest upgrade, but only while you have 3x its price, so it never empties your wallet.",

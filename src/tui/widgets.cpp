@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <cctype>
 
+#include "core/choices.hpp"
 #include "core/contracts.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/util.hpp"
@@ -44,6 +46,8 @@ void Ui::mineNow() {
         std::lock_guard lk(s.m);
         lastMine = mine(s.g, nowSec(), rng);
         checkContract(s.g, s.log);
+        checkDisaster(s.g, s.log);
+        checkRace(s.g, s.log);
         checkGoals(s.g, s.log);
     }
     hasMined = true;
@@ -139,7 +143,8 @@ Color sevColor(Sev sev) {
 Element logLine(const LogEntry& e) {
     Element msg = text(e.text) | color(sevColor(e.sev));
     if (e.sev == Sev::Event) msg = msg | bold;
-    return hbox({text(e.stamp + "  ") | muted(), msg});
+    // A long message is cut at the right edge; the timestamp keeps its room.
+    return hbox({text(e.stamp + "  ") | muted() | size(WIDTH, EQUAL, (int)e.stamp.size() + 2), msg | flex_shrink});
 }
 
 // Understands the codes the shell's paint() writes: reset, bold, the 16 basic colors (30-37,

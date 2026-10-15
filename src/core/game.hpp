@@ -44,7 +44,8 @@ struct UpgradeRef { const char* name; long long cost; int* lvl; };
 std::array<UpgradeRef, 4> upgrades(GameState& g);
 
 // ----- Gadgets -----
-bool gadgetOn(const GameState& g, Gadget x);   // built, equipped and working
+bool gadgetOn(const GameState& g, Gadget x);         // built, equipped and working (not broken or unplugged)
+bool gadgetEquipped(const GameState& g, Gadget x);   // in a slot, working or not
 long long passiveCapSeconds(const GameState& g);   // how long Drones keep earning while you're away
 
 // ----- Events -----
@@ -54,6 +55,7 @@ EventFx fxNow(const GameState& g, std::time_t t);
 // ----- Orrery perks -----
 inline constexpr int MAX_CREW_SLOTS = 5;    // the most crew slots there can ever be
 inline constexpr int CREW_LEVEL_LIMIT = 8;  // the highest crew level there can ever be
+bool stageWorks(const GameState& g, int stage);   // built and not cracked by a Quake
 int crewCap(const GameState& g);            // 4, or 5 after the Base Plate
 int crewLevelCap(const GameState& g);       // 5, or 8 after the Gearwork
 int contractSlots(const GameState& g);      // 1, or 2 after the Second Ring

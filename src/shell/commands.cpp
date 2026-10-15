@@ -13,6 +13,7 @@
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
 #include "core/crew.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/save.hpp"
@@ -95,6 +96,18 @@ void printStatus(Shared& s) {
                   << " (" << (long long)std::difftime(g.eventEnds, t) << "s left)\n";
     }
 
+    if (disasterPending(g))
+        out() << paint(Style::Bad, "DANGER: " + std::string(DISASTERS[g.disaster.kind].name)) << " - " << disasterText(g)
+              << paint(Style::Muted, "  (" + duration(g.disaster.secondsLeft) + ")") << "\n";
+    if (anythingBroken(g)) {
+        std::string list;
+        for (const Repair& r : repairs(g)) list += (list.empty() ? "" : ", ") + r.what;
+        out() << paint(Style::Bad, "Broken: ") << list << paint(Style::Muted, "  ('repair')") << "\n";
+    }
+    if (g.dronesDown > 0)
+        out() << paint(Style::Warn, num(g.dronesDown) + " Drones burnt out") << paint(Style::Muted, ", back in " + duration(g.dronesDownSecs)) << "\n";
+    if (g.machinesPaused > 0) out() << paint(Style::Warn, "Breakers pulled") << paint(Style::Muted, ": Drones and Bot back in " + duration(g.machinesPaused)) << "\n";
+    if (g.gadgetsUnplugged > 0) out() << paint(Style::Warn, "Gadgets unplugged") << paint(Style::Muted, ", back in " + duration(g.gadgetsUnplugged)) << "\n";
     if (hasChoice(g))
         out() << "Offer:  " << paint(Style::Event, choiceText(g)) << paint(Style::Muted, "  (yes/no, " + std::to_string(g.choice.secondsLeft) + "s)") << "\n";
     if (g.race.stake > 0)
@@ -282,6 +295,40 @@ void doWipe(Shared& s) {
     out() << "Progress wiped.\n";
 }
 
+// ----- Disasters -----
+void doRespond(Shared& s) {
+    Notes notes;
+    {
+        std::lock_guard lk(s.m);
+        notes = respondDisaster(s.g);
+    }
+    printNotes(notes);
+}
+
+void doRepair(Shared& s, const std::string& arg) {
+    Notes notes;
+    {
+        std::lock_guard lk(s.m);
+        std::vector<Repair> list = repairs(s.g);
+        if (arg.empty()) {
+            if (list.empty()) { out() << "Nothing needs repairing.\n"; return; }
+            out() << header("REPAIRS") << paint(Style::Muted, fixerSoften(s.g) < 1.0 ? "   (your Fixers got you a discount)" : "") << "\n";
+            for (size_t i = 0; i < list.size(); ++i) {
+                const Repair& r = list[i];
+                std::string cost = r.tokens > 0 ? paint(Style::Tokens, num(r.tokens) + " tokens") : paint(Style::Shards, count(r.shards, "shard"));
+                out() << "  " << (i + 1) << ") " << padRight(r.what, 28) << padVisible(cost, 18) << paint(Style::Muted, r.effect) << "\n";
+            }
+            out() << "Use 'repair <n>' or 'repair all'.\n";
+            return;
+        }
+        long long n = 0;
+        if (arg == "all") notes = repair(s.g, -1);
+        else if (parseLongLong(arg, n) && n >= 1) notes = repair(s.g, (int)n - 1);
+        else notes = {{Sev::Warn, "Usage: repair [n|all]"}};
+    }
+    printNotes(notes);
+}
+
 // ----- Offers -----
 void doAnswer(Shared& s, std::mt19937& rng, bool yes) {
     Notes notes;
@@ -347,7 +394,10 @@ void doStats(Shared& s) {
             row("Contracts", num(g.contractsDone) + " done, " + num(g.contractsFailed) + " failed");
             row("Audits", num(g.audits));
         }
-        if (isUnlocked(g, Feature::Crew)) row("Crew", num(g.crewHired) + " hired, mined " + num(g.crewMined) + " tokens");
+        if (isUnlocked(g, Feature::Crew)) {
+            row("Crew", num(g.crewHired) + " hired, mined " + num(g.crewMined) + " tokens, " + num(g.expeditionsDone) + " expeditions");
+            row("Disasters", num(g.disastersStopped) + " stopped, " + num(g.disastersHit) + " hit");
+        }
     }
 
     if (!g.formerCrew.empty()) {
