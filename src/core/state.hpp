@@ -125,6 +125,8 @@ struct Contract {
     long long rewardTokens = 0;
     long long rewardShards = 0;
     int expiresIn = 0;           // offers only: seconds until it leaves the board
+    int tipLevel = -1;           // how it looks right now: a TipLevel (contracts.hpp); -1 = not judged yet (not saved)
+    std::string tip;             // ...and why, in a sentence (not saved)
 };
 
 struct GameState {
@@ -159,6 +161,7 @@ struct GameState {
     std::vector<Contract> contracts;    // the jobs you're working on (1 slot, 2 with the Orrery's Second Ring)
     std::vector<Contract> offers;       // regenerated after loading (not saved)
     int offerClock = 0;                 // seconds until a fresh offer appears
+    int tipClock = 0;                   // seconds until the tips are judged again (not saved)
     std::array<int, CLIENT_COUNT> standing{};   // with each client, -10..10 (see contracts.hpp)
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far

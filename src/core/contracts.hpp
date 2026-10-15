@@ -45,6 +45,16 @@ bool isEndurance(const Contract& c);
 std::string contractText(const Contract& c);     // "Mine 60 times"
 std::string progressText(const GameState& g, const Contract& c);   // "51/180", or "2m 10s of 5m 00s" for endurance jobs
 
+// ----- Tips -----
+// Every offer and running job carries a tip: how hard it looks from how you've actually been
+// playing lately, and why. They're judged again every TIP_EVERY seconds, so they follow your
+// pace, your wallet and your heat as they change.
+inline constexpr int TIP_EVERY = 5;
+enum class TipLevel : int { Easy, Doable, Tight, Unlikely, OutOfReach, Count };
+extern const char* const TIP_NAMES[];          // "Easy", ... "Out of reach"
+void judgeContract(const GameState& g, Contract& c, bool running);   // fills c.tipLevel and c.tip
+void judgeAll(GameState& g);                    // every offer and running job
+
 int heatCoolSeconds(const GameState& g);
 int auditMinHeat(const GameState& g);           // AUDIT_MIN_HEAT, or one less with the Golden Ledger
 double auditChance(const GameState& g);         // per second

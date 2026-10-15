@@ -323,6 +323,14 @@ static Color tierColor(Tier t) {
     }
 }
 
+// A contract's tip in its level's color: "Tight: needs a mine every 1.4s (lately one every 2.0s)."
+static Element tipLine(const Contract& c, const std::string& indent) {
+    if (c.tipLevel < 0) return text("");
+    static const Hue hues[] = {Hue::Good, Hue::Accent, Hue::Warn, Hue::Heat, Hue::Bad};
+    Hue h = hues[std::clamp(c.tipLevel, 0, (int)TipLevel::Count - 1)];
+    return hbox({text(indent), text(std::string(TIP_NAMES[c.tipLevel]) + ": ") | bold | color(hue(h)), text(c.tip) | color(hue(h))});
+}
+
 // "The Syndicate (Friendly)", the tier in its color; without the tier when `withTier` is false.
 static Element clientName(const GameState& g, int client, bool withTier = true) {
     Tier t = clientTier(g, client);
@@ -377,6 +385,7 @@ Component JobsPage(Ui& ui) {
             if (isEndurance(c))
                 rows.push_back(text(std::string("  Won by lasting until the end; fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") |
                                color(hue(Hue::Warn)));
+            rows.push_back(tipLine(c, "  "));
             rows.push_back(hbox({text("  "), progress(contractProgress(g, c), contractGoal(c), 14), text("  "),
                                  text(duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text))),
                                  text("   "), hbox(pays), filler(), abandons[j]->Render()}));
@@ -397,6 +406,7 @@ Component JobsPage(Ui& ui) {
             rows.push_back(hbox({text("    from ") | muted(), clientName(g, o.client),
                                  text(std::string(", ") + CLIENT_STYLES[(int)CLIENTS[o.client].style].name + ", leaves in " + duration(o.expiresIn) +
                                       (isEndurance(o) ? std::string("   endurance: no ") + CONTRACT_KINDS[(int)o.kind].rule : "")) | muted()}));
+            rows.push_back(tipLine(o, "    "));
         }
         if (g.offers.empty()) rows.push_back(text("  (the board is empty; check back soon)") | muted());
 
