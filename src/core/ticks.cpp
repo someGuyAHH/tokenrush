@@ -89,7 +89,7 @@ void automationTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& 
     if (g.bot > 0 && ++c.bot >= botInterval(g.bot)) {
         c.bot = 0;
         long long gain = botMine(g, t, rng);
-        earn(g, gain);
+        earn(g, gain, Source::Bot);
         g.botTotal = addTokens(g.botTotal, gain);
         c.minedSinceReport = addTokens(c.minedSinceReport, gain);
     }

@@ -124,7 +124,7 @@ void doCurios(Shared& s, const std::string& arg) {
                     bool owned = hasBit(g.curiosOwned, i);
                     std::string row = padLeft(std::to_string(i + 1), 2) + ") " + (owned ? "[x] " : "[ ] ") + padRight(CURIOS[i].name, 25);
                     if (owned) out() << "  " << paint(Style::Good, row) << paint(Style::Muted, std::string("\"") + CURIOS[i].flavor + "\"") << "\n";
-                    else       out() << "  " << row << padLeft(num(CURIOS[i].cost), 7) << "\n";
+                    else       out() << "  " << row << padLeft(num(CURIOS[i].cost), 11) << "\n";
                 }
             }
             out() << "Buy which? (number, 0 to go back)\n> " << std::flush;

@@ -19,46 +19,6 @@
 #include "core/util.hpp"
 #include "term.hpp"
 
-// ----- Parsing -----
-Cmd parseCmd(const std::string& word) {
-    static const std::unordered_map<std::string, Cmd> table = {
-        {"help", Cmd::Help},           {"?", Cmd::Help},
-        {"status", Cmd::Status},       {"s", Cmd::Status},
-        {"mine", Cmd::Mine},           {"m", Cmd::Mine},
-        {"shop", Cmd::Shop},
-        {"auto", Cmd::Auto},
-        {"log", Cmd::Log},
-        {"save", Cmd::Save},
-        {"wipe", Cmd::Wipe},
-        {"quit", Cmd::Quit},           {"exit", Cmd::Quit},   {"q", Cmd::Quit},
-        {"goals", Cmd::Goals},         {"g", Cmd::Goals},
-        {"curios", Cmd::Curios},       {"c", Cmd::Curios},
-        {"prompt", Cmd::Prompt},
-        {"monolith", Cmd::Monolith},
-        {"build", Cmd::Build},         {"b", Cmd::Build},
-        {"market", Cmd::Market},       {"mk", Cmd::Market},
-        {"buy", Cmd::Buy},
-        {"sell", Cmd::Sell},
-        {"contracts", Cmd::Contracts}, {"ct", Cmd::Contracts},
-        {"accept", Cmd::Accept},
-        {"abandon", Cmd::Abandon},
-        {"crew", Cmd::Crew},
-        {"hire", Cmd::Hire},
-        {"fire", Cmd::Fire},
-        {"train", Cmd::Train},
-        {"promote", Cmd::Promote},     {"pr", Cmd::Promote},
-        {"stats", Cmd::Stats},         {"st", Cmd::Stats},
-        {"yes", Cmd::Yes},             {"y", Cmd::Yes},
-        {"no", Cmd::No},               {"n", Cmd::No},
-        {"orrery", Cmd::Orrery},       {"o", Cmd::Orrery},
-        {"cls", Cmd::Clear},           {"clear", Cmd::Clear},
-        {"logout", Cmd::Logout},       {"profile", Cmd::Logout},  {"profiles", Cmd::Logout},
-    };
-    if (word.empty()) return Cmd::Empty;
-    auto it = table.find(word);
-    return it == table.end() ? Cmd::Unknown : it->second;
-}
-
 enum class Toggle { Show, On, Off, Invalid };
 
 static Toggle parseToggle(const std::string& s) {
@@ -69,6 +29,7 @@ static Toggle parseToggle(const std::string& s) {
 }
 
 static std::string header(const std::string& title) { return paint(Style::Header, "=== " + title + " ==="); }
+
 
 // ----- Info screens -----
 static int featureOf(Cmd c) {
@@ -92,64 +53,6 @@ bool commandAllowed(Shared& s, Cmd c) {
     return false;
 }
 
-void printHelp(Shared& s) {
-    std::uint32_t open;
-    int next;
-    {
-        std::lock_guard lk(s.m);
-        open = s.g.unlocked;
-        next = nextUnlock(s.g);
-    }
-    struct Line { int feature; const char* text; };   // feature -1: always listed
-    auto section = [open](const char* name, std::initializer_list<Line> lines) {
-        std::string body;
-        for (const Line& l : lines)
-            if (l.feature < 0 || hasBit(open, l.feature)) body += std::string("  ") + l.text + "\n";
-        if (!body.empty()) out() << paint(Style::Header, name) << "\n" << body;
-    };
-    constexpr int MARKET = (int)Feature::Market, CONTRACTS = (int)Feature::Contracts, CREW = (int)Feature::Crew;
-    section("Playing:", {
-        {-1, "mine | m           Mine tokens (build a streak for bigger payouts)"},
-        {-1, "shop [item [n]]    Upgrades and the Auto-Buyer ('shop 1 10': 10 Pickaxe levels)"},
-        {-1, "status | s         Rates, upgrade costs, active event, open offers"},
-        {-1, "yes | y, no | n    Answer an offer (they show up in the log now and then)"},
-    });
-    section("Shards, contracts and crew:", {
-        {MARKET,    "market | mk       Shard price, chart, buy and sell quotes"},
-        {MARKET,    "buy <n|max>        Buy shards with tokens"},
-        {MARKET,    "sell <n|all>       Sell shards for tokens"},
-        {CONTRACTS, "contracts | ct     Timed jobs: offers on the board and your active one"},
-        {CONTRACTS, "accept <n>         Take an offer (big jobs need a shard stake)"},
-        {CONTRACTS, "abandon            Walk away from your contract (counts as a failure)"},
-        {CREW,      "crew               Your hires and who's looking for work"},
-        {CREW,      "hire / fire / train / promote <n>"},
-    });
-    section("Spending (not about mining):", {
-        {(int)Feature::Curios,   "curios | c [n]     Buy collectibles for your shelf"},
-        {-1,                     "prompt [n]         Buy or switch prompt styles"},
-        {-1,                     "prompt custom <t>  Your own prompt, up to 5 characters"},
-        {(int)Feature::Monolith, "monolith           Look at the Monolith, the mid-game build"},
-        {(int)Feature::Monolith, "build <n|all>      Pour tokens into the Monolith"},
-        {(int)Feature::Orrery,   "orrery [n|all]     Look at the Orrery, or set shards into it (late game)"},
-    });
-    section("Progress and other:", {
-        {-1, "goals | g          Goals, renown, titles and what they unlock"},
-        {-1, "stats | st         Your records, and a chart of how rich you've got"},
-        {-1, "log                Recent background messages"},
-        {-1, "cls | clear        Clear the screen"},
-        {-1, "logout | profile   Save and go back to the profile list"},
-        {-1, "auto [on|off]      Show or toggle the Auto-Buyer"},
-        {-1, "save               Save now (the game also autosaves every 30s)"},
-        {-1, "wipe               Reset progress (deletes save)"},
-        {-1, "quit | q           Save and quit (Ctrl+C works too)"},
-    });
-    if (next >= 0) {
-        out() << paint(Style::Muted, std::string("More opens up as you earn titles. Next: ") + FEATURES[next].name +
-                                         " at " + TITLES[FEATURES[next].title].name + " (see 'goals').") << "\n";
-    }
-    out() << paint(Style::Muted, "Tip: your mining streak resets if you don't mine for 15 seconds.") << "\n";
-}
-
 std::string promptText(Shared& s) {
     std::lock_guard lk(s.m);
     const GameState& g = s.g;
@@ -171,7 +74,9 @@ void printStatus(Shared& s) {
     out() << header("STATUS") << "\n";
     out() << "Tokens: " << paint(Style::Tokens, num(g.tokens)) << "   (lifetime " << num(g.lifetimeEarned) << ")\n";
     out() << "Earning " << paint(Style::Tokens, perSecond(recentEarnRate(g))) << " tokens/s   (last "
-              << EARN_WINDOW_SECONDS << "s)\n";
+              << EARN_WINDOW_SECONDS << "s)";
+    if (std::string split = incomeSplit(g); !split.empty()) out() << paint(Style::Muted, "  " + split);
+    out() << "\n";
     if (isUnlocked(g, Feature::Market))
         out() << "Shards: " << paint(Style::Shards, num(g.shards)) << "   (price " << fixed(g.shardPrice, 1) << ")\n";
     out() << "Title:  " << paint(Style::Bold, TITLES[titleIndex(renown)].name) << "   Renown " << renown
@@ -298,10 +203,35 @@ void doGoals(Shared& s) {
     }
 }
 
-void doLog(Shared& s) {
-    auto entries = s.log.recent(20);
-    if (entries.empty()) { out() << "Nothing has happened in the background yet.\n"; return; }
-    out() << header("LOG (last " + std::to_string(entries.size()) + ")") << "\n";
+void doLog(Shared& s, const std::string& args) {
+    // "log", "log 50", "log bad", "log 100 event", in any order
+    size_t n = 20;
+    int filter = -1;   // a Sev, or -1 for everything
+    static const char* const sevNames[] = {"info", "good", "bad", "warn", "event"};
+    std::stringstream ss(lower(args));
+    std::string word;
+    while (ss >> word) {
+        long long v;
+        if (parseLongLong(word, v) && v > 0) { n = (size_t)std::min(v, 1000LL); continue; }
+        if (word == "all") continue;
+        if (word == "warning" || word == "warnings") word = "warn";
+        if (word.size() > 1 && word.back() == 's') word.pop_back();   // "events" works too
+        int found = -1;
+        for (int i = 0; i < 5; ++i)
+            if (word == sevNames[i]) found = i;
+        if (found < 0) { out() << paint(Style::Warn, "Usage: log [n] [good|bad|warn|event|info]") << "\n"; return; }
+        filter = found;
+    }
+
+    std::vector<LogEntry> entries = s.log.recent(1000);
+    if (filter >= 0) std::erase_if(entries, [filter](const LogEntry& e) { return (int)e.sev != filter; });
+    if (entries.size() > n) entries.erase(entries.begin(), entries.end() - (std::ptrdiff_t)n);
+    if (entries.empty()) {
+        out() << (filter >= 0 ? "No " + std::string(sevNames[filter]) + " messages this session.\n"
+                              : std::string("Nothing has happened in the background yet.\n"));
+        return;
+    }
+    out() << header("LOG (last " + std::to_string(entries.size()) + (filter >= 0 ? " " + std::string(sevNames[filter]) : "") + ")") << "\n";
     for (const LogEntry& e : entries) printEntry(e);
 }
 
@@ -388,9 +318,32 @@ void doStats(Shared& s) {
     row("Best streak", num(g.bestStreak));
     row("Mining Bot", num(g.botTotal) + " tokens");
 
+    // Where the tokens came from, all time and over the last few seconds.
+    out() << paint(Style::Bold, "Income by source") << paint(Style::Muted, "   (all time, and now)") << "\n";
+    auto rates = recentSourceRates(g);
+    long long sorted = 0;
+    for (long long v : g.earnedBy) sorted = addTokens(sorted, v);
+    double total = std::max(1.0, (double)g.lifetimeEarned);
+    for (int i = 0; i < SOURCE_COUNT; ++i) {
+        long long v = g.earnedBy[(size_t)i];
+        if (v <= 0 && rates[(size_t)i] <= 0.0) continue;
+        double share = (double)v / total;
+        out() << "  " << padRight(sourceName((Source)i), 18) << paint(Style::Tokens, padLeft(compact(v), 7)) << "  "
+              << bar(toTokens(share * 1000.0), 1000, 12) << " " << padLeft(percent(share, 0), 4)
+              << paint(Style::Muted, "   now " + perSecond(rates[(size_t)i]) + "/s") << "\n";
+    }
+    if (g.lifetimeEarned > sorted)
+        out() << "  " << padRight("Before records", 18) << paint(Style::Muted, padLeft(compact(g.lifetimeEarned - sorted), 7) +
+                                                                  "  (earned before this version kept track)") << "\n";
+
     if (isUnlocked(g, Feature::Market) || isUnlocked(g, Feature::Contracts) || isUnlocked(g, Feature::Crew)) {
         out() << paint(Style::Bold, "Business") << "\n";
-        if (isUnlocked(g, Feature::Market)) row("Shards traded", num(g.shardsTraded));
+        if (isUnlocked(g, Feature::Market)) {
+            row("Shards traded", num(g.shardsTraded));
+            long long net = g.tokensFromSells - g.tokensOnBuys;
+            row("Trading", (net >= 0 ? paint(Style::Good, "+" + num(net)) : paint(Style::Bad, "-" + num(-net))) +
+                               " tokens net, " + num(g.tradeCost) + " lost to spread and price impact");
+        }
         if (isUnlocked(g, Feature::Contracts)) {
             row("Contracts", num(g.contractsDone) + " done, " + num(g.contractsFailed) + " failed");
             row("Audits", num(g.audits));

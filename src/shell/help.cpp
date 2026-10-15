@@ -1,0 +1,350 @@
+// Every typed command in one table: its names, usage, a one-line summary, and a full help page
+// (what it does, how it works, examples, related commands). parseCmd(), 'help' and
+// 'help <command>' all read it, so a new command is one new row.
+
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "commands.hpp"
+#include "core/content.hpp"
+#include "core/game.hpp"
+#include "core/util.hpp"
+#include "term.hpp"
+
+namespace {
+
+enum Section { PLAYING, BUSINESS, SPENDING, PROGRESS, SECTION_COUNT };
+const char* const SECTION_NAMES[SECTION_COUNT] = {
+    "Playing:", "Shards, contracts and crew:", "Spending (not about mining):", "Progress and other:",
+};
+
+struct Example {
+    const char* typed;
+    const char* what;
+};
+
+struct CommandInfo {
+    Cmd cmd;
+    std::vector<std::string> names;    // the first one is the command's real name, the rest are aliases
+    const char* usage;                 // how it's typed, e.g. "shop [item [n]]"
+    const char* summary;               // one line for 'help'
+    std::vector<const char*> details;  // the paragraphs of 'help <command>'
+    std::vector<Example> examples;
+    std::vector<const char*> see;      // related commands
+    int feature;                       // a Feature it needs, or -1
+    Section section;
+};
+
+constexpr int MARKET = (int)Feature::Market, CONTRACTS = (int)Feature::Contracts, CREW = (int)Feature::Crew;
+constexpr int CURIOS = (int)Feature::Curios, MONOLITH = (int)Feature::Monolith, ORRERY = (int)Feature::Orrery;
+
+const std::vector<CommandInfo>& commands() {
+    static const std::vector<CommandInfo> table = {
+        // ----- Playing -----
+        {Cmd::Mine, {"mine", "m"}, "mine", "Mine tokens (build a streak for bigger payouts)",
+         {"Every mine pays your base yield (1 + your Pickaxe level) plus a random extra of up to the same again, "
+          "times your streak multiplier.",
+          "Streak: each mine adds 1 to your streak, and every point adds 5% to what you mine, up to x2.00 at a "
+          "streak of 20. The streak breaks if you don't mine for 15 seconds (6 with the Amnesia strain).",
+          "Luck: a mine can turn into a bonus (8x base and up) or, rarely, a jackpot (80x base and up). Magnet "
+          "levels raise both the odds and the size. A Meteor Shower doubles everything you mine while it lasts."},
+         {{"mine", "mine once"}, {"m", "the same, shorter"}},
+         {"shop", "status"}, -1, PLAYING},
+        {Cmd::Shop, {"shop"}, "shop [item [n]]", "Upgrades and the Auto-Buyer ('shop 1 10': 10 Pickaxe levels)",
+         {"With no arguments it opens the shop menu, which stays open so you can buy several things in a row; "
+          "type 0 (or back) to leave it. With an item it buys right away, without the menu.",
+          "The items: 1 Pickaxe (+1 base yield), 2 Magnet (better bonus and jackpot odds), 3 Drone (+0.5 "
+          "tokens a second, also while the game is closed, up to 12 hours), 4 Mining Bot (mines on its own, "
+          "faster every level), 5 the Auto-Buyer license.",
+          "Every level costs more than the last (the price grows with the square of the level). A number after "
+          "the item buys that many levels, or as many as you can afford if that's fewer."},
+         {{"shop", "open the shop menu"}, {"shop 1", "buy one Pickaxe level"}, {"shop 3 20", "buy up to 20 Drone levels"},
+          {"shop drone 5", "items can be named too: pickaxe, magnet, drone, bot, license"}},
+         {"auto", "status"}, -1, PLAYING},
+        {Cmd::Status, {"status", "s"}, "status", "Rates, upgrade costs, active event, open offers",
+         {"One screen with everything going on right now: your tokens and what you're earning (and from where), "
+          "your title and the next unlock, your streak, the active event, an open offer, a race or a loan, heat, "
+          "your jobs and crew, upgrade levels and prices, and when the game last saved."},
+         {{"status", "show it"}, {"s", "the same, shorter"}},
+         {"stats", "goals"}, -1, PLAYING},
+        {Cmd::Yes, {"yes", "y"}, "yes", "Say yes to the offer on the table",
+         {"Every 10 to 15 minutes someone makes you an offer: a shady broker, an investor, a rival miner, a crew "
+          "member who wants a raise, an auditor who can be bribed. It shows up in the log with what it costs.",
+          "You have 45 seconds to answer. If the price has moved since (say you spent the tokens), the deal is off."},
+         {{"yes", "accept the open offer"}, {"y", "the same"}},
+         {"no", "status"}, -1, PLAYING},
+        {Cmd::No, {"no", "n"}, "no", "Say no to the offer on the table",
+         {"Turns the open offer down. Letting it run out does the same. Nobody minds, except a crew member who "
+          "asked for a raise: they sulk and work at half effort for 10 minutes."},
+         {{"no", "turn it down"}, {"n", "the same"}},
+         {"yes"}, -1, PLAYING},
+        {Cmd::Auto, {"auto"}, "auto [on|off]", "Show or toggle the Auto-Buyer",
+         {"The Auto-Buyer license costs 2,000 tokens (shop item 5). Once you own it, every 5 seconds it buys "
+          "your cheapest upgrade, but only while you have 3x its price, so it never empties your wallet.",
+          "It's switched on when you buy it. Turn it off when you're saving up for something."},
+         {{"auto", "say whether it's on"}, {"auto off", "stop it buying"}, {"auto on", "start it again"}},
+         {"shop"}, -1, PLAYING},
+
+        // ----- Shards, contracts and crew -----
+        {Cmd::Market, {"market", "mk"}, "market", "Shard price, chart, buy and sell quotes, your trading record",
+         {"Shards are the second currency: crew wages, contract stakes and the Orrery are paid in them. You buy "
+          "and sell them here with tokens.",
+          "The price wanders on its own and drifts back toward 150, with the odd sudden rush or crash. Buying "
+          "costs a little above the price and selling pays a little below it: that gap is the spread (5% to start). "
+          "Heat widens it by 2% a point; Brokers narrow it. Every shard you trade also pushes the price a little "
+          "(up when you buy, down when you sell), so big orders get worse as they go.",
+          "The screen shows the price and a chart of the last 5 minutes, quotes for 10 shards, and your trading "
+          "record: what you've bought and sold, the average prices, the net, and how much went to the spread "
+          "and price impact."},
+         {{"market", "show it"}, {"mk", "the same, shorter"}},
+         {"buy", "sell", "crew"}, MARKET, BUSINESS},
+        {Cmd::Buy, {"buy"}, "buy <n|max>", "Buy shards with tokens",
+         {"Buys shards at the current buy price, plus the price impact of the order itself (each shard pushes the "
+          "next one up by about 0.25%). One order can be up to 5,000 shards.",
+          "An order that would fill at more than 3x the current price (a huge order, or a price spike) asks you "
+          "to type yes first."},
+         {{"buy 10", "buy ten shards"}, {"buy 2k", "amounts can be 2000, 2,000 or 2k (also m and b)"},
+          {"buy max", "as many as your tokens cover, up to 5,000"}},
+         {"sell", "market"}, MARKET, BUSINESS},
+        {Cmd::Sell, {"sell"}, "sell <n|all>", "Sell shards for tokens",
+         {"Sells shards at the current sell price, minus the price impact of the order (each shard pushes the next "
+          "one down). One order can be up to 5,000 shards. Selling isn't income: it turns shards back into tokens, "
+          "so it doesn't count toward lifetime earnings or your goals.",
+          "Keep enough shards for your crew's next payday, or they quit."},
+         {{"sell 10", "sell ten shards"}, {"sell 1.5k", "sell 1,500"}, {"sell all", "everything, up to 5,000"}},
+         {"buy", "market", "crew"}, MARKET, BUSINESS},
+        {Cmd::Contracts, {"contracts", "ct", "jobs"}, "contracts", "Timed jobs: offers on the board and your active one",
+         {"Clients post timed jobs on a board of three: earn some tokens, mine so many times, hit jackpots, build a "
+          "fresh streak, let the Mining Bot earn. Targets are sized from how fast you've actually been playing, so "
+          "they're a stretch at every stage of the game. A new offer arrives every minute while the board isn't full, "
+          "and offers leave the board after a while.",
+          "Big jobs (marked BIG) take a shard stake, last longer and pay much more. Finish a job before its timer runs "
+          "out and you get its tokens, its shards and your stake back; a big one also cools heat by 1.",
+          "Fail or abandon a job and you lose the stake and gain heat: +1, or +2 for a big job. Heat widens the market "
+          "spread and, from 3 up, invites audits that seize part of your tokens. It cools by itself, slowly.",
+          "Timers only run while the game is open."},
+         {{"contracts", "show the board and your jobs"}, {"ct", "the same, shorter"}},
+         {"accept", "abandon", "market"}, CONTRACTS, BUSINESS},
+        {Cmd::Accept, {"accept"}, "accept <n>", "Take offer n from the board",
+         {"Takes an offer off the board and starts its timer. A big job takes its shard stake right away.",
+          "You can run one job at a time, or two after the Orrery's Second Ring, as long as they're different kinds "
+          "(two jobs watching the same thing would count the same work twice). A streak job starts a fresh streak."},
+         {{"accept 2", "take the second offer"}},
+         {"contracts", "abandon"}, CONTRACTS, BUSINESS},
+        {Cmd::Abandon, {"abandon"}, "abandon [n]", "Walk away from a contract (counts as a failure)",
+         {"Gives up a job: you lose its stake and gain heat, exactly as if the timer had run out. It asks you to type "
+          "yes first. With two jobs running, say which one."},
+         {{"abandon", "give up your only job"}, {"abandon 2", "give up the second of two"}},
+         {"contracts"}, CONTRACTS, BUSINESS},
+        {Cmd::Crew, {"crew"}, "crew", "Your hires and who's looking for work",
+         {"Up to four named hires (five after the Orrery's Base Plate) work for you in the background. There are "
+          "always three candidates looking for work, and new faces show up every 5 minutes.",
+          "Roles: Miners mine a swing every 5 seconds. Brokers tighten the market spread, cut price impact and add "
+          "shards to contract rewards. Scouts find shards now and then. Fixers make heat cool faster and can make "
+          "audits go away.",
+          "Traits: about two in three candidates have one, and every trait is a trade-off (Greedy works harder but "
+          "wants double wages, Frugal is cheap but works less, and so on).",
+          "Payday: every 5 minutes each member takes about their level in shards. Anyone you can't pay walks out "
+          "(a Loyal member stays through one missed payday)."},
+         {{"crew", "show your crew and the candidates"}},
+         {"hire", "train", "promote", "fire"}, CREW, BUSINESS},
+        {Cmd::Hire, {"hire"}, "hire <n>", "Hire candidate n",
+         {"Hiring costs shards: the role's base price times the candidate's level, and 50% more for every member you "
+          "already have. A fresh crew gets a full 5 minutes before the first payday."},
+         {{"hire 1", "hire the first candidate"}},
+         {"crew", "fire"}, CREW, BUSINESS},
+        {Cmd::Fire, {"fire"}, "fire <n>", "Let crew member n go",
+         {"They leave right away, with no severance and no refund. Useful to free a slot for a better candidate."},
+         {{"fire 3", "let the third member go"}},
+         {"crew", "hire"}, CREW, BUSINESS},
+        {Cmd::Train, {"train"}, "train <n>", "Train crew member n one level",
+         {"Costs 6 x level² shards (half for a Quick Learner). Every level makes them better at their job, and also "
+          "raises their wage by one shard a payday.",
+          "The level cap is 5, or 8 after the Orrery's Gearwork, plus 3 for every promotion."},
+         {{"train 2", "train the second member"}},
+         {"promote", "crew"}, CREW, BUSINESS},
+        {Cmd::Promote, {"promote", "pr"}, "promote <n>", "Promote crew member n (at their level cap)",
+         {"Only possible at the level cap. A promotion gives a star: the cap goes up by 3, and every level counts 25% "
+          "more. The first costs 300 shards and each one after costs 3x the last (30% less if Ambitious), so there's "
+          "no limit, just a point where it stops paying."},
+         {{"promote 1", "promote the first member"}, {"pr 1", "the same"}},
+         {"train", "crew"}, CREW, BUSINESS},
+
+        // ----- Spending -----
+        {Cmd::Curios, {"curios", "c"}, "curios [n]", "Buy collectibles for your shelf",
+         {"Curios are collectibles in sets. They don't make you richer: owning them, and completing sets, is for "
+          "goals and for the shelf. With no number this opens the shelf menu; with a number it buys that curio."},
+         {{"curios", "open the shelf"}, {"curios 3", "buy curio 3"}},
+         {"goals"}, CURIOS, SPENDING},
+        {Cmd::Prompt, {"prompt"}, "prompt [n] | prompt custom <text>", "Buy or switch prompt styles, or make your own",
+         {"Changes the prompt in front of your cursor. Styles are bought once with tokens and are yours to switch "
+          "between after that.",
+          "A custom prompt is any 1 to 5 plain keyboard characters (no spaces at the ends). It costs 30x the dearest "
+          "style once; after that you can change its text for free."},
+         {{"prompt", "list the styles"}, {"prompt 3", "buy or switch to style 3"}, {"prompt custom >_<", "your own prompt"}},
+         {}, -1, SPENDING},
+        {Cmd::Monolith, {"monolith"}, "monolith", "Look at the Monolith, the mid-game build",
+         {"The Monolith is a five-stage build you pour tokens into: Foundation, Pillars, Spire, Crown and Beacon. "
+          "Finishing it is worth a big goal. This draws it as it stands."},
+         {{"monolith", "look at it"}},
+         {"build"}, MONOLITH, SPENDING},
+        {Cmd::Build, {"build", "b"}, "build <n|all>", "Pour tokens into the Monolith",
+         {"Pours tokens into the current stage; whatever is left over carries into the next one."},
+         {{"build 5000", "pour in 5,000 tokens"}, {"build all", "pour in everything you have"}},
+         {"monolith"}, MONOLITH, SPENDING},
+        {Cmd::Orrery, {"orrery", "o"}, "orrery [n|all]", "Look at the Orrery, or set shards into it (late game)",
+         {"The Orrery is the late-game build, made of shards. Each of its five stages unlocks something: a 5th crew "
+          "slot, Resonance (Drones and the Bot scale with your mining), a second contract slot, a higher crew level "
+          "cap, and finally the Sun. Completing it cures an Infected profile.",
+          "Token wealth can't rush it: buying lots of shards at once drives their price up, so it takes time and "
+          "the market."},
+         {{"orrery", "look at it"}, {"orrery 500", "set 500 shards into it"},
+          {"orrery all", "everything except your crew's next payday"}},
+         {"market", "buy"}, ORRERY, SPENDING},
+
+        // ----- Progress and other -----
+        {Cmd::Goals, {"goals", "g"}, "goals", "Goals, renown, titles and what they unlock",
+         {"Goals are milestones: mine so many times, earn so much, finish the Monolith... Each one earns renown, "
+          "renown earns titles, and titles open the rest of the game (the Market, Contracts, the Crew and more). "
+          "Once a feature is open it stays open.",
+          "Goals for features you haven't opened yet say which title opens them."},
+         {{"goals", "show goals and titles"}, {"g", "the same"}},
+         {"stats", "status"}, -1, PROGRESS},
+        {Cmd::Stats, {"stats", "st"}, "stats", "Your records, where your income comes from, and a chart",
+         {"Your records: wealth and the best you've earned per second, mining, business (trading, contracts, audits, "
+          "crew), play time and when you reached each title.",
+          "Income by source splits everything you've earned between mining by hand, Drones, the Mining Bot, the crew, "
+          "contracts and offers, both all time and over the last few seconds.",
+          "The chart is everything you've earned over your play time, on a log scale, with a point every 5 minutes."},
+         {{"stats", "show them"}, {"st", "the same"}},
+         {"status", "market"}, -1, PROGRESS},
+        {Cmd::Log, {"log"}, "log [n] [good|bad|warn|event|info]", "Earlier background messages, optionally filtered",
+         {"Background news (the bot's reports, events, payday, audits, offers...) prints before each prompt. This "
+          "shows it again. The game keeps the last 400 messages of this session.",
+          "A number says how many; a kind keeps only that kind of message. They can come in either order."},
+         {{"log", "the last 20"}, {"log 50", "the last 50"}, {"log bad", "only bad news"},
+          {"log 100 events", "the last 100 events"}},
+         {"status"}, -1, PROGRESS},
+        {Cmd::Help, {"help", "?"}, "help [command]", "This list, or a full page about one command ('help shop')",
+         {"With no command it lists everything you can do right now. With a command (or any of its aliases) it "
+          "explains that command in detail, with examples."},
+         {{"help", "the list"}, {"help market", "about the market"}, {"help ct", "aliases work: this is 'contracts'"}},
+         {}, -1, PROGRESS},
+        {Cmd::Clear, {"cls", "clear"}, "cls", "Clear the screen", {"Clears the screen (and, in the CLI, the scrollback)."},
+         {}, {}, -1, PROGRESS},
+        {Cmd::Logout, {"logout", "profile", "profiles"}, "logout", "Save and go back to the profile list",
+         {"Saves and goes back to the profile picker, where you can switch to another profile, make one or delete one. "
+          "Not available when the game was started with --save-dir."},
+         {}, {"quit"}, -1, PROGRESS},
+        {Cmd::Save, {"save"}, "save", "Save now (the game also autosaves every 30s)",
+         {"Writes the save file right away. The game also saves every 30 seconds and when you quit."},
+         {}, {}, -1, PROGRESS},
+        {Cmd::Wipe, {"wipe"}, "wipe", "Reset progress (deletes the save)",
+         {"Starts this profile over from nothing. It asks you to type WIPE (in capitals) to confirm. An Infected "
+          "profile stays infected: the strain belongs to the profile."},
+         {}, {"logout"}, -1, PROGRESS},
+        {Cmd::Quit, {"quit", "q", "exit"}, "quit", "Save and quit (Ctrl+C works too)",
+         {"Saves and closes the game. Drones keep earning while it's closed (up to 12 hours); everything else waits."},
+         {}, {"logout"}, -1, PROGRESS},
+    };
+    return table;
+}
+
+const CommandInfo* findCommand(Cmd c) {
+    for (const CommandInfo& info : commands())
+        if (info.cmd == c) return &info;
+    return nullptr;
+}
+
+// Word-wraps a paragraph to `width` columns, every line starting with `indent`.
+std::string wrap(const std::string& text, size_t width, const std::string& indent) {
+    std::stringstream words(text);
+    std::string word, line, out;
+    while (words >> word) {
+        if (!line.empty() && indent.size() + line.size() + 1 + word.size() > width) {
+            out += indent + line + "\n";
+            line.clear();
+        }
+        line += (line.empty() ? "" : " ") + word;
+    }
+    if (!line.empty()) out += indent + line + "\n";
+    return out;
+}
+
+void printPage(const CommandInfo& info, bool open, const GameState& g) {
+    constexpr size_t WIDTH = 92;
+    out() << paint(Style::Header, "=== " + info.names[0] + " ===") << "  " << info.summary << "\n";
+    out() << "  " << paint(Style::Bold, "Usage: ") << info.usage << "\n";
+    if (info.names.size() > 1) {
+        std::string also;
+        for (size_t i = 1; i < info.names.size(); ++i) also += (also.empty() ? "" : ", ") + info.names[i];
+        out() << "  " << paint(Style::Bold, "Also:  ") << also << "\n";
+    }
+    if (!open) out() << paint(Style::Warn, "  Not open yet. " + lockedText(g, (Feature)info.feature)) << "\n";
+    for (const char* p : info.details) out() << "\n" << wrap(p, WIDTH, "  ");
+    if (!info.examples.empty()) {
+        size_t w = 0;
+        for (const Example& e : info.examples) w = std::max(w, std::string(e.typed).size());
+        out() << "\n" << paint(Style::Bold, "Examples") << "\n";
+        for (const Example& e : info.examples)
+            out() << "  " << paint(Style::Tokens, padRight(e.typed, w)) << "   " << paint(Style::Muted, e.what) << "\n";
+    }
+    if (!info.see.empty()) {
+        std::string see;
+        for (const char* s : info.see) see += (see.empty() ? "" : ", ") + std::string(s);
+        out() << "\n" << paint(Style::Muted, "See also: " + see) << "\n";
+    }
+}
+
+}  // namespace
+
+Cmd parseCmd(const std::string& word) {
+    static const std::unordered_map<std::string, Cmd> byName = [] {
+        std::unordered_map<std::string, Cmd> m;
+        for (const CommandInfo& info : commands())
+            for (const std::string& n : info.names) m.emplace(n, info.cmd);
+        return m;
+    }();
+    if (word.empty()) return Cmd::Empty;
+    auto it = byName.find(word);
+    return it == byName.end() ? Cmd::Unknown : it->second;
+}
+
+void printHelp(Shared& s, const std::string& topic) {
+    GameState g;
+    {
+        std::lock_guard lk(s.m);
+        g = s.g;
+    }
+
+    if (!topic.empty()) {
+        std::string word = lower(trim(topic));
+        word = word.substr(0, word.find(' '));
+        const CommandInfo* info = findCommand(parseCmd(word));
+        if (!info) { out() << paint(Style::Warn, "No command called '" + word + "'. Type 'help' for the list.") << "\n"; return; }
+        printPage(*info, info->feature < 0 || isUnlocked(g, (Feature)info->feature), g);
+        return;
+    }
+
+    for (int sec = 0; sec < SECTION_COUNT; ++sec) {
+        std::string body;
+        for (const CommandInfo& info : commands()) {
+            if (info.section != sec) continue;
+            if (info.feature >= 0 && !isUnlocked(g, (Feature)info.feature)) continue;
+            std::string name = info.usage;   // "status | s", "mine | m"
+            if (info.names.size() > 1) name = info.names[0] + " | " + info.names[1] + name.substr(info.names[0].size());
+            if (name.size() > 24) body += "  " + name + "\n  " + std::string(25, ' ') + info.summary + "\n";   // too long to share a line
+            else body += "  " + padRight(name, 24) + " " + info.summary + "\n";
+        }
+        if (!body.empty()) out() << paint(Style::Header, SECTION_NAMES[sec]) << "\n" << body;
+    }
+    if (int next = nextUnlock(g); next >= 0) {
+        out() << paint(Style::Muted, std::string("More opens up as you earn titles. Next: ") + FEATURES[next].name +
+                                         " at " + TITLES[FEATURES[next].title].name + " (see 'goals').") << "\n";
+    }
+    out() << paint(Style::Muted, "Type 'help <command>' for a full page on one (aliases work too: 'help ct').") << "\n";
+}

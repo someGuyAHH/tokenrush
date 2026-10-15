@@ -3,7 +3,7 @@
 // exploit loops and to check that new systems pay off without taking over the game.
 //
 //   make sim
-//   ./sim [hours] [seeds] [strategy]
+//   ./sim [hours] [seeds] [strategy] [minutes between table rows, default 30]
 //
 // Strategies:
 //   normal   mines, upgrades, takes contracts, hires crew, trades a little   (default)
@@ -27,12 +27,14 @@
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/ticks.hpp"
+#include "core/util.hpp"
 
 namespace {
 
 enum class Strategy { Normal, Trader, Idle, NoEcon };
 
 struct Tally {
+    std::string curioTimes;      // " 1@3m 2@5m ...": when each curio was bought
     long long tradeProfit = 0;   // tokens from selling minus tokens spent buying
     int maxHeat = 0;
     int quits = 0;
@@ -85,6 +87,7 @@ struct Sim {
         if (econ && t % 10 == 0) crewPlan();
         if (strat == Strategy::Normal && t % 10 == 0) contractPlan();
         if (strat == Strategy::Normal && t % 30 == 0) buildMonolithWhenRich();
+        if (strat == Strategy::Normal && t % 20 == 0) curioPlan();
         if (strat == Strategy::Normal && t % 60 == 0) orreryPlan();
         if (strat == Strategy::Trader && t % 5 == 0) traderPlan();
     }
@@ -138,6 +141,18 @@ struct Sim {
         if (g.shards > keep) buildOrrery(g, g.shards - keep);
     }
 
+    // Buys the cheapest curio still missing once it costs under a quarter of the wallet.
+    void curioPlan() {
+        if (!isUnlocked(g, Feature::Curios)) return;
+        int best = -1;
+        for (int i = 0; i < CURIO_COUNT; ++i)
+            if (!hasBit(g.curiosOwned, i) && (best < 0 || CURIOS[i].cost < CURIOS[best].cost)) best = i;
+        if (best >= 0 && CURIOS[best].cost * 4 <= g.tokens) {
+            buyCurio(g, best);
+            tally.curioTimes += " " + std::to_string(std::popcount(g.curiosOwned)) + "@" + std::to_string(g.playSeconds / 60) + "m";
+        }
+    }
+
     void buildMonolithWhenRich() {
         if (g.monolithStage < MONO_STAGE_COUNT && g.tokens > MONO[g.monolithStage].cost * 3)
             buildMonolith(g, MONO[g.monolithStage].cost - g.monolithProgress);
@@ -187,6 +202,7 @@ int main(int argc, char** argv) {
     double hours = argc > 1 ? std::atof(argv[1]) : 4.0;
     int seeds = argc > 2 ? std::atoi(argv[2]) : 5;
     std::string sarg = argc > 3 ? argv[3] : "normal";
+    long long every = argc > 4 ? std::max(1, std::atoi(argv[4])) * 60LL : 1800;   // table row interval, in minutes
     Strategy strat = sarg == "trader" ? Strategy::Trader : sarg == "idle" ? Strategy::Idle
                    : sarg == "noecon" ? Strategy::NoEcon : Strategy::Normal;
 
@@ -217,7 +233,7 @@ int main(int argc, char** argv) {
                 }
                 lastUnlocked = sim.g.unlocked;
             }
-            if (s % 1800 == 0 || s == total) {
+            if (s % every == 0 || s == total) {
                 const GameState& g = sim.g;
                 std::printf("  %5.1f %12lld %12lld %7lld %7.1f %6lld %5lld %5d %5zu %9lld %6lld\n", s / 3600.0,
                             g.tokens, g.lifetimeEarned, g.shards, g.shardPrice, g.contractsDone, g.contractsFailed,
@@ -229,6 +245,7 @@ int main(int argc, char** argv) {
         for (const CrewMember& c : g.crew) crew += std::string(" ") + ROLES[(int)c.role].name + "L" + std::to_string(c.level) + starsText(c);
         std::printf("  unlocks:%s\n  renown %d (%s), goals %d/%d\n", unlockTimes.empty() ? " none" : unlockTimes.c_str(),
                     renownOf(g), TITLES[titleIndex(renownOf(g))].name, std::popcount(g.goalsDone), GOAL_COUNT);
+        std::printf("  curios:%s\n", sim.tally.curioTimes.empty() ? " none" : sim.tally.curioTimes.c_str());
         std::printf("  monolith done: %s, orrery stages:%s\n", g.monolithStage >= MONO_STAGE_COUNT ? "yes" : "no",
                     stageTimes.empty() ? " none" : stageTimes.c_str());
         std::printf("  trade profit %lld, max heat %d, crew quits %d, upgrades P%d M%d D%d B%d, crew:%s\n",

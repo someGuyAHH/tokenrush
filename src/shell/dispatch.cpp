@@ -27,13 +27,13 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Clear:    return Outcome::Clear;
         case Cmd::Unknown:  out() << paint(Style::Warn, "Unknown command. Type 'help'.") << "\n"; break;
         case Cmd::Locked:   break;   // commandAllowed already said why
-        case Cmd::Help:     printHelp(s); break;
+        case Cmd::Help:     printHelp(s, rest); break;
         case Cmd::Status:   printStatus(s); break;
         case Cmd::Stats:    doStats(s); break;
         case Cmd::Mine:     doMine(s, rng); break;
         case Cmd::Shop:     doShop(s, rest); break;
         case Cmd::Auto:     doAuto(s, arg); break;
-        case Cmd::Log:      doLog(s); break;
+        case Cmd::Log:      doLog(s, rest); break;
         case Cmd::Save:     out() << (saveNow(s) ? paint(Style::Good, "Saved.") : paint(Style::Bad, "Save failed.")) << "\n"; break;
         case Cmd::Wipe:     doWipe(s); break;
         case Cmd::Goals:    doGoals(s); break;

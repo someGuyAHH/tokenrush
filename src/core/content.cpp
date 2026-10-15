@@ -28,18 +28,21 @@ const char* const CURIO_SETS[] = {"Desk Toys", "Relics", "Impossible Things"};
 static_assert(std::size(CURIO_SETS) == CURIO_SET_COUNT);
 
 const CurioInfo CURIOS[] = {
-    {"Rubber Duck",              0,    300, "Listens to your bugs without judgment."},
-    {"Newton's Cradle",          0,    600, "Click. Click. Click. Click."},
-    {"Lava Lamp",                0,  1'000, "The blobs never meet. Neither do your deadlines."},
-    {"Tiny Cactus",              0,  1'500, "Low maintenance. Unlike you."},
-    {"Cracked Floppy Disk",      1,  2'500, "1.44 MB of someone's lost thesis."},
-    {"The First Token Ever",     1,  4'000, "Slightly dented. Priceless. Well, 4,000."},
-    {"Haunted Pickaxe",          1,  6'500, "Mines on its own at 3 AM. Do not ask."},
-    {"Golden Keyboard",          1, 10'000, "Every keystroke sounds like a cash register."},
-    {"Bottled Lightning",        2, 20'000, "Shake well before not opening."},
-    {"Jar of Fog from Day One",  2, 35'000, "Smells like the beginning."},
-    {"A Spare Moon",             2, 55'000, "In case the first one breaks."},
-    {"The Last Token",           2, 80'000, "There will never be another. (There will. Shh.)"},
+    // Desk Toys: the early game
+    {"Rubber Duck",              0,           1'500, "Listens to your bugs without judgment."},
+    {"Newton's Cradle",          0,           4'000, "Click. Click. Click. Click."},
+    {"Lava Lamp",                0,          10'000, "The blobs never meet. Neither do your deadlines."},
+    {"Tiny Cactus",              0,          25'000, "Low maintenance. Unlike you."},
+    // Relics: around the Market and Contracts
+    {"Cracked Floppy Disk",      1,         150'000, "1.44 MB of someone's lost thesis."},
+    {"The First Token Ever",     1,         600'000, "Slightly dented. Priceless. Well, 600,000."},
+    {"Haunted Pickaxe",          1,       2'000'000, "Mines on its own at 3 AM. Do not ask."},
+    {"Golden Keyboard",          1,       6'000'000, "Every keystroke sounds like a cash register."},
+    // Impossible Things: the late game
+    {"Bottled Lightning",        2,      25'000'000, "Shake well before not opening."},
+    {"Jar of Fog from Day One",  2,      80'000'000, "Smells like the beginning."},
+    {"A Spare Moon",             2,     250'000'000, "In case the first one breaks."},
+    {"The Last Token",           2,     750'000'000, "There will never be another. (There will. Shh.)"},
 };
 static_assert(std::size(CURIOS) == CURIO_COUNT);
 

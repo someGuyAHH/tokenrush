@@ -236,7 +236,7 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
             case Role::Miner:
                 if (g.crewClock % MINER_EVERY == 0) {
                     long long gain = toTokens((double)minerSwing(g, c) * fx.mining);
-                    earn(g, gain);
+                    earn(g, gain, Source::Crew);
                     g.crewMined = addTokens(g.crewMined, gain);
                     g.crewMinedSinceReport = addTokens(g.crewMinedSinceReport, gain);
                 }

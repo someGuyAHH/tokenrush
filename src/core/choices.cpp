@@ -61,8 +61,8 @@ void tickInvestment(GameState& g, MessageLog& log) {
     if (inv.scam) {
         log.push(Sev::Bad, "The Investor never came back. " + num(inv.amount) + " tokens, gone.");
     } else {
-        g.tokens = addTokens(g.tokens, inv.amount);   // your own money back isn't income...
-        earn(g, inv.payback - inv.amount);              // ...the profit is
+        g.tokens = addTokens(g.tokens, inv.amount);         // your own money back isn't income...
+        earn(g, inv.payback - inv.amount, Source::Other);   // ...the profit is
         log.push(Sev::Good, "The Investor paid you back: " + num(inv.payback) + " tokens (+" + num(inv.payback - inv.amount) + ").");
     }
     inv = Investment{};
@@ -139,6 +139,8 @@ Notes answerChoice(GameState& g, bool yes, std::mt19937& rng) {
             g.tokens -= c.tokens;
             g.shards += c.shards;
             g.shardsTraded += c.shards;
+            g.shardsBought += c.shards;
+            g.tokensOnBuys = addTokens(g.tokensOnBuys, c.tokens);
             g.heat = std::min(MAX_HEAT, g.heat + 1);
             return {{Sev::Good, "Deal. +" + num(c.shards) + " shards. Heat is now " + std::to_string(g.heat) + "."}};
         case ChoiceKind::Investor: {
@@ -173,7 +175,7 @@ void checkRace(GameState& g, MessageLog& log) {
     Race& r = g.race;
     if (r.stake <= 0 || g.manualMines - r.startMines < r.target) return;
     g.tokens = addTokens(g.tokens, r.stake);   // your stake back...
-    earn(g, r.stake);                            // ...and theirs
+    earn(g, r.stake, Source::Other);           // ...and theirs
     log.push(Sev::Event, "You won the race with " + std::to_string(r.secondsLeft) + "s to spare! +" + num(r.stake) + " tokens.");
     r = Race{};
 }

@@ -453,8 +453,18 @@ const std::vector<Field>& saveFields() {
         boolAt("infection", "cured", [](GameState& g) -> bool& { return g.cured; },
                [](const GameState& g) { return g.strain != Strain::None; }),
 
+        numField("ledger", "shardsBought",    &GameState::shardsBought),
+        numField("ledger", "shardsSold",      &GameState::shardsSold),
+        numField("ledger", "tokensOnBuys",    &GameState::tokensOnBuys),
+        numField("ledger", "tokensFromSells", &GameState::tokensFromSells),
+        numField("ledger", "tradeCost",       &GameState::tradeCost),
+
         historyField(),
         };
+        // Lifetime income by source: [income] mining = ..., drones = ...
+        static const char* const sourceKeys[SOURCE_COUNT] = {"mining", "drones", "bot", "crew", "contracts", "other"};
+        for (int i = 0; i < SOURCE_COUNT; ++i)
+            f.push_back(numAt("income", sourceKeys[i], [i](GameState& g) -> long long& { return g.earnedBy[(size_t)i]; }));
         Present investing = [](const GameState& g) { return g.investment.amount > 0; };
         using LL = long long;
         f.push_back(numAt("investment", "amount", [](GameState& g) -> LL& { return g.investment.amount; }, 0LL,

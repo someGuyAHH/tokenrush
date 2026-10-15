@@ -38,7 +38,7 @@ MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
     r.meteor = fx.mining > 1.0;
     r.gain = toTokens((double)gain * fx.mining);
 
-    earn(g, r.gain);
+    earn(g, r.gain, Source::Mining);
     g.contractStreak = std::min(g.contractStreak, (long long)g.streak);   // follows the streak down if it broke
     g.streak += 1;
     g.contractStreak += 1;

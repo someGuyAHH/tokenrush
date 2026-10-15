@@ -45,10 +45,25 @@ int contractSlots(const GameState& g) { return g.orreryStage >= 3 ? 2 : 1; }
 int crewLevelCap(const GameState& g)  { return g.orreryStage >= 4 ? 8 : 5; }
 
 // ----- Income -----
-void earn(GameState& g, long long amount) {
+void earn(GameState& g, long long amount, Source src) {
     if (amount <= 0) return;
     g.tokens = addTokens(g.tokens, amount);
     g.lifetimeEarned = addTokens(g.lifetimeEarned, amount);
+    long long& by = g.earnedBy[(size_t)std::clamp((int)src, 0, SOURCE_COUNT - 1)];
+    by = addTokens(by, amount);
+}
+
+const char* sourceName(Source src) {
+    switch (src) {
+        case Source::Mining:    return "Mining by hand";
+        case Source::Drones:    return "Drones";
+        case Source::Bot:       return "Mining Bot";
+        case Source::Crew:      return "Crew";
+        case Source::Contracts: return "Contracts";
+        case Source::Other:     return "Offers and other";
+        case Source::Count:     break;
+    }
+    return "?";
 }
 
 double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_BOT_LVL * g.bot; }
@@ -99,12 +114,39 @@ void updateRates(GameState& g) {
 
     g.earnedSamples.push_back(g.lifetimeEarned);
     while (g.earnedSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.earnedSamples.pop_front();
+    g.sourceSamples.push_back(g.earnedBy);
+    while (g.sourceSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.sourceSamples.pop_front();
 }
 
 double recentEarnRate(const GameState& g) {
     if (g.earnedSamples.size() < 2) return 0.0;
     double gained = (double)(g.earnedSamples.back() - g.earnedSamples.front());
     return std::max(0.0, gained) / (double)(g.earnedSamples.size() - 1);
+}
+
+// "mining 61%, drones 27%, bot 12%": where the last few seconds' income came from (biggest first).
+std::string incomeSplit(const GameState& g) {
+    auto rates = recentSourceRates(g);
+    double total = 0.0;
+    for (double r : rates) total += r;
+    if (total <= 0.0) return "";
+    std::vector<int> order;
+    for (int i = 0; i < SOURCE_COUNT; ++i) if (rates[(size_t)i] / total >= 0.01) order.push_back(i);
+    std::sort(order.begin(), order.end(), [&](int a, int b) { return rates[(size_t)a] > rates[(size_t)b]; });
+    static const char* const shortNames[SOURCE_COUNT] = {"mining", "drones", "bot", "crew", "contracts", "other"};
+    std::string out;
+    for (int i : order) out += (out.empty() ? "" : ", ") + std::string(shortNames[i]) + " " + percent(rates[(size_t)i] / total, 0);
+    return out;
+}
+
+std::array<double, SOURCE_COUNT> recentSourceRates(const GameState& g) {
+    std::array<double, SOURCE_COUNT> out{};
+    if (g.sourceSamples.size() < 2) return out;
+    const SourceTotals& a = g.sourceSamples.front();
+    const SourceTotals& b = g.sourceSamples.back();
+    for (int i = 0; i < SOURCE_COUNT; ++i)
+        out[(size_t)i] = std::max(0.0, (double)(b[(size_t)i] - a[(size_t)i])) / (double)(g.sourceSamples.size() - 1);
+    return out;
 }
 
 static void addPassiveForElapsed(GameState& g, long long elapsed, double mult) {
@@ -117,7 +159,7 @@ static void addPassiveForElapsed(GameState& g, long long elapsed, double mult) {
     double total = g.passiveCarry + rate * (double)elapsed;
     long long add = toTokens(std::floor(total));
     g.passiveCarry = total - (double)add;
-    earn(g, add);
+    earn(g, add, Source::Drones);
 }
 
 void updatePassive(GameState& g, std::time_t t) {

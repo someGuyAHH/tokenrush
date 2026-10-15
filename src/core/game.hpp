@@ -51,8 +51,10 @@ int contractSlots(const GameState& g);      // 1, or 2 after the Second Ring
 bool hasResonance(const GameState& g);      // after the First Ring
 
 // ----- Income -----
-// Every token that enters the economy goes through earn(), so lifetime stats stay honest.
-void earn(GameState& g, long long amount);
+// Every token that enters the economy goes through earn(), so lifetime stats stay honest,
+// booked under the Source it came from.
+void earn(GameState& g, long long amount, Source src);
+const char* sourceName(Source src);            // "Mining by hand", "Drones", ...
 // Resonance (Orrery stage 2): each Drone level also earns this share of an expected manual mine
 // per second, and the Mining Bot swings like a manual miner at a fraction of the power.
 inline constexpr double RESONANCE_DRONE   = 0.003;    // per Drone level, per second
@@ -69,6 +71,8 @@ void updateRates(GameState& g);                // once per second: refresh incom
 // crew, contract pay). Measured from lifetimeEarned, so spending doesn't drag it down.
 inline constexpr int EARN_WINDOW_SECONDS = 10;
 double recentEarnRate(const GameState& g);
+std::array<double, SOURCE_COUNT> recentSourceRates(const GameState& g);   // the same, split by Source
+std::string incomeSplit(const GameState& g);   // "mining 61%, drones 27%, bot 12%" (empty while nothing comes in)
 void updatePassive(GameState& g, std::time_t t);
 void applyOfflineEarnings(GameState& g, std::time_t tNow);
 void normalizeStreak(GameState& g, std::time_t t);

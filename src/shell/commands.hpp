@@ -4,7 +4,8 @@
 // state, call into the core, and turn what comes back into colored text.
 //
 //   dispatch.cpp  one typed line -> the right function below (shared by the CLI and the TUI console)
-//   commands.cpp  parsing, help, status, stats, goals, log, mining, offers, auto, wipe
+//   help.cpp      the command table: names, aliases, 'help' and 'help <command>'
+//   commands.cpp  status, stats, goals, log, mining, offers, auto, wipe
 //   spending.cpp  shop, curios, prompt styles, the Monolith
 //   economy.cpp   market, contracts, crew
 
@@ -23,11 +24,11 @@ enum class Cmd {
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
-Cmd parseCmd(const std::string& word);   // expects lowercase
+Cmd parseCmd(const std::string& word);   // expects lowercase (help.cpp, from the command table)
 
 // ----- commands.cpp -----
 bool commandAllowed(Shared& s, Cmd c);           // false (after saying why) for a feature that isn't unlocked yet
-void printHelp(Shared& s);                       // only lists what's unlocked
+void printHelp(Shared& s, const std::string& topic = "");   // only lists what's unlocked; a topic explains one command (help.cpp)
 void printStatus(Shared& s);
 void printPending(Shared& s);                    // background messages, shown before each prompt
 std::string promptText(Shared& s);               // "[Title] > "
@@ -36,7 +37,7 @@ void doStats(Shared& s);
 void doAnswer(Shared& s, std::mt19937& rng, bool yes);   // the open offer (choice event)
 void doAuto(Shared& s, const std::string& arg);
 void doGoals(Shared& s);
-void doLog(Shared& s);
+void doLog(Shared& s, const std::string& args);   // [n] [good|bad|warn|event|info]
 void doWipe(Shared& s);
 
 // ----- spending.cpp -----

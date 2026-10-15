@@ -69,6 +69,7 @@ Component MinePage(Ui& ui) {
 
         Element rate = hbox({text("Earning "), text(perSecond(recentEarnRate(g))) | color(Color::Gold1) | bold,
                              text(" tokens/s"), text("  (last " + std::to_string(EARN_WINDOW_SECONDS) + "s)") | dim});
+        std::string split = incomeSplit(g);
 
         double bonusChance = std::min(0.70, 0.06 + 0.04 * g.magnet);
         double jackpotChance = std::min(0.20, 0.01 + 0.005 * g.magnet);
@@ -86,7 +87,7 @@ Component MinePage(Ui& ui) {
             streakLine | hcenter,
             text(""),
             rate | hcenter,
-            text(""),
+            split.empty() ? text("") : text(split) | dim | hcenter,
             vbox(info) | hcenter,
             filler(),
             stats | hcenter,
@@ -143,6 +144,20 @@ Component ShopPage(Ui& ui) {
 }
 
 // ----- Market -----
+// Your trading record: bought, sold, the net and what the spread took.
+static Element ledger(const GameState& g) {
+    if (g.shardsBought == 0 && g.shardsSold == 0) return text("");
+    long long net = g.tokensFromSells - g.tokensOnBuys;
+    auto avg = [](long long tokens, long long n) { return n > 0 ? "  avg " + fixed((double)tokens / (double)n, 1) : std::string(); };
+    return vbox({
+        heading("Your trading"),
+        hbox({cell("Bought", 8), shards(g.shardsBought), text(" shards for "), tokens(g.tokensOnBuys), text(avg(g.tokensOnBuys, g.shardsBought)) | dim}),
+        hbox({cell("Sold", 8), shards(g.shardsSold), text(" shards for "), tokens(g.tokensFromSells), text(avg(g.tokensFromSells, g.shardsSold)) | dim}),
+        hbox({cell("Net", 8), text((net >= 0 ? "+" : "-") + num(net >= 0 ? net : -net)) | color(pick(net >= 0, Color::Green, Color::Red)) | bold,
+              text(" tokens   (" + num(g.tradeCost) + " went to the spread and price impact)") | dim}),
+    });
+}
+
 Component MarketPage(Ui& ui) {
     auto buyN = [&ui](long long n) { return [&ui, n] { ui.run([n](GameState& g) { return buyShards(g, n); }); }; };
     auto sellN = [&ui](long long n) { return [&ui, n] { ui.run([n](GameState& g) { return sellShards(g, n); }); }; };
@@ -232,6 +247,7 @@ Component MarketPage(Ui& ui) {
             text(""),
             g.heat > 0 ? text("Heat " + std::to_string(g.heat) + " adds " + percent(0.02 * g.heat) + " to the spread.") | color(Color::DarkOrange)
                        : text(""),
+            ledger(g),
             note("Drifts back toward " + fixed(SHARD_FAIR_PRICE, 0) + ". Each shard you trade pushes the price a little."),
         });
     });
@@ -404,7 +420,7 @@ Component CuriosPage(Ui& ui) {
             const CurioInfo& c = CURIOS[i];
             bool owned = hasBit(g.curiosOwned, i);
             Element right = owned ? text("\"" + std::string(c.flavor) + "\"") | dim | color(Color::Green) | flex
-                                  : hbox({tokens(c.cost) | size(WIDTH, EQUAL, 9), buys[(size_t)i]->Render(), filler()}) | flex;
+                                  : hbox({tokens(c.cost) | size(WIDTH, EQUAL, 13), buys[(size_t)i]->Render(), filler()}) | flex;
             rows.push_back(hbox({cell(owned ? "[x]" : "[ ]", 4) | color(pick(owned, Color::Green, Color::Default)),
                                  cell(c.name, 26) | (owned ? bold : nothing), cell(CURIO_SETS[c.set], 19) | dim, right}));
         }
@@ -617,7 +633,12 @@ Component StatsPage(Ui& ui) {
                            row("Best streak", plain(num(g.bestStreak))),
                            row("Mining Bot", tokens(g.botTotal))};
         Elements business;
-        if (isUnlocked(g, Feature::Market)) business.push_back(row("Shards traded", plain(num(g.shardsTraded))));
+        if (isUnlocked(g, Feature::Market)) {
+            business.push_back(row("Shards traded", plain(num(g.shardsTraded))));
+            long long net = g.tokensFromSells - g.tokensOnBuys;
+            business.push_back(row("Trading net", text((net >= 0 ? "+" : "-") + compact(net >= 0 ? net : -net)) |
+                                                      color(pick(net >= 0, Color::Green, Color::Red))));
+        }
         if (isUnlocked(g, Feature::Contracts)) {
             business.push_back(row("Contracts", plain(num(g.contractsDone) + " done, " + num(g.contractsFailed) + " failed")));
             business.push_back(row("Audits", plain(num(g.audits))));
@@ -627,6 +648,25 @@ Component StatsPage(Ui& ui) {
             mining.push_back(text(""));
             mining.push_back(heading("Business"));
             mining.insert(mining.end(), business.begin(), business.end());
+        }
+
+        // Where the money comes from: all time, with a share bar, and right now.
+        Elements income = {hbox({heading("Income by source"), text("   all time, and now") | dim})};
+        {
+            auto rates = recentSourceRates(g);
+            long long sorted = 0;
+            for (long long v : g.earnedBy) sorted = addTokens(sorted, v);
+            double total = std::max(1.0, (double)g.lifetimeEarned);
+            for (int i = 0; i < SOURCE_COUNT; ++i) {
+                long long v = g.earnedBy[(size_t)i];
+                if (v <= 0 && rates[(size_t)i] <= 0.0) continue;
+                float share = (float)((double)v / total);
+                income.push_back(hbox({cell(sourceName((Source)i), 17) | dim, text(compact(v)) | color(Color::Gold1) | size(WIDTH, EQUAL, 8),
+                                       gauge(share) | size(WIDTH, EQUAL, 14) | color(Color::Gold1), text(" " + percent(share, 0)) | size(WIDTH, EQUAL, 6),
+                                       text("now " + perSecond(rates[(size_t)i]) + "/s") | dim}));
+            }
+            if (g.lifetimeEarned > sorted)
+                income.push_back(hbox({cell("Before records", 17) | dim, text(compact(g.lifetimeEarned - sorted)) | dim}));
         }
 
         Elements time = {heading("Time"), row("Played", plain(playTime(g.playSeconds)))};
@@ -651,6 +691,8 @@ Component StatsPage(Ui& ui) {
 
         return vbox({
             hbox({vbox(wealth) | flex, text("  "), vbox(mining) | flex, text("  "), vbox(time) | flex}),
+            text(""),
+            vbox(income),
             text(""),
             chart,
         });

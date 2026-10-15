@@ -186,7 +186,7 @@ void checkContract(GameState& g, MessageLog& log) {
 }
 
 void pay(GameState& g, MessageLog& log, const Contract& c) {
-    earn(g, c.rewardTokens);
+    earn(g, c.rewardTokens, Source::Contracts);
     g.rateSkip += c.rewardTokens;   // a payout isn't a sign you got faster
     g.shards += c.rewardShards + c.stake;
     g.contractsDone += 1;

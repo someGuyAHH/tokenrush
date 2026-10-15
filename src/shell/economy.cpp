@@ -38,6 +38,23 @@ std::string offerRow(const Contract& c) {
     return tag + padRight(contractText(c) + " in " + duration(c.duration), 44) + terms;
 }
 
+// Your trading record: what buying and selling shards has cost and paid, all time.
+void printLedger(const GameState& g) {
+    if (g.shardsBought == 0 && g.shardsSold == 0) return;
+    out() << paint(Style::Bold, "Your trading") << "\n";
+    if (g.shardsBought > 0)
+        out() << "  Bought " << paint(Style::Shards, num(g.shardsBought)) << " shards for " << paint(Style::Tokens, num(g.tokensOnBuys))
+              << paint(Style::Muted, "  (avg " + fixed((double)g.tokensOnBuys / (double)g.shardsBought, 1) + ")") << "\n";
+    if (g.shardsSold > 0)
+        out() << "  Sold   " << paint(Style::Shards, num(g.shardsSold)) << " shards for " << paint(Style::Tokens, num(g.tokensFromSells))
+              << paint(Style::Muted, "  (avg " + fixed((double)g.tokensFromSells / (double)g.shardsSold, 1) + ")") << "\n";
+    long long net = g.tokensFromSells - g.tokensOnBuys;
+    out() << "  Net    " << (net >= 0 ? paint(Style::Good, "+" + num(net)) : paint(Style::Bad, "-" + num(-net))) << " tokens"
+          << paint(Style::Muted, "   (" + num(g.tradeCost) + " of it went to the spread and price impact)") << "\n";
+    if (g.shardsBought > g.shardsSold)
+        out() << paint(Style::Muted, "  A negative net is normal while you buy shards to use (crew, stakes, the Orrery); it's what they cost you.") << "\n";
+}
+
 }  // namespace
 
 // ----- Market -----
@@ -66,6 +83,7 @@ void doMarket(Shared& s) {
     out() << "10 shards cost " << num(buyCost(g, 10)) << "; selling 10 pays " << num(sellValue(g, 10)) << ".\n";
 
     if (g.heat > 0) out() << paint(Style::Heat, "Heat " + std::to_string(g.heat) + " is adding " + percent(0.02 * g.heat) + " to the spread.") << "\n";
+    printLedger(g);
     out() << "Use 'buy <n|max>' or 'sell <n|all>'.\n";
 }
 

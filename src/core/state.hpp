@@ -1,6 +1,7 @@
 #pragma once
 // Game state, plus the objects that are shared between threads.
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <ctime>
@@ -23,6 +24,13 @@ struct Note {
     std::string text;
 };
 using Notes = std::vector<Note>;   // what a player action returns instead of printing
+
+// ----- Income sources -----
+// Every token that enters the economy is booked under one of these (see earn() in game.hpp),
+// so the Stats tab can say where the money comes from.
+enum class Source : int { Mining, Drones, Bot, Crew, Contracts, Other, Count };
+inline constexpr int SOURCE_COUNT = (int)Source::Count;
+using SourceTotals = std::array<long long, SOURCE_COUNT>;
 
 // ----- Crew and contracts -----
 struct CrewMember {
@@ -126,6 +134,15 @@ struct GameState {
     long long rateMarkMines = 0;
     long long rateSkip = 0;             // contract payouts, which shouldn't count as "income"
     std::deque<long long> earnedSamples;   // lifetimeEarned once a second, newest last (not saved)
+    SourceTotals earnedBy{};            // lifetime tokens per Source (saves from before v9 start at 0)
+    std::deque<SourceTotals> sourceSamples;   // earnedBy once a second, like earnedSamples (not saved)
+
+    // The market ledger: what trading shards has cost and paid (market orders and the Shady Broker)
+    long long shardsBought = 0;
+    long long shardsSold = 0;
+    long long tokensOnBuys = 0;         // tokens spent buying shards
+    long long tokensFromSells = 0;      // tokens received selling them
+    long long tradeCost = 0;            // paid to the spread and price impact, against the mid price
 
     // Crew
     std::vector<CrewMember> crew;
@@ -202,7 +219,7 @@ public:
     std::vector<LogEntry> recent(size_t n);      // the last n, shown or not
 
 private:
-    static constexpr size_t HISTORY_MAX = 100;
+    static constexpr size_t HISTORY_MAX = 400;
     std::mutex m_;
     std::deque<LogEntry> pending_;
     std::deque<LogEntry> history_;

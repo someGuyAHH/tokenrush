@@ -88,6 +88,9 @@ Notes buyShards(GameState& g, long long n) {
     g.tokens -= cost;
     g.shards += n;
     g.shardsTraded += n;
+    g.shardsBought += n;
+    g.tokensOnBuys = addTokens(g.tokensOnBuys, cost);
+    g.tradeCost = addTokens(g.tradeCost, std::max(0LL, cost - toTokens(g.shardPrice * (double)n)));
     g.shardPrice = std::clamp(g.shardPrice * std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;   // your own trade isn't news
     return {{Sev::Good, "Bought " + count(n, "shard") + " for " + num(cost) + " tokens (avg " +
@@ -104,6 +107,9 @@ Notes sellShards(GameState& g, long long n) {
     g.shards -= n;
     g.tokens = addTokens(g.tokens, value);   // not earn(): turning shards back into tokens isn't new income
     g.shardsTraded += n;
+    g.shardsSold += n;
+    g.tokensFromSells = addTokens(g.tokensFromSells, value);
+    g.tradeCost = addTokens(g.tradeCost, std::max(0LL, toTokens(g.shardPrice * (double)n) - value));
     g.shardPrice = std::clamp(g.shardPrice / std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;
     return {{Sev::Good, "Sold " + count(n, "shard") + " for " + num(value) + " tokens (avg " +
