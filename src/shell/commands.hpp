@@ -21,11 +21,12 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
-    Theme,
+    Theme, Clients,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
 Cmd parseCmd(const std::string& word);   // expects lowercase (help.cpp, from the command table)
+int commandFeature(Cmd c);               // the Feature a command needs, or -1 (help.cpp)
 
 // ----- commands.cpp -----
 bool commandAllowed(Shared& s, Cmd c);           // false (after saying why) for a feature that isn't unlocked yet
@@ -58,6 +59,7 @@ void doMarket(Shared& s);
 void doBuy(Shared& s, const std::string& arg);   // <n|max>
 void doSell(Shared& s, const std::string& arg);  // <n|all>
 void doContracts(Shared& s);
+void doClients(Shared& s);                       // standing with every client
 void doAccept(Shared& s, const std::string& arg);
 void doAbandon(Shared& s, const std::string& arg);   // empty: the only job
 void doCrew(Shared& s);

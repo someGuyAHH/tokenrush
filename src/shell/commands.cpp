@@ -32,20 +32,8 @@ static std::string header(const std::string& title) { return paint(Style::Header
 
 
 // ----- Info screens -----
-static int featureOf(Cmd c) {
-    switch (c) {
-        case Cmd::Curios:                                     return (int)Feature::Curios;
-        case Cmd::Monolith: case Cmd::Build:                  return (int)Feature::Monolith;
-        case Cmd::Market: case Cmd::Buy: case Cmd::Sell:      return (int)Feature::Market;
-        case Cmd::Contracts: case Cmd::Accept: case Cmd::Abandon: return (int)Feature::Contracts;
-        case Cmd::Crew: case Cmd::Hire: case Cmd::Fire: case Cmd::Train: case Cmd::Promote: return (int)Feature::Crew;
-        case Cmd::Orrery:                                     return (int)Feature::Orrery;
-        default:                                              return -1;
-    }
-}
-
 bool commandAllowed(Shared& s, Cmd c) {
-    int f = featureOf(c);
+    int f = commandFeature(c);
     if (f < 0) return true;
     std::lock_guard lk(s.m);
     if (isUnlocked(s.g, (Feature)f)) return true;
@@ -122,8 +110,8 @@ void printStatus(Shared& s) {
     }
 
     for (const Contract& c : g.contracts) {
-        long long p = std::min(contractProgress(g, c), c.target);
-        out() << "Job:    " << contractText(c) << "  " << bar(p, c.target) << " " << num(p) << "/" << num(c.target)
+        long long p = std::min(contractProgress(g, c), contractGoal(c));
+        out() << "Job:    " << contractText(c) << "  " << bar(p, contractGoal(c)) << " " << progressText(g, c)
                   << "  " << paint(c.secondsLeft <= CONTRACT_WARN_AT ? Style::Warn : Style::Plain,
                                    duration(c.secondsLeft) + " left") << "\n";
     }

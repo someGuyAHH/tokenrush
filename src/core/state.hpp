@@ -79,8 +79,9 @@ struct HistorySample {           // one point on the Stats chart
 
 struct Contract {
     ContractKind kind = ContractKind::Earn;
-    int client = 0;              // index into CLIENTS, flavor only
+    int client = 0;              // index into CLIENTS
     bool big = false;            // big jobs take a shard stake and pay more
+    bool signature = false;      // a Trusted client's special job: longer, no stake, double pay
     long long target = 0;
     long long start = 0;         // the stat's value when the contract was accepted
     int duration = 0;            // seconds you get once you accept
@@ -123,6 +124,7 @@ struct GameState {
     std::vector<Contract> contracts;    // the jobs you're working on (1 slot, 2 with the Orrery's Second Ring)
     std::vector<Contract> offers;       // regenerated after loading (not saved)
     int offerClock = 0;                 // seconds until a fresh offer appears
+    std::array<int, CLIENT_COUNT> standing{};   // with each client, -10..10 (see contracts.hpp)
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far
 

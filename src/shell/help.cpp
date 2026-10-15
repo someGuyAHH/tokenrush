@@ -119,9 +119,16 @@ const std::vector<CommandInfo>& commands() {
          {"buy", "market", "crew"}, MARKET, BUSINESS},
         {Cmd::Contracts, {"contracts", "ct", "jobs"}, "contracts", "Timed jobs: offers on the board and your active one",
          {"Clients post timed jobs on a board of three: earn some tokens, mine so many times, hit jackpots, build a "
-          "fresh streak, let the Mining Bot earn. Targets are sized from how fast you've actually been playing, so "
-          "they're a stretch at every stage of the game. A new offer arrives every minute while the board isn't full, "
-          "and offers leave the board after a while.",
+          "fresh streak, let the Mining Bot earn, trade shards, cool your heat down. Targets are sized from how fast "
+          "you've actually been playing, so they're a stretch at every stage of the game. A new offer arrives every "
+          "minute while the board isn't full, and offers leave the board after a while.",
+          "Endurance jobs are won by lasting, not by reaching a number: hold so many shards until the timer runs out, "
+          "or keep your hands off the mine (the bot, drones and crew keep earning). Break the rule once and the job "
+          "fails on the spot.",
+          "Every client remembers you. Deliver and your standing with them rises (see 'clients'): better pay, and "
+          "Trusted clients sometimes post signature jobs (marked SIG: longer, no stake, double pay). Fail them and it "
+          "falls, down to where they stop posting jobs for you at all. Clients have rivals, and a style: Shady ones pay "
+          "40% more but their money adds heat, Miners only want mining by hand, Merchants pay in shards.",
           "Big jobs (marked BIG) take a shard stake, last longer and pay much more. Finish a job before its timer runs "
           "out and you get its tokens, its shards and your stake back; a big one also cools heat by 1.",
           "Fail or abandon a job and you lose the stake and gain heat: +1, or +2 for a big job. Heat widens the market "
@@ -129,6 +136,18 @@ const std::vector<CommandInfo>& commands() {
           "Timers only run while the game is open."},
          {{"contracts", "show the board and your jobs"}, {"ct", "the same, shorter"}},
          {"accept", "abandon", "market"}, CONTRACTS, BUSINESS},
+        {Cmd::Clients, {"clients", "cl"}, "clients", "Your standing with every client, their styles and rivals",
+         {"Standing runs from -10 to 10, starting at 0. Finishing a job for a client raises it by 1 (2 for a big or "
+          "signature job) and lowers it by 1 with their rival. Failing or abandoning one lowers it by 2 (3 for a big "
+          "job); small fry forgive more easily and only take 1.",
+          "Tiers: Burned (-5 and below) won't post jobs for you. Wary (-4 to -2) pay 20% less. Neutral (-1 to 2) pay "
+          "normally. Friendly (3 to 5) pay 15% more. Trusted (6 and up) pay 30% more and now and then post a signature "
+          "job: half again as long, no stake, double pay.",
+          "Styles: Shady clients pay 40% more, but every job you finish for them adds 1 heat. Miners only post "
+          "mining-by-hand jobs and pay 25% more shards. Merchants post money and market jobs and pay 60% more shards "
+          "and 20% fewer tokens. Small fry only post small jobs."},
+         {{"clients", "the table"}, {"cl", "the same"}},
+         {"contracts"}, CONTRACTS, BUSINESS},
         {Cmd::Accept, {"accept"}, "accept <n>", "Take offer n from the board",
          {"Takes an offer off the board and starts its timer. A big job takes its shard stake right away.",
           "You can run one job at a time, or two after the Orrery's Second Ring, as long as they're different kinds "
@@ -310,6 +329,11 @@ void printPage(const CommandInfo& info, bool open, const GameState& g) {
 }
 
 }  // namespace
+
+int commandFeature(Cmd c) {
+    const CommandInfo* info = findCommand(c);
+    return info ? info->feature : -1;
+}
 
 Cmd parseCmd(const std::string& word) {
     static const std::unordered_map<std::string, Cmd> byName = [] {

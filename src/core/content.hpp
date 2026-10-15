@@ -88,10 +88,11 @@ enum class Stat {
     Lifetime, ManualMines, Jackpots, BestStreak, BotTotal,
     EventsSeen, CuriosOwned, MonolithStage, UpgradeLevels, PlayMinutes,
     ShardsTraded, ContractsDone, CrewHired, CrewMined, OrreryStage, CrewSize,
+    BestStanding,
 };
 
 struct Goal { const char* name; const char* desc; Stat stat; long long target; int renown; };
-inline constexpr int GOAL_COUNT = 26;
+inline constexpr int GOAL_COUNT = 27;
 static_assert(GOAL_COUNT <= 32, "GameState::goalsDone is a 32-bit mask");
 extern const Goal GOALS[];
 
@@ -151,15 +152,30 @@ inline constexpr int CREW_NAME_COUNT = 32;
 extern const char* const CREW_NAMES[];
 
 // ----- Contracts -----
-enum class ContractKind : int { Earn, Mine, Jackpots, Streak, BotEarn, Count };   // Count also marks "unknown" in old saves
+// Count also marks "unknown" in old saves. New kinds go at the end: saves store the id, not the number.
+enum class ContractKind : int { Earn, Mine, Jackpots, Streak, BotEarn, Trade, Hold, CoolOff, HandsOff, Count };
 inline constexpr int CONTRACT_KIND_COUNT = (int)ContractKind::Count;
 
 struct ContractKindInfo {
     const char* id;          // what the save file uses
     const char* format;      // "%s" is replaced by the target, e.g. "Mine %s times"
     const char* single;      // the wording when the target is 1
+    bool endurance;          // won by lasting until the timer runs out without breaking a rule
+    const char* rule;        // endurance jobs: what breaks it (for the screens)
 };
 extern const ContractKindInfo CONTRACT_KINDS[];   // indexed by ContractKind
 
+// Clients have a style (what they ask for and how they pay), a rival, and a standing with you
+// (see contracts.hpp) that rises when you deliver and falls when you don't.
+enum class ClientStyle : int { Shady, Miners, Merchants, SmallFry, Count };
+struct ClientStyleInfo { const char* name; const char* desc; };
+extern const ClientStyleInfo CLIENT_STYLES[];   // indexed by ClientStyle
+
 inline constexpr int CLIENT_COUNT = 12;
-extern const char* const CLIENTS[];   // who is offering the job; pure flavor
+struct ClientInfo {
+    const char* id;          // what the save file uses
+    const char* name;
+    ClientStyle style;
+    int rival;               // index into CLIENTS: working for one annoys the other
+};
+extern const ClientInfo CLIENTS[];

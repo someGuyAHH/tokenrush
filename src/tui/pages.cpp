@@ -63,7 +63,7 @@ Component MinePage(Ui& ui) {
             info.push_back(hbox({text(std::string(EVENTS[ev].name) + ": ") | bold | color(hue(Hue::Event)),
                                  text(std::string(EVENTS[ev].desc) + " (" + std::to_string((long long)std::difftime(g.eventEnds, t)) + "s)")}));
         for (const Contract& c : g.contracts) {
-            info.push_back(hbox({text("Job: " + contractText(c) + "  "), progress(contractProgress(g, c), c.target, 12),
+            info.push_back(hbox({text("Job: " + contractText(c) + "  "), progress(contractProgress(g, c), contractGoal(c), 12),
                                  text("  " + duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text)))}));
         }
 
@@ -287,6 +287,23 @@ Component MarketPage(Ui& ui) {
 }
 
 // ----- Jobs (contracts) -----
+static Color tierColor(Tier t) {
+    switch (t) {
+        case Tier::Burned:   return hue(Hue::Bad);
+        case Tier::Wary:     return hue(Hue::Warn);
+        case Tier::Friendly: return hue(Hue::Good);
+        case Tier::Trusted:  return hue(Hue::Event);
+        default:             return hue(Hue::Muted);
+    }
+}
+
+// "The Syndicate (Friendly)", the tier in its color; without the tier when `withTier` is false.
+static Element clientName(const GameState& g, int client, bool withTier = true) {
+    Tier t = clientTier(g, client);
+    if (!withTier) return text(CLIENTS[client].name);
+    return hbox({text(CLIENTS[client].name), text(std::string(" (") + TIERS[(int)t].name + ")") | color(tierColor(t))});
+}
+
 Component JobsPage(Ui& ui) {
     constexpr int MAX_JOB_SLOTS = 2;
     Components abandons;
@@ -329,8 +346,12 @@ Component JobsPage(Ui& ui) {
             Elements pays = {text("pays "), text(compact(c.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(c.rewardShards), text(" sh")};
             if (c.stake > 0) pays.push_back(text(" + stake") | muted());
             rows.push_back(hbox({text(slots > 1 ? "Job " + std::to_string(j + 1) + ": " : "Job: ") | bold, text(contractText(c)) | bold,
-                                 text("  for " + std::string(CLIENTS[c.client])) | muted() | flex}));
-            rows.push_back(hbox({text("  "), progress(contractProgress(g, c), c.target, 14), text("  "),
+                                 c.signature ? text("  SIG") | color(hue(Hue::Event)) | bold : text(""),
+                                 text("  for "), clientName(g, c.client), filler()}));
+            if (isEndurance(c))
+                rows.push_back(text(std::string("  Won by lasting until the end; fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") |
+                               color(hue(Hue::Warn)));
+            rows.push_back(hbox({text("  "), progress(contractProgress(g, c), contractGoal(c), 14), text("  "),
                                  text(duration(c.secondsLeft)) | color(pick(c.secondsLeft <= CONTRACT_WARN_AT, hue(Hue::Warn), hue(Hue::Text))),
                                  text("   "), hbox(pays), filler(), abandons[j]->Render()}));
         }
@@ -341,14 +362,31 @@ Component JobsPage(Ui& ui) {
         for (int i = 0; i < OFFER_COUNT; ++i) {
             if (i >= (int)g.offers.size()) continue;
             const Contract& o = g.offers[(size_t)i];
-            Element tag = o.big ? text("BIG ") | color(hue(Hue::Warn)) | bold : text("    ");
+            Element tag = o.signature ? text("SIG ") | color(hue(Hue::Event)) | bold
+                        : o.big       ? text("BIG ") | color(hue(Hue::Warn)) | bold : text("    ");
             Element terms = hbox({text(compact(o.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(o.rewardShards), text(" sh"),
                                   o.stake > 0 ? text("  stake " + num(o.stake)) | color(hue(Hue::Shards)) : text("")});
-            rows.push_back(hbox({tag, text(contractText(o)) | flex, text("  "), cell("in " + duration(o.duration), 11),
+            rows.push_back(hbox({tag, text(contractText(o)) | flex, text("  "), cell((isEndurance(o) ? "for " : "in ") + duration(o.duration), 11),
                                  terms | size(WIDTH, EQUAL, 24), accepts[(size_t)i]->Render()}));
-            rows.push_back(text("    from " + std::string(CLIENTS[o.client]) + ", leaves in " + duration(o.expiresIn)) | muted());
+            rows.push_back(hbox({text("    from ") | muted(), clientName(g, o.client),
+                                 text(std::string(", ") + CLIENT_STYLES[(int)CLIENTS[o.client].style].name + ", leaves in " + duration(o.expiresIn) +
+                                      (isEndurance(o) ? std::string("   endurance: no ") + CONTRACT_KINDS[(int)o.kind].rule : "")) | muted()}));
         }
         if (g.offers.empty()) rows.push_back(text("  (the board is empty; check back soon)") | muted());
+
+        // Standing with every client, three to a row.
+        rows.push_back(text(""));
+        rows.push_back(hbox({heading("Clients"), text("   standing -10..10: Burned, Wary, Neutral, Friendly, Trusted (pay 30% more, signature jobs)") | muted()}));
+        for (int r = 0; r < CLIENT_COUNT; r += 3) {
+            Elements line;
+            for (int k = r; k < r + 3 && k < CLIENT_COUNT; ++k) {
+                int v = g.standing[(size_t)k];
+                line.push_back(hbox({clientName(g, k, false) | size(WIDTH, EQUAL, 22),
+                                     text((v > 0 ? "+" : "") + std::to_string(v)) | size(WIDTH, EQUAL, 4) | color(tierColor(clientTier(g, k))),
+                                     text(TIERS[(int)clientTier(g, k)].name) | size(WIDTH, EQUAL, 10) | color(tierColor(clientTier(g, k)))}));
+            }
+            rows.push_back(hbox(line));
+        }
         rows.push_back(filler());
         rows.push_back(note("Failing costs the stake and adds heat (big jobs +2). Heat " + std::to_string(AUDIT_MIN_HEAT) +
                             "+ invites audits."));

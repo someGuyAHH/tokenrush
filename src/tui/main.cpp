@@ -95,7 +95,7 @@ Element statusBar(const tui::Ui& ui) {
         // One job gets its description; two share the line, so each shows only its gauge.
         if (g.contracts.size() == 1) second.push_back(text("Job: " + contractText(c) + " ") | tui::muted());
         else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | tui::muted());
-        second.push_back(tui::progress(contractProgress(g, c), c.target, 8));
+        second.push_back(tui::progress(contractProgress(g, c), contractGoal(c), 8));
         second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, tui::hue(Hue::Warn), tui::hue(Hue::Muted))));
     }
     if (int next = nextUnlock(g); next >= 0 && g.contracts.empty()) {

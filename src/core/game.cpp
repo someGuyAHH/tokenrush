@@ -6,6 +6,7 @@
 #include <cmath>
 #include <string>
 
+#include "contracts.hpp"
 #include "util.hpp"
 
 // ----- Upgrades -----
@@ -211,6 +212,7 @@ long long statValue(const GameState& g, Stat st) {
         case Stat::CrewMined:     return g.crewMined;
         case Stat::OrreryStage:   return g.orreryStage;
         case Stat::CrewSize:      return (long long)g.crew.size();
+        case Stat::BestStanding:  return bestStanding(g);
     }
     return 0; // unreachable, keeps the compiler happy
 }
@@ -321,7 +323,8 @@ int featureOfStat(Stat st) {
         case Stat::CuriosOwned:   return (int)Feature::Curios;
         case Stat::MonolithStage: return (int)Feature::Monolith;
         case Stat::ShardsTraded:  return (int)Feature::Market;
-        case Stat::ContractsDone: return (int)Feature::Contracts;
+        case Stat::ContractsDone:
+        case Stat::BestStanding:  return (int)Feature::Contracts;
         case Stat::CrewHired:
         case Stat::CrewMined:
         case Stat::CrewSize:      return (int)Feature::Crew;

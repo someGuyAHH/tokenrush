@@ -94,7 +94,7 @@ struct Sim {
 
     void crewPlan() {
         // Keep enough shards for a payday and a stake, then hire, then train.
-        long long keep = totalWages(g) + 10;
+        long long keep = totalWages(g) + 10 + held();
         if ((int)g.crew.size() < crewCap(g)) {
             for (size_t i = 0; i < g.candidates.size(); ++i) {
                 long long cost = hireCost(g, g.candidates[i]);
@@ -118,10 +118,27 @@ struct Sim {
         if (orreryDone && surplus > 0 && g.shardPrice > SHARD_FAIR_PRICE * 1.1) sell(std::min(surplus, 20LL));
     }
 
+    // Shards a running Hold job needs kept on hand.
+    long long held() const {
+        long long n = 0;
+        for (const Contract& c : g.contracts) if (c.kind == ContractKind::Hold) n += c.target;
+        return n;
+    }
+
     void contractPlan() {
+        // Work a Trade job: round trips of 40 shards.
+        for (const Contract& c : g.contracts) {
+            if (c.kind != ContractKind::Trade || buyCost(g, 40) > g.tokens / 3) continue;
+            buy(40);
+            sell(40);
+        }
         if ((int)g.contracts.size() >= contractSlots(g)) return;
         for (size_t i = 0; i < g.offers.size(); ++i) {
             if (g.offers[i].stake > g.shards) continue;
+            // This player mines all the time and has no plan for heat: those two jobs are hopeless.
+            if (g.offers[i].kind == ContractKind::HandsOff || g.offers[i].kind == ContractKind::CoolOff) continue;
+            // Shady money adds heat: a sensible player stops taking it once audits are possible.
+            if (CLIENTS[g.offers[i].client].style == ClientStyle::Shady && g.heat >= AUDIT_MIN_HEAT) continue;
             size_t before = g.contracts.size();
             acceptContract(g, (int)i);   // takes whatever comes first: a careless player on purpose
             if (g.contracts.size() > before) return;
@@ -137,7 +154,7 @@ struct Sim {
             while (lo < hi) { long long mid = (lo + hi + 1) / 2; if (buyCost(g, mid) <= budget) lo = mid; else hi = mid - 1; }
             if (lo > 0) buy(lo);
         }
-        long long keep = totalWages(g) * 2 + 20;
+        long long keep = totalWages(g) * 2 + 20 + held();
         if (g.shards > keep) buildOrrery(g, g.shards - keep);
     }
 

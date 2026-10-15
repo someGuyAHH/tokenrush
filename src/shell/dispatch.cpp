@@ -47,6 +47,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Buy:       doBuy(s, arg); break;
         case Cmd::Sell:      doSell(s, arg); break;
         case Cmd::Contracts: doContracts(s); break;
+        case Cmd::Clients:   doClients(s); break;
         case Cmd::Accept:    doAccept(s, arg); break;
         case Cmd::Abandon:   doAbandon(s, arg); break;
         case Cmd::Crew:      doCrew(s); break;

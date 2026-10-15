@@ -3,6 +3,14 @@
 // get tokens and shards (and your stake back). Miss it, or walk away, and you lose the stake
 // and gain Heat. Heat widens the market spread and, from 3 up, invites audits that seize tokens.
 // The timer only runs while the game is open.
+//
+// Most jobs are won by reaching a target (mine 60 times). Endurance jobs (CONTRACT_KINDS[k].endurance)
+// are won by lasting until the timer runs out without breaking their rule (hold 400 shards,
+// don't mine by hand).
+//
+// Every client remembers how you've treated them: standing goes up when you deliver and down
+// when you don't, and their rival takes it badly when you work for them. Standing sets the pay
+// (and, at the bottom, whether they post jobs for you at all; at the top, signature jobs).
 
 #include <random>
 #include <string>
@@ -16,8 +24,26 @@ inline constexpr int HEAT_COOL_SECONDS = 900;   // per point of heat, before Fix
 inline constexpr int AUDIT_MIN_HEAT    = 3;
 inline constexpr int CONTRACT_WARN_AT  = 30;    // seconds left when the log warns you
 
+// ----- Standing -----
+inline constexpr int STANDING_MIN = -10;
+inline constexpr int STANDING_MAX = 10;
+enum class Tier : int { Burned, Wary, Neutral, Friendly, Trusted, Count };
+struct TierInfo {
+    const char* name;
+    int from;              // the lowest standing in this tier
+    double pay;            // reward multiplier
+    const char* desc;
+};
+extern const TierInfo TIERS[];   // indexed by Tier
+Tier tierOf(int standing);
+Tier clientTier(const GameState& g, int client);
+int bestStanding(const GameState& g);   // the highest standing with anyone (for the goal)
+
 long long contractProgress(const GameState& g, const Contract& c);
-std::string contractText(const Contract& c);    // "Mine 60 times"
+long long contractGoal(const Contract& c);       // what progress has to reach: the target, or the duration for endurance jobs
+bool isEndurance(const Contract& c);
+std::string contractText(const Contract& c);     // "Mine 60 times"
+std::string progressText(const GameState& g, const Contract& c);   // "51/180", or "2m 10s of 5m 00s" for endurance jobs
 
 int heatCoolSeconds(const GameState& g);
 double auditChance(const GameState& g);         // per second
@@ -28,6 +54,6 @@ Notes acceptContract(GameState& g, int offerIdx);
 Notes abandonContract(GameState& g, int contractIdx = 0);
 
 void fillOfferBoard(GameState& g, std::mt19937& rng);                   // only if the board is empty (startup)
-void checkContract(GameState& g, MessageLog& log);                     // pays out every job whose target is reached
+void checkContract(GameState& g, MessageLog& log);                     // pays out finished jobs, fails broken endurance jobs
 void pay(GameState& g, MessageLog& log, const Contract& c);           // rewards for a finished job (already removed)
 void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng);  // once per second

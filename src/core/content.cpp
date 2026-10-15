@@ -199,7 +199,7 @@ std::vector<std::vector<ArtRun>> orreryPicture(int stagesBuilt) {
 }
 
 // ----- Goals -----
-const Goal GOALS[] = {
+constexpr Goal GOALS[] = {
     {"First Steps",    "Mine 10 times",                     Stat::ManualMines,      10,  1},
     {"Pocket Change",  "Earn 1,000 tokens in total",        Stat::Lifetime,      1'000,  1},
     {"Lucky Strike",   "Hit a jackpot",                     Stat::Jackpots,          1,  1},
@@ -226,11 +226,12 @@ const Goal GOALS[] = {
     {"Stargazer",      "Finish the Orrery's Base Plate",    Stat::OrreryStage,       1,  3},
     {"Full House",     "Have 5 crew members at once",       Stat::CrewSize,          5,  3},
     {"Clockwork Sky",  "Complete the Orrery",               Stat::OrreryStage, ORRERY_STAGE_COUNT, 12},
+    {"Regular",        "Become Trusted by a client",        Stat::BestStanding,      6,  3},
 };
 static_assert(std::size(GOALS) == GOAL_COUNT);
 
 // ----- Titles -----
-const Title TITLES[] = {
+constexpr Title TITLES[] = {
     { 0, "Rookie"},
     { 4, "Prospector"},
     {10, "Hustler"},
@@ -239,9 +240,17 @@ const Title TITLES[] = {
     {40, "Legend"},
     {55, "Monolith-Maker"},
     {68, "Kingpin"},
-    {87, "Celestial"},   // every goal, Orrery included
+    {90, "Celestial"},   // every goal, Orrery included
 };
 static_assert(std::size(TITLES) == TITLE_COUNT);
+
+// Celestial means every goal: its renown has to be exactly the sum of them all.
+constexpr int allRenown() {
+    int sum = 0;
+    for (const Goal& g : GOALS) sum += g.renown;
+    return sum;
+}
+static_assert(allRenown() == TITLES[TITLE_COUNT - 1].renown, "update Celestial's renown to the sum of the goals");
 
 // ----- Infection -----
 const StrainInfo STRAINS[] = {
@@ -297,17 +306,38 @@ static_assert(std::size(CREW_NAMES) == CREW_NAME_COUNT);
 
 // ----- Contracts -----
 const ContractKindInfo CONTRACT_KINDS[] = {
-    {"earn",     "Earn %s tokens",                    "Earn 1 token"},
-    {"mine",     "Mine %s times",                     "Mine once"},
-    {"jackpots", "Hit %s jackpots",                   "Hit a jackpot"},
-    {"streak",   "Build a fresh streak of %s",        "Build a fresh streak of 1"},
-    {"bot",      "Let the Mining Bot earn %s",        "Let the Mining Bot earn 1"},
+    {"earn",     "Earn %s tokens",                    "Earn 1 token",               false, ""},
+    {"mine",     "Mine %s times",                     "Mine once",                  false, ""},
+    {"jackpots", "Hit %s jackpots",                   "Hit a jackpot",              false, ""},
+    {"streak",   "Build a fresh streak of %s",        "Build a fresh streak of 1",  false, ""},
+    {"bot",      "Let the Mining Bot earn %s",        "Let the Mining Bot earn 1",  false, ""},
+    {"trade",    "Trade %s shards on the market",     "Trade a shard on the market", false, ""},
+    {"hold",     "Hold %s shards until the end",      "Hold a shard until the end", true,  "dropping below that many shards"},
+    {"cooloff",  "Cool your heat down by %s",         "Cool your heat down by 1",   false, ""},
+    {"handsoff", "Hands off: don't mine by hand",     "Hands off: don't mine by hand", true, "mining by hand even once"},
 };
 static_assert(std::size(CONTRACT_KINDS) == CONTRACT_KIND_COUNT);
 
-const char* const CLIENTS[] = {
-    "The Foundry", "Old Man Halvard", "Saffron & Sons", "a nervous intern", "The Syndicate",
-    "Mother Kestrel", "a burner account", "The Night Exchange", "Corvid Holdings",
-    "your landlord", "Dr. Pellucid", "the Guild of Pickaxes",
+const ClientStyleInfo CLIENT_STYLES[] = {
+    {"Shady",     "pay 40% more, but every job you finish for them adds 1 heat"},
+    {"Miners",    "only want mining by hand; pay 25% more shards"},
+    {"Merchants", "money and market jobs; 60% more shards, 20% fewer tokens"},
+    {"Small fry", "small jobs only, and they forgive easily"},
+};
+static_assert(std::size(CLIENT_STYLES) == (int)ClientStyle::Count);
+
+const ClientInfo CLIENTS[] = {
+    {"foundry",   "The Foundry",          ClientStyle::Miners,    7},
+    {"halvard",   "Old Man Halvard",      ClientStyle::Miners,    10},
+    {"saffron",   "Saffron & Sons",       ClientStyle::Merchants, 8},
+    {"intern",    "a nervous intern",     ClientStyle::SmallFry,  9},
+    {"syndicate", "The Syndicate",        ClientStyle::Shady,     11},
+    {"kestrel",   "Mother Kestrel",       ClientStyle::Merchants, 6},
+    {"burner",    "a burner account",     ClientStyle::Shady,     5},
+    {"exchange",  "The Night Exchange",   ClientStyle::Shady,     0},
+    {"corvid",    "Corvid Holdings",      ClientStyle::Shady,     2},
+    {"landlord",  "your landlord",        ClientStyle::SmallFry,  3},
+    {"pellucid",  "Dr. Pellucid",         ClientStyle::Merchants, 1},
+    {"guild",     "the Guild of Pickaxes", ClientStyle::Miners,   4},
 };
 static_assert(std::size(CLIENTS) == CLIENT_COUNT);
