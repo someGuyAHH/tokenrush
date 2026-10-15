@@ -1,0 +1,143 @@
+#pragma once
+// Static game data: events, curios, prompt styles, the Monolith, goals, titles, crew and contracts.
+// The tables live in content.cpp. The *_COUNT constants here are checked against the
+// real table sizes with static_asserts there, so a forgotten update fails the build.
+
+#include <string>
+#include <vector>
+
+// ----- Events -----
+enum EventId : int { EV_NONE = 0, EV_METEOR = 1, EV_OVERCLOCK = 2, EV_GOLDRUSH = 3, EV_COUNT = 4 };
+
+struct EventInfo { const char* name; const char* desc; int duration; };
+extern const EventInfo EVENTS[];   // indexed by EventId
+
+struct EventFx { double mining = 1.0, passive = 1.0, odds = 1.0; };
+EventFx eventFx(int ev);
+
+// ----- Curios (collectibles, pure flex) -----
+inline constexpr int CURIO_SET_COUNT = 3;
+inline constexpr int CURIO_COUNT = 12;
+struct CurioInfo { const char* name; int set; long long cost; const char* flavor; };
+extern const char* const CURIO_SETS[];
+extern const CurioInfo CURIOS[];
+
+// ----- Prompt styles (cosmetic) -----
+inline constexpr int PROMPT_COUNT = 6;
+struct PromptStyle { const char* id; const char* text; long long cost; };   // id is what the save file uses
+extern const PromptStyle PROMPTS[];
+
+// ----- The Monolith (endgame megaproject) -----
+inline constexpr int MONO_STAGE_COUNT = 5;
+struct MonoStage { const char* name; long long cost; const char* art[2]; };
+extern const MonoStage MONO[];
+
+// ----- The Orrery (late-game megaproject, built with shards) -----
+// Every stage unlocks a perk. Shards are the point: buying lots of them at once drives the
+// price up exponentially, so token wealth can't rush it; time (and the market) does.
+inline constexpr int ORRERY_STAGE_COUNT = 5;
+struct OrreryStage {
+    const char* name;
+    long long cost;      // in shards
+    const char* perk;    // what finishing the stage unlocks
+    int labelRow;        // the picture row its name is printed next to
+};
+extern const OrreryStage ORRERY[];
+
+// The Orrery is one picture. Each row comes with a mask of the same length (in characters,
+// not bytes) saying which stage, '1' to '5', draws that character; ' ' is empty space.
+inline constexpr int ORRERY_ART_ROWS = 12;
+struct ArtRow { const char* glyphs; const char* stages; };
+extern const ArtRow ORRERY_ART[];
+
+// The picture, ready to draw: each row is split into runs of characters that look alike.
+// Stages not built yet show as a dotted outline (and the Sun's stars stay dark).
+enum class ArtKind { Blank, Line, Planet, Star, Core };
+struct ArtRun {
+    std::string text;
+    int stage = -1;       // 0-based; -1 for empty space
+    bool built = false;
+    ArtKind kind = ArtKind::Blank;
+};
+std::vector<std::vector<ArtRun>> orreryPicture(int stagesBuilt);
+
+// ----- Goals, renown, titles -----
+enum class Stat {
+    Lifetime, ManualMines, Jackpots, BestStreak, BotTotal,
+    EventsSeen, CuriosOwned, MonolithStage, UpgradeLevels, PlayMinutes,
+    ShardsTraded, ContractsDone, CrewHired, CrewMined, OrreryStage, CrewSize,
+};
+
+struct Goal { const char* name; const char* desc; Stat stat; long long target; int renown; };
+inline constexpr int GOAL_COUNT = 26;
+static_assert(GOAL_COUNT <= 32, "GameState::goalsDone is a 32-bit mask");
+extern const Goal GOALS[];
+
+struct Title { int renown; const char* name; };
+inline constexpr int TITLE_COUNT = 9;
+extern const Title TITLES[];
+
+// ----- Infection -----
+// A quarter of new profiles are Infected: one strain makes that game harder for good, until
+// the Orrery is complete (that cures it). Nothing carries over to or from other profiles.
+enum class Strain : int { None, Fever, Rust, Static, Mutiny, Leech, Amnesia, Count };
+inline constexpr int STRAIN_COUNT = (int)Strain::Count;
+inline constexpr double INFECTION_CHANCE = 0.25;
+struct StrainInfo {
+    const char* id;     // what the save file uses
+    const char* name;
+    const char* desc;   // what it does to you
+};
+extern const StrainInfo STRAINS[];   // indexed by Strain
+
+// ----- Unlocks -----
+// A new player starts with mining, the shop and the goals. Everything else opens up as titles
+// are earned, in this order (the TUI's tabs follow it too).
+enum class Feature : int { Curios, Monolith, Market, Contracts, Crew, Orrery, Count };
+inline constexpr int FEATURE_COUNT = (int)Feature::Count;
+struct FeatureInfo {
+    const char* name;    // "the Market"
+    const char* id;      // what the save file uses
+    int title;           // index into TITLES: earning that title opens it
+    const char* blurb;   // one line on what it is
+};
+extern const FeatureInfo FEATURES[];   // indexed by Feature
+
+// ----- Crew -----
+enum class Role : int { Miner, Broker, Scout, Fixer, Count };
+inline constexpr int ROLE_COUNT = (int)Role::Count;
+
+struct RoleInfo {
+    const char* id;          // what the save file uses
+    const char* name;
+    long long hireCost;      // in shards, for a level 1 hire
+    const char* perk;        // one line for the crew screen
+};
+extern const RoleInfo ROLES[];   // indexed by Role
+
+// Every candidate rolls a trait (or none). Traits are trade-offs, not straight upgrades.
+enum class Trait : int { None, Diligent, Greedy, Frugal, QuickLearner, Ambitious, Loyal, NightOwl, Count };
+inline constexpr int TRAIT_COUNT = (int)Trait::Count;
+struct TraitInfo {
+    const char* id;     // what the save file uses
+    const char* name;   // "Night Owl"
+    const char* desc;   // one line for the crew screen
+};
+extern const TraitInfo TRAITS[];   // indexed by Trait
+
+inline constexpr int CREW_NAME_COUNT = 32;
+extern const char* const CREW_NAMES[];
+
+// ----- Contracts -----
+enum class ContractKind : int { Earn, Mine, Jackpots, Streak, BotEarn, Count };   // Count also marks "unknown" in old saves
+inline constexpr int CONTRACT_KIND_COUNT = (int)ContractKind::Count;
+
+struct ContractKindInfo {
+    const char* id;          // what the save file uses
+    const char* format;      // "%s" is replaced by the target, e.g. "Mine %s times"
+    const char* single;      // the wording when the target is 1
+};
+extern const ContractKindInfo CONTRACT_KINDS[];   // indexed by ContractKind
+
+inline constexpr int CLIENT_COUNT = 12;
+extern const char* const CLIENTS[];   // who is offering the job; pure flavor

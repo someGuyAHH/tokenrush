@@ -1,0 +1,304 @@
+#include "game.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <bit>
+#include <cmath>
+#include <string>
+
+#include "util.hpp"
+
+// ----- Upgrades -----
+long long costPickaxe(int lvl) { long long n = (long long)lvl + 1; return 25LL  * n * n; }
+long long costMagnet (int lvl) { long long n = (long long)lvl + 1; return 60LL  * n * n; }
+long long costDrone  (int lvl) { long long n = (long long)lvl + 1; return 120LL * n * n; }
+long long costBot    (int lvl) { long long n = (long long)lvl + 1; return 400LL * n * n; }
+
+int baseYield(const GameState& g) { return 1 + g.pickaxe; }
+int botInterval(int botLvl) { return std::max(2, 10 - botLvl); }
+
+std::array<UpgradeRef, 4> upgrades(GameState& g) {
+    long long m = infected(g, Strain::Rust) ? 2 : 1;
+    return {{
+        {"Pickaxe",    m * costPickaxe(g.pickaxe), &g.pickaxe},
+        {"Magnet",     m * costMagnet(g.magnet),   &g.magnet},
+        {"Drone",      m * costDrone(g.drone),     &g.drone},
+        {"Mining Bot", m * costBot(g.bot),         &g.bot},
+    }};
+}
+
+// ----- Infection -----
+bool infected(const GameState& g, Strain s) { return g.strain == s && !g.cured; }
+long long streakTimeout(const GameState& g) { return infected(g, Strain::Amnesia) ? 6 : STREAK_TIMEOUT; }
+
+// ----- Events -----
+int activeEvent(const GameState& g, std::time_t t) {
+    return (g.event != EV_NONE && t < g.eventEnds) ? g.event : EV_NONE;
+}
+
+EventFx fxNow(const GameState& g, std::time_t t) { return eventFx(activeEvent(g, t)); }
+
+// ----- Orrery perks -----
+int crewCap(const GameState& g)       { return g.orreryStage >= 1 ? 5 : 4; }
+bool hasResonance(const GameState& g) { return g.orreryStage >= 2; }
+int contractSlots(const GameState& g) { return g.orreryStage >= 3 ? 2 : 1; }
+int crewLevelCap(const GameState& g)  { return g.orreryStage >= 4 ? 8 : 5; }
+
+// ----- Income -----
+void earn(GameState& g, long long amount) {
+    if (amount <= 0) return;
+    g.tokens = addTokens(g.tokens, amount);
+    g.lifetimeEarned = addTokens(g.lifetimeEarned, amount);
+}
+
+double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_BOT_LVL * g.bot; }
+
+double passiveRatePerSec(const GameState& g) {
+    double perDrone = 0.5;
+    if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
+    return perDrone * (double)g.drone;
+}
+
+double botRatePerSec(const GameState& g) {
+    if (g.bot <= 0) return 0.0;
+    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botInterval(g.bot);
+    double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
+    double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);
+    return (perMine + bonus) / botInterval(g.bot);
+}
+
+double expectedMine(const GameState& g) {
+    double base = baseYield(g);
+    double bonusChance   = std::min(0.70, 0.06 + 0.04  * g.magnet);
+    double jackpotChance = std::min(0.20, 0.01 + 0.005 * g.magnet);
+    return base * 1.5 + bonusChance * base * (8.0 + 4.0 * g.magnet) + jackpotChance * base * (80.0 + 20.0 * g.magnet);
+}
+
+double incomeEstimate(const GameState& g) {
+    double manual = expectedMine(g) * 1.5 * 0.5;   // medium streak, one mine every two seconds
+    double crew = 0.0;
+    for (const CrewMember& c : g.crew)
+        if (c.role == Role::Miner) crew += expectedMine(g) * (0.15 + 0.10 * c.level) / 5.0;
+    return passiveRatePerSec(g) + botRatePerSec(g) + manual + crew;
+}
+
+void updateRates(GameState& g) {
+    if (g.rateMarkEarned < 0) {   // first tick after starting or loading
+        g.rateMarkEarned = g.lifetimeEarned;
+        g.rateMarkMines = g.manualMines;
+        g.rateSkip = 0;
+        return;
+    }
+    double earned = (double)(g.lifetimeEarned - g.rateMarkEarned - g.rateSkip);
+    double mined = (double)(g.manualMines - g.rateMarkMines);
+    g.rateMarkEarned = g.lifetimeEarned;
+    g.rateMarkMines = g.manualMines;
+    g.rateSkip = 0;
+    g.incomeRate += (std::max(0.0, earned) - g.incomeRate) / 300.0;   // ~5 minute memory
+    g.mineRate += (mined - g.mineRate) / 120.0;                        // ~2 minute memory
+
+    g.earnedSamples.push_back(g.lifetimeEarned);
+    while (g.earnedSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.earnedSamples.pop_front();
+}
+
+double recentEarnRate(const GameState& g) {
+    if (g.earnedSamples.size() < 2) return 0.0;
+    double gained = (double)(g.earnedSamples.back() - g.earnedSamples.front());
+    return std::max(0.0, gained) / (double)(g.earnedSamples.size() - 1);
+}
+
+static void addPassiveForElapsed(GameState& g, long long elapsed, double mult) {
+    if (elapsed <= 0) return;
+    if (elapsed > PASSIVE_CAP_SECONDS) elapsed = PASSIVE_CAP_SECONDS;
+
+    double rate = passiveRatePerSec(g) * mult;
+    if (rate <= 0.0) return;
+
+    double total = g.passiveCarry + rate * (double)elapsed;
+    long long add = toTokens(std::floor(total));
+    g.passiveCarry = total - (double)add;
+    earn(g, add);
+}
+
+void updatePassive(GameState& g, std::time_t t) {
+    if (g.lastUpdate == 0) { g.lastUpdate = t; return; }
+
+    long long elapsed = (long long)std::difftime(t, g.lastUpdate);
+    if (elapsed <= 0) { g.lastUpdate = t; return; } // clock went backwards or no time passed
+
+    addPassiveForElapsed(g, elapsed, fxNow(g, t).passive);
+    g.lastUpdate = t;
+}
+
+void applyOfflineEarnings(GameState& g, std::time_t tNow) {
+    if (g.lastUpdate == 0) { g.lastUpdate = tNow; return; }
+    long long elapsed = (long long)std::difftime(tNow, g.lastUpdate);
+    if (elapsed <= 0) { g.lastUpdate = tNow; return; }
+    addPassiveForElapsed(g, elapsed, 1.0); // events and the bot don't run offline
+}
+
+void resetGame(GameState& g, std::time_t t) {
+    Strain strain = g.strain;   // the infection belongs to the profile, not the run
+    g = GameState{};
+    g.strain = strain;
+    g.lastUpdate = t;
+}
+
+void normalizeStreak(GameState& g, std::time_t t) {
+    if (g.lastMine != 0 && std::difftime(t, g.lastMine) >= (double)streakTimeout(g)) {
+        g.streak = 0;
+    }
+}
+
+// ----- Goals, renown, titles -----
+long long statValue(const GameState& g, Stat st) {
+    switch (st) {
+        case Stat::Lifetime:      return g.lifetimeEarned;
+        case Stat::ManualMines:   return g.manualMines;
+        case Stat::Jackpots:      return g.jackpots;
+        case Stat::BestStreak:    return g.bestStreak;
+        case Stat::BotTotal:      return g.botTotal;
+        case Stat::EventsSeen:    return g.eventsSeen;
+        case Stat::CuriosOwned:   return std::popcount(g.curiosOwned);
+        case Stat::MonolithStage: return g.monolithStage;
+        case Stat::UpgradeLevels: return (long long)g.pickaxe + g.magnet + g.drone + g.bot;
+        case Stat::PlayMinutes:   return g.playSeconds / 60;
+        case Stat::ShardsTraded:  return g.shardsTraded;
+        case Stat::ContractsDone: return g.contractsDone;
+        case Stat::CrewHired:     return g.crewHired;
+        case Stat::CrewMined:     return g.crewMined;
+        case Stat::OrreryStage:   return g.orreryStage;
+        case Stat::CrewSize:      return (long long)g.crew.size();
+    }
+    return 0; // unreachable, keeps the compiler happy
+}
+
+int renownOf(const GameState& g) {
+    int r = 0;
+    for (int i = 0; i < GOAL_COUNT; ++i)
+        if (hasBit(g.goalsDone, i)) r += GOALS[i].renown;
+    return r;
+}
+
+int titleIndex(int renown) {
+    int idx = 0;
+    for (int i = 0; i < TITLE_COUNT; ++i)
+        if (renown >= TITLES[i].renown) idx = i;
+    return idx;
+}
+
+void checkGoals(GameState& g, MessageLog& log) {
+    int titleBefore = titleIndex(renownOf(g));
+
+    for (int i = 0; i < GOAL_COUNT; ++i) {
+        if (hasBit(g.goalsDone, i)) continue;
+        if (statValue(g, GOALS[i].stat) < GOALS[i].target) continue;
+        g.goalsDone |= (1u << i);
+        log.push(Sev::Event, std::string("GOAL COMPLETE: ") + GOALS[i].name + " (+" +
+                             std::to_string(GOALS[i].renown) + " renown)");
+    }
+
+    int titleAfter = titleIndex(renownOf(g));
+    if (titleAfter != titleBefore) {
+        log.push(Sev::Event, std::string("New title: ") + TITLES[titleAfter].name + "!");
+        for (int t = titleBefore + 1; t <= titleAfter; ++t)
+            if (g.titleReachedAt[t] == 0) g.titleReachedAt[t] = g.playSeconds;
+    }
+    for (const Note& n : syncUnlocks(g)) log.push(n);
+
+    if (g.strain != Strain::None && !g.cured && g.orreryStage >= ORRERY_STAGE_COUNT) {
+        g.cured = true;
+        log.push(Sev::Event, std::string("CURED! The Orrery burned the ") + STRAINS[(int)g.strain].name +
+                             " out of this profile. It's gone for good.");
+    }
+}
+
+// ----- Stats and history -----
+void recordStats(GameState& g) {
+    g.bestEarnRate = std::max(g.bestEarnRate, toTokens(recentEarnRate(g)));
+    if (g.playSeconds % STATS_EVERY != 0) return;
+    g.history.push_back({g.playSeconds, g.lifetimeEarned, g.tokens, g.shards});
+    if (g.history.size() > STATS_HISTORY_MAX) {
+        // Thin the old part out: keep every other sample, and always the newest.
+        std::vector<HistorySample> kept;
+        for (size_t i = 0; i + 1 < g.history.size(); i += 2) kept.push_back(g.history[i]);
+        kept.push_back(g.history.back());
+        g.history = std::move(kept);
+    }
+}
+
+std::vector<long long> historyColumns(const GameState& g, int columns) {
+    std::vector<long long> out;
+    if (columns <= 0 || g.history.empty()) return out;
+    long long first = g.history.front().playSeconds, last = std::max(g.playSeconds, first + 1);
+    size_t at = 0;
+    for (int c = 0; c < columns; ++c) {
+        long long when = first + (last - first) * c / std::max(1, columns - 1);
+        while (at + 1 < g.history.size() && g.history[at + 1].playSeconds <= when) ++at;
+        out.push_back(c == columns - 1 ? g.lifetimeEarned : g.history[at].lifetime);
+    }
+    return out;
+}
+
+// ----- Unlocks -----
+bool isUnlocked(const GameState& g, Feature f) { return hasBit(g.unlocked, (int)f); }
+
+std::string lockedText(const GameState& g, Feature f) {
+    const FeatureInfo& info = FEATURES[(int)f];
+    const Title& t = TITLES[info.title];
+    std::string name = info.name;
+    name[0] = (char)std::toupper((unsigned char)name[0]);
+    return name + " opens at the title " + t.name + " (" + std::to_string(t.renown) + " renown; you have " +
+           std::to_string(renownOf(g)) + "). Goals earn renown.";
+}
+
+int nextUnlock(const GameState& g) {
+    int best = -1;
+    for (int i = 0; i < FEATURE_COUNT; ++i) {
+        if (hasBit(g.unlocked, i)) continue;
+        if (best < 0 || FEATURES[i].title < FEATURES[best].title) best = i;
+    }
+    return best;
+}
+
+Notes syncUnlocks(GameState& g) {
+    Notes out;
+    int ti = titleIndex(renownOf(g));
+    for (int i = 0; i < FEATURE_COUNT; ++i) {
+        if (hasBit(g.unlocked, i) || FEATURES[i].title > ti) continue;
+        g.unlocked |= 1u << i;
+        std::string name = FEATURES[i].name;
+        name[0] = (char)std::toupper((unsigned char)name[0]);
+        out.push_back({Sev::Event, "UNLOCKED: " + name + ", " + FEATURES[i].blurb + ". (" + FEATURES[i].id + ")"});
+    }
+    return out;
+}
+
+int featureOfStat(Stat st) {
+    switch (st) {
+        case Stat::CuriosOwned:   return (int)Feature::Curios;
+        case Stat::MonolithStage: return (int)Feature::Monolith;
+        case Stat::ShardsTraded:  return (int)Feature::Market;
+        case Stat::ContractsDone: return (int)Feature::Contracts;
+        case Stat::CrewHired:
+        case Stat::CrewMined:
+        case Stat::CrewSize:      return (int)Feature::Crew;
+        case Stat::OrreryStage:   return (int)Feature::Orrery;
+        default:                  return -1;
+    }
+}
+
+void grandfatherUnlocks(GameState& g) {
+    bool used[FEATURE_COUNT] = {
+        g.curiosOwned != 0,
+        g.monolithStage > 0 || g.monolithProgress > 0,
+        g.shardsTraded > 0 || g.shards > 0,
+        g.contractsDone > 0 || g.contractsFailed > 0 || !g.contracts.empty(),
+        g.crewHired > 0 || !g.crew.empty(),
+        g.orreryStage > 0 || g.orreryProgress > 0,
+    };
+    // Open everything up to the latest feature in use, so the unlocked set has no gaps.
+    int last = -1;
+    for (int i = 0; i < FEATURE_COUNT; ++i) if (used[i]) last = i;
+    for (int i = 0; i <= last; ++i) g.unlocked |= 1u << i;
+}

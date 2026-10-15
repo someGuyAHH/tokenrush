@@ -1,0 +1,17 @@
+# build output
+/target/
+/build/
+/tokenrush-cli
+/tokenrush-tui
+/sim
+*.exe
+*.o
+
+# third-party, fetched separately (see README)
+/dependencies/
+
+# local stuff
+/.trash/
+/static/
+__pycache__/
+tokenrush.save*

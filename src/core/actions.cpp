@@ -1,0 +1,249 @@
+#include "actions.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+
+#include "crew.hpp"
+#include "game.hpp"
+#include "util.hpp"
+
+// ----- Mining -----
+MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
+    normalizeStreak(g, t);
+    EventFx fx = fxNow(g, t);
+
+    MineResult r;
+    r.base = baseYield(g);
+    std::uniform_int_distribution<int> extra(0, r.base);
+    int raw = r.base + extra(rng);
+
+    int streakForMult = std::min(g.streak, 20);
+    r.mult = 1.0 + 0.05 * (double)streakForMult;   // up to 2.0x at streak 20+
+
+    double bonusChance   = std::min(0.70, (0.06 + 0.04  * (double)g.magnet) * fx.odds);
+    double jackpotChance = std::min(0.20, (0.01 + 0.005 * (double)g.magnet) * fx.odds);
+
+    std::uniform_real_distribution<double> uni(0.0, 1.0);
+    double roll = uni(rng);
+
+    long long gain = toTokens((double)raw * r.mult);
+    if (roll < jackpotChance) {
+        r.jackpot = true;
+        gain = addTokens(gain, toTokens((double)r.base * (80.0 + 20.0 * (double)g.magnet)));
+    } else if (roll < jackpotChance + bonusChance) {
+        r.bonus = true;
+        gain = addTokens(gain, toTokens((double)r.base * (8.0 + 4.0 * (double)g.magnet)));
+    }
+    r.meteor = fx.mining > 1.0;
+    r.gain = toTokens((double)gain * fx.mining);
+
+    earn(g, r.gain);
+    g.contractStreak = std::min(g.contractStreak, (long long)g.streak);   // follows the streak down if it broke
+    g.streak += 1;
+    g.contractStreak += 1;
+    g.lastMine = t;
+    g.manualMines += 1;
+    if (r.jackpot) {
+        g.jackpots += 1;
+        g.biggestJackpot = std::max(g.biggestJackpot, r.gain);
+    }
+    g.bestStreak = std::max<long long>(g.bestStreak, g.streak);
+    g.contractPeakStreak = std::max(g.contractPeakStreak, g.contractStreak);
+    return r;
+}
+
+// ----- Shop -----
+Notes buyUpgrade(GameState& g, size_t idx) { return buyUpgrades(g, idx, 1); }
+
+long long upgradesCost(const GameState& g, size_t idx, int n) {
+    GameState probe;   // a blank state with just the levels copied in, to ask upgrades() the prices
+    probe.pickaxe = g.pickaxe; probe.magnet = g.magnet; probe.drone = g.drone; probe.bot = g.bot;
+    probe.strain = g.strain; probe.cured = g.cured;   // Rust doubles prices
+    if (idx >= upgrades(probe).size() || n <= 0) return 0;
+    int& lvl = *upgrades(probe)[idx].lvl;
+    long long total = 0;
+    for (int i = 0; i < n && lvl < MAX_LEVEL; ++i, ++lvl) total = addTokens(total, upgrades(probe)[idx].cost);
+    return total;
+}
+
+Notes buyUpgrades(GameState& g, size_t idx, int n) {
+    if (idx >= upgrades(g).size()) return {{Sev::Warn, "No such upgrade."}};
+    if (n <= 0) return {{Sev::Warn, "Buy how many?"}};
+
+    int bought = 0;
+    long long spent = 0;
+    while (bought < n) {
+        UpgradeRef u = upgrades(g)[idx];   // the cost changes with every level
+        if (*u.lvl >= MAX_LEVEL || g.tokens < u.cost) break;
+        g.tokens -= u.cost;
+        spent += u.cost;
+        *u.lvl += 1;
+        ++bought;
+    }
+
+    UpgradeRef u = upgrades(g)[idx];
+    if (bought == 0) {
+        if (*u.lvl >= MAX_LEVEL) return {{Sev::Warn, "That's maxed out."}};
+        return {{Sev::Warn, "Not enough tokens. The next " + std::string(u.name) + " level costs " + num(u.cost) + "."}};
+    }
+    std::string msg = n == 1 ? std::string("Bought ") + u.name + " -> lvl " + std::to_string(*u.lvl)
+                             : "Bought " + std::to_string(bought) + " " + u.name + " levels -> lvl " +
+                                   std::to_string(*u.lvl) + " for " + num(spent) + " tokens";
+    if (bought < n) msg += *u.lvl >= MAX_LEVEL ? " (maxed out)" : " (that's all you could afford)";
+    return {{Sev::Good, msg + "."}};
+}
+
+Notes buyLicense(GameState& g) {
+    if (g.autoUnlocked) return {{Sev::Info, "You already own the Auto-Buyer."}};
+    if (g.tokens < AUTOBUY_LICENSE_COST) return {{Sev::Warn, "Not enough tokens."}};
+    g.tokens -= AUTOBUY_LICENSE_COST;
+    g.autoUnlocked = true;
+    g.autoOn = true;
+    return {{Sev::Good, "Bought the Auto-Buyer license. It's ON (toggle with 'auto off')."}};
+}
+
+Notes setAuto(GameState& g, bool on) {
+    if (!g.autoUnlocked)
+        return {{Sev::Warn, "The Auto-Buyer is locked. Buy its license in the shop (" + num(AUTOBUY_LICENSE_COST) + " tokens)."}};
+    g.autoOn = on;
+    return {{Sev::Good, on ? "Auto-Buyer ON." : "Auto-Buyer OFF."}};
+}
+
+// ----- Collectibles and cosmetics -----
+Notes buyCurio(GameState& g, int idx) {
+    if (!isUnlocked(g, Feature::Curios)) return {{Sev::Warn, lockedText(g, Feature::Curios)}};
+    if (idx < 0 || idx >= CURIO_COUNT) return {{Sev::Warn, "No such curio."}};
+    const CurioInfo& c = CURIOS[idx];
+    if (hasBit(g.curiosOwned, idx)) return {{Sev::Info, "Already on your shelf."}};
+    if (g.tokens < c.cost) return {{Sev::Warn, "Not enough tokens."}};
+
+    g.tokens -= c.cost;
+    g.curiosOwned |= (1u << idx);
+    Notes out{{Sev::Good, std::string("You bought the ") + c.name + ". \"" + c.flavor + "\""}};
+
+    bool setDone = true;
+    for (int i = 0; i < CURIO_COUNT; ++i)
+        if (CURIOS[i].set == c.set && !hasBit(g.curiosOwned, i)) setDone = false;
+    if (setDone) out.push_back({Sev::Event, std::string("*** Set complete: ") + CURIO_SETS[c.set] + " ***"});
+    return out;
+}
+
+long long customPromptCost() { return 30 * PROMPTS[PROMPT_COUNT - 1].cost; }
+
+bool validCustomPrompt(const std::string& text, std::string& why) {
+    if (text.empty()) { why = "Type the prompt you want, e.g. 'prompt custom >_<'."; return false; }
+    if (text.size() > CUSTOM_PROMPT_MAX) { why = "Keep it to " + std::to_string(CUSTOM_PROMPT_MAX) + " characters."; return false; }
+    if (text.front() == ' ' || text.back() == ' ') { why = "No spaces at the start or end (one is added after it)."; return false; }
+    for (char c : text) {
+        unsigned char u = (unsigned char)c;
+        if (u < 0x20 || u > 0x7E) { why = "Plain keyboard characters only (letters, digits, symbols)."; return false; }
+    }
+    return true;
+}
+
+Notes setCustomPrompt(GameState& g, const std::string& text) {
+    std::string why;
+    if (!validCustomPrompt(text, why)) return {{Sev::Warn, why}};
+    Notes out;
+    if (!g.customPromptOwned) {
+        long long cost = customPromptCost();
+        if (g.tokens < cost) return {{Sev::Warn, "A custom prompt costs " + num(cost) + " tokens."}};
+        g.tokens -= cost;
+        g.customPromptOwned = true;
+        out.push_back({Sev::Good, "Bought the custom prompt for " + num(cost) + " tokens. Changing it is free from now on."});
+    }
+    g.customPrompt = text;
+    g.promptSel = PROMPT_COUNT;
+    out.push_back({Sev::Info, "Prompt set to \"" + text + "\"."});
+    return out;
+}
+
+std::string promptOf(const GameState& g) {
+    if (g.promptSel == PROMPT_COUNT && g.customPromptOwned && !g.customPrompt.empty()) return g.customPrompt + " ";
+    return PROMPTS[std::clamp(g.promptSel, 0, PROMPT_COUNT - 1)].text;
+}
+
+Notes choosePrompt(GameState& g, int idx) {
+    if (idx == PROMPT_COUNT) {
+        if (!g.customPromptOwned) return {{Sev::Warn, "Make one first: 'prompt custom <text>' (" + num(customPromptCost()) + " tokens)."}};
+        g.promptSel = PROMPT_COUNT;
+        return {{Sev::Info, "Prompt style set."}};
+    }
+    if (idx < 0 || idx >= PROMPT_COUNT) return {{Sev::Warn, "No such prompt style."}};
+    Notes out;
+    if (!hasBit(g.promptsOwned, idx)) {
+        if (g.tokens < PROMPTS[idx].cost) return {{Sev::Warn, "Not enough tokens."}};
+        g.tokens -= PROMPTS[idx].cost;
+        g.promptsOwned |= (1u << idx);
+        out.push_back({Sev::Good, std::string("Bought prompt style \"") + PROMPTS[idx].text + "\"."});
+    }
+    g.promptSel = idx;
+    out.push_back({Sev::Info, "Prompt style set."});
+    return out;
+}
+
+// ----- The Orrery -----
+long long orreryRemaining(const GameState& g) {
+    return g.orreryStage < ORRERY_STAGE_COUNT ? ORRERY[g.orreryStage].cost - g.orreryProgress : 0;
+}
+
+long long orrerySpareShards(const GameState& g) {
+    return std::max(0LL, g.shards - totalWages(g));   // one payday's worth stays
+}
+
+BuildResult buildOrrery(GameState& g, long long amount) {
+    BuildResult r;
+    if (!isUnlocked(g, Feature::Orrery)) { r.notes.push_back({Sev::Warn, lockedText(g, Feature::Orrery)}); return r; }
+    if (g.orreryStage >= ORRERY_STAGE_COUNT) { r.notes.push_back({Sev::Info, "The Orrery is already complete."}); return r; }
+    if (amount <= 0) { r.notes.push_back({Sev::Warn, "Nothing to build with. (The Orrery takes shards.)"}); return r; }
+    if (amount > g.shards) { r.notes.push_back({Sev::Warn, "You only have " + count(g.shards, "shard") + "."}); return r; }
+
+    long long left = amount;
+    while (left > 0 && g.orreryStage < ORRERY_STAGE_COUNT) {
+        const OrreryStage& st = ORRERY[g.orreryStage];
+        long long put = std::min(left, st.cost - g.orreryProgress);
+        g.orreryProgress += put;
+        g.shards -= put;
+        left -= put;
+
+        if (g.orreryProgress >= st.cost) {
+            g.orreryStage += 1;
+            g.orreryProgress = 0;
+            r.notes.push_back({Sev::Event, std::string("*** Orrery stage complete: ") + st.name + " ***"});
+            r.notes.push_back({Sev::Event, std::string("Unlocked: ") + st.perk + "."});
+            r.finished = (g.orreryStage == ORRERY_STAGE_COUNT);
+        }
+    }
+    r.poured = amount - left;
+    r.notes.push_back({Sev::Good, "Set " + count(r.poured, "shard") + " into the Orrery."});
+    return r;
+}
+
+// ----- The Monolith -----
+BuildResult buildMonolith(GameState& g, long long amount) {
+    BuildResult r;
+    if (!isUnlocked(g, Feature::Monolith)) { r.notes.push_back({Sev::Warn, lockedText(g, Feature::Monolith)}); return r; }
+    if (g.monolithStage >= MONO_STAGE_COUNT) { r.notes.push_back({Sev::Info, "The Monolith is already complete."}); return r; }
+    if (amount <= 0) { r.notes.push_back({Sev::Warn, "Nothing to build with."}); return r; }
+    if (amount > g.tokens) { r.notes.push_back({Sev::Warn, "You only have " + num(g.tokens) + "."}); return r; }
+
+    long long left = amount;
+    while (left > 0 && g.monolithStage < MONO_STAGE_COUNT) {
+        const MonoStage& m = MONO[g.monolithStage];
+        long long put = std::min(left, m.cost - g.monolithProgress);
+        g.monolithProgress += put;
+        g.tokens -= put;
+        left -= put;
+
+        if (g.monolithProgress >= m.cost) {
+            r.notes.push_back({Sev::Event, std::string("*** Stage complete: ") + m.name + " ***"});
+            g.monolithStage += 1;
+            g.monolithProgress = 0;
+            r.finished = (g.monolithStage == MONO_STAGE_COUNT);
+        }
+    }
+    r.poured = amount - left;
+    r.notes.push_back({Sev::Good, "Poured " + num(r.poured) + " tokens into the Monolith."});
+    return r;
+}
