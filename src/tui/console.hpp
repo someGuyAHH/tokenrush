@@ -30,6 +30,7 @@ public:
 
     void submit(const std::string& line);    // the player pressed Enter
     std::vector<std::string> lines(size_t last) const;   // the newest `last` finished lines
+    size_t total() const;                    // finished lines ever written (keeps counting past what's kept)
     std::string partial() const;             // the unfinished last line (usually the prompt)
     std::vector<std::string> history() const;   // submitted lines, oldest first
     void stop();                             // ends the thread (also done by the destructor)
@@ -70,6 +71,7 @@ private:
     mutable std::mutex outM_;
     std::deque<std::string> out_;
     std::string partial_;
+    size_t total_ = 0;
 
     InBuf inBuf_{*this};
     OutBuf outBuf_{*this};

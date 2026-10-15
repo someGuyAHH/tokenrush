@@ -4,8 +4,11 @@
 #include <cctype>
 #include <bit>
 #include <cmath>
+#include <iterator>
 #include <string>
 
+#include "contracts.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 // ----- Upgrades -----
@@ -16,6 +19,32 @@ long long costBot    (int lvl) { long long n = (long long)lvl + 1; return 400LL 
 
 int baseYield(const GameState& g) { return 1 + g.pickaxe; }
 int botInterval(int botLvl) { return std::max(2, 10 - botLvl); }
+int botIntervalOf(const GameState& g) {
+    int i = botInterval(g.bot);
+    return gadgetOn(g, Gadget::NightShift) ? std::max(1, i / 2) : i;
+}
+
+// ----- Gadgets -----
+bool gadgetEquipped(const GameState& g, Gadget x) {
+    return hasBit(g.gadgetsOwned, (int)x) && std::find(g.gadgetSlots.begin(), g.gadgetSlots.end(), (int)x) != g.gadgetSlots.end();
+}
+
+bool gadgetOn(const GameState& g, Gadget x) {
+    return gadgetEquipped(g, x) && !hasBit(g.gadgetsBroken, (int)x) && g.gadgetsUnplugged <= 0;
+}
+
+long long passiveCapSeconds(const GameState& g) { return gadgetOn(g, Gadget::LavaCore) ? 4LL * 3600 : PASSIVE_CAP_SECONDS; }
+
+// ----- Mining odds -----
+double bonusChance(const GameState& g, double odds) {
+    double c = (0.06 + 0.04 * g.magnet) * odds * (gadgetOn(g, Gadget::LuckyPenny) ? 1.5 : 1.0);
+    return std::min(0.70, c);
+}
+double jackpotChance(const GameState& g, double odds) {
+    return std::min(0.20, (0.01 + 0.005 * g.magnet) * odds) * (gadgetOn(g, Gadget::TuningFork) ? 0.5 : 1.0);
+}
+double bonusSize(const GameState& g) { return (8.0 + 4.0 * g.magnet) * (gadgetOn(g, Gadget::LuckyPenny) ? 0.7 : 1.0); }
+double handMult(const GameState& g) { return gadgetOn(g, Gadget::NightShift) ? 0.75 : 1.0; }
 
 std::array<UpgradeRef, 4> upgrades(GameState& g) {
     long long m = infected(g, Strain::Rust) ? 2 : 1;
@@ -29,7 +58,9 @@ std::array<UpgradeRef, 4> upgrades(GameState& g) {
 
 // ----- Infection -----
 bool infected(const GameState& g, Strain s) { return g.strain == s && !g.cured; }
-long long streakTimeout(const GameState& g) { return infected(g, Strain::Amnesia) ? 6 : STREAK_TIMEOUT; }
+long long streakTimeout(const GameState& g) {
+    return (infected(g, Strain::Amnesia) ? 6 : STREAK_TIMEOUT) + (gadgetOn(g, Gadget::TuningFork) ? 10 : 0);
+}
 
 // ----- Events -----
 int activeEvent(const GameState& g, std::time_t t) {
@@ -39,16 +70,32 @@ int activeEvent(const GameState& g, std::time_t t) {
 EventFx fxNow(const GameState& g, std::time_t t) { return eventFx(activeEvent(g, t)); }
 
 // ----- Orrery perks -----
-int crewCap(const GameState& g)       { return g.orreryStage >= 1 ? 5 : 4; }
-bool hasResonance(const GameState& g) { return g.orreryStage >= 2; }
-int contractSlots(const GameState& g) { return g.orreryStage >= 3 ? 2 : 1; }
-int crewLevelCap(const GameState& g)  { return g.orreryStage >= 4 ? 8 : 5; }
+bool stageWorks(const GameState& g, int stage) { return g.orreryStage > stage && !hasBit(g.orreryCracked, stage); }
+int crewCap(const GameState& g)       { return stageWorks(g, 0) ? 5 : 4; }
+bool hasResonance(const GameState& g) { return stageWorks(g, 1); }
+int contractSlots(const GameState& g) { return stageWorks(g, 2) ? 2 : 1; }
+int crewLevelCap(const GameState& g)  { return stageWorks(g, 3) ? 8 : 5; }
 
 // ----- Income -----
-void earn(GameState& g, long long amount) {
+void earn(GameState& g, long long amount, Source src) {
     if (amount <= 0) return;
     g.tokens = addTokens(g.tokens, amount);
     g.lifetimeEarned = addTokens(g.lifetimeEarned, amount);
+    long long& by = g.earnedBy[(size_t)std::clamp((int)src, 0, SOURCE_COUNT - 1)];
+    by = addTokens(by, amount);
+}
+
+const char* sourceName(Source src) {
+    switch (src) {
+        case Source::Mining:    return "Mining by hand";
+        case Source::Drones:    return "Drones";
+        case Source::Bot:       return "Mining Bot";
+        case Source::Crew:      return "Crew";
+        case Source::Contracts: return "Contracts";
+        case Source::Other:     return "Offers and other";
+        case Source::Count:     break;
+    }
+    return "?";
 }
 
 double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_BOT_LVL * g.bot; }
@@ -56,29 +103,29 @@ double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_B
 double passiveRatePerSec(const GameState& g) {
     double perDrone = 0.5;
     if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
-    return perDrone * (double)g.drone;
+    if (g.machinesPaused > 0) return 0.0;                       // breakers pulled
+    int working = std::max(0, g.drone - g.dronesDown);           // some may be burnt out by a surge
+    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0);
 }
 
 double botRatePerSec(const GameState& g) {
-    if (g.bot <= 0) return 0.0;
-    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botInterval(g.bot);
+    if (g.bot <= 0 || g.botBroken || g.machinesPaused > 0) return 0.0;
+    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g);
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);
-    return (perMine + bonus) / botInterval(g.bot);
+    return (perMine + bonus) / botIntervalOf(g);
 }
 
 double expectedMine(const GameState& g) {
     double base = baseYield(g);
-    double bonusChance   = std::min(0.70, 0.06 + 0.04  * g.magnet);
-    double jackpotChance = std::min(0.20, 0.01 + 0.005 * g.magnet);
-    return base * 1.5 + bonusChance * base * (8.0 + 4.0 * g.magnet) + jackpotChance * base * (80.0 + 20.0 * g.magnet);
+    return base * 1.5 + bonusChance(g) * base * bonusSize(g) + jackpotChance(g) * base * (80.0 + 20.0 * g.magnet);
 }
 
 double incomeEstimate(const GameState& g) {
     double manual = expectedMine(g) * 1.5 * 0.5;   // medium streak, one mine every two seconds
     double crew = 0.0;
     for (const CrewMember& c : g.crew)
-        if (c.role == Role::Miner) crew += expectedMine(g) * (0.15 + 0.10 * c.level) / 5.0;
+        if (c.role == Role::Miner && c.away == 0) crew += expectedMine(g) * (0.15 + 0.10 * c.level) / 5.0;
     return passiveRatePerSec(g) + botRatePerSec(g) + manual + crew;
 }
 
@@ -99,6 +146,8 @@ void updateRates(GameState& g) {
 
     g.earnedSamples.push_back(g.lifetimeEarned);
     while (g.earnedSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.earnedSamples.pop_front();
+    g.sourceSamples.push_back(g.earnedBy);
+    while (g.sourceSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.sourceSamples.pop_front();
 }
 
 double recentEarnRate(const GameState& g) {
@@ -107,9 +156,34 @@ double recentEarnRate(const GameState& g) {
     return std::max(0.0, gained) / (double)(g.earnedSamples.size() - 1);
 }
 
+// "mining 61%, drones 27%, bot 12%": where the last few seconds' income came from (biggest first).
+std::string incomeSplit(const GameState& g) {
+    auto rates = recentSourceRates(g);
+    double total = 0.0;
+    for (double r : rates) total += r;
+    if (total <= 0.0) return "";
+    std::vector<int> order;
+    for (int i = 0; i < SOURCE_COUNT; ++i) if (rates[(size_t)i] / total >= 0.01) order.push_back(i);
+    std::sort(order.begin(), order.end(), [&](int a, int b) { return rates[(size_t)a] > rates[(size_t)b]; });
+    static const char* const shortNames[SOURCE_COUNT] = {"mining", "drones", "bot", "crew", "contracts", "other"};
+    std::string out;
+    for (int i : order) out += (out.empty() ? "" : ", ") + std::string(shortNames[i]) + " " + percent(rates[(size_t)i] / total, 0);
+    return out;
+}
+
+std::array<double, SOURCE_COUNT> recentSourceRates(const GameState& g) {
+    std::array<double, SOURCE_COUNT> out{};
+    if (g.sourceSamples.size() < 2) return out;
+    const SourceTotals& a = g.sourceSamples.front();
+    const SourceTotals& b = g.sourceSamples.back();
+    for (int i = 0; i < SOURCE_COUNT; ++i)
+        out[(size_t)i] = std::max(0.0, (double)(b[(size_t)i] - a[(size_t)i])) / (double)(g.sourceSamples.size() - 1);
+    return out;
+}
+
 static void addPassiveForElapsed(GameState& g, long long elapsed, double mult) {
     if (elapsed <= 0) return;
-    if (elapsed > PASSIVE_CAP_SECONDS) elapsed = PASSIVE_CAP_SECONDS;
+    if (elapsed > passiveCapSeconds(g)) elapsed = passiveCapSeconds(g);
 
     double rate = passiveRatePerSec(g) * mult;
     if (rate <= 0.0) return;
@@ -117,7 +191,7 @@ static void addPassiveForElapsed(GameState& g, long long elapsed, double mult) {
     double total = g.passiveCarry + rate * (double)elapsed;
     long long add = toTokens(std::floor(total));
     g.passiveCarry = total - (double)add;
-    earn(g, add);
+    earn(g, add, Source::Drones);
 }
 
 void updatePassive(GameState& g, std::time_t t) {
@@ -135,6 +209,7 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
     long long elapsed = (long long)std::difftime(tNow, g.lastUpdate);
     if (elapsed <= 0) { g.lastUpdate = tNow; return; }
     addPassiveForElapsed(g, elapsed, 1.0); // events and the bot don't run offline
+    if (elapsed >= 8 * 3600) spotSecret(g, Secret::WellRested);
 }
 
 void resetGame(GameState& g, std::time_t t) {
@@ -169,6 +244,10 @@ long long statValue(const GameState& g, Stat st) {
         case Stat::CrewMined:     return g.crewMined;
         case Stat::OrreryStage:   return g.orreryStage;
         case Stat::CrewSize:      return (long long)g.crew.size();
+        case Stat::BestStanding:  return bestStanding(g);
+        case Stat::ShopCurios:    return std::popcount(g.curiosOwned & ((1u << SHOP_CURIO_COUNT) - 1));
+        case Stat::GadgetsBuilt:  return std::popcount(g.gadgetsOwned);
+        case Stat::Expeditions:   return g.expeditionsDone;
     }
     return 0; // unreachable, keeps the compiler happy
 }
@@ -187,7 +266,38 @@ int titleIndex(int renown) {
     return idx;
 }
 
+void spotSecret(GameState& g, Secret s) { g.secretsFound |= 1u << (int)s; }
+
+// The secret goals that are about how things stand, rather than something that just happened.
+static void spotStandingSecrets(GameState& g) {
+    auto spot = [&](bool cond, Secret s) { if (cond) spotSecret(g, s); };
+    spot(g.refusedInRow >= 10, Secret::ColdFeet);
+    spot(g.shards >= 10'000, Secret::Hoard);
+    spot(g.bestStreak >= 500, Secret::Overkill);
+    spot(g.contractsDone >= 10 && g.contractsFailed == 0, Secret::CleanHands);
+    spot(g.titleReachedAt[3] > 0 && g.titleReachedAt[3] <= 25 * 60, Secret::Speedrun);   // 3 = Baron
+    spot(g.tokens == 0 && g.lifetimeEarned >= 10'000, Secret::DownToZero);
+    std::uint32_t dealerSet = 0;
+    for (int i = 0; i < CURIO_COUNT; ++i) if (CURIOS[i].set == DEALER_SET) dealerSet |= 1u << i;
+    spot((g.curiosOwned & dealerSet) == dealerSet, Secret::UnderTheCounter);
+}
+
+static void paySecrets(GameState& g, MessageLog& log) {
+    spotStandingSecrets(g);
+    std::uint32_t fresh = g.secretsFound & ~g.secretsDone;
+    g.secretsFound = 0;
+    for (int i = 0; i < SECRET_COUNT; ++i) {
+        if (!hasBit(fresh, i)) continue;
+        g.secretsDone |= 1u << i;
+        g.shards += SECRETS[i].shards;
+        log.push(Sev::Event, std::string("SECRET GOAL: ") + SECRETS[i].name + "! " + SECRETS[i].desc + ". (+" +
+                             std::to_string(SECRETS[i].shards) + " shards)");
+    }
+}
+
 void checkGoals(GameState& g, MessageLog& log) {
+    paySecrets(g, log);
+    starsCheck(g, log);
     int titleBefore = titleIndex(renownOf(g));
 
     for (int i = 0; i < GOAL_COUNT; ++i) {
@@ -199,11 +309,11 @@ void checkGoals(GameState& g, MessageLog& log) {
     }
 
     int titleAfter = titleIndex(renownOf(g));
-    if (titleAfter != titleBefore) {
-        log.push(Sev::Event, std::string("New title: ") + TITLES[titleAfter].name + "!");
-        for (int t = titleBefore + 1; t <= titleAfter; ++t)
-            if (g.titleReachedAt[t] == 0) g.titleReachedAt[t] = g.playSeconds;
-    }
+    if (titleAfter != titleBefore) log.push(Sev::Event, std::string("New title: ") + TITLES[titleAfter].name + "!");
+    // Record when each title was reached. This also catches titles reached without an announcement,
+    // like a save that loads already past a threshold that moved.
+    for (int t = 1; t <= titleAfter; ++t)
+        if (g.titleReachedAt[t] == 0) g.titleReachedAt[t] = std::max(1LL, g.playSeconds);
     for (const Note& n : syncUnlocks(g)) log.push(n);
 
     if (g.strain != Strain::None && !g.cured && g.orreryStage >= ORRERY_STAGE_COUNT) {
@@ -243,11 +353,20 @@ std::vector<long long> historyColumns(const GameState& g, int columns) {
 // ----- Unlocks -----
 bool isUnlocked(const GameState& g, Feature f) { return hasBit(g.unlocked, (int)f); }
 
+// Features with no title (FeatureInfo::title < 0) open on their own terms.
+static bool specialFeatureReady(const GameState& g, int f) {
+    switch ((Feature)f) {
+        case Feature::Stars: return g.orreryStage >= ORRERY_STAGE_COUNT;   // the Sun lights the sky
+        default:             return false;
+    }
+}
+
 std::string lockedText(const GameState& g, Feature f) {
     const FeatureInfo& info = FEATURES[(int)f];
-    const Title& t = TITLES[info.title];
     std::string name = info.name;
     name[0] = (char)std::toupper((unsigned char)name[0]);
+    if (info.title < 0) return name + " open when the Orrery is complete.";
+    const Title& t = TITLES[info.title];
     return name + " opens at the title " + t.name + " (" + std::to_string(t.renown) + " renown; you have " +
            std::to_string(renownOf(g)) + "). Goals earn renown.";
 }
@@ -255,7 +374,7 @@ std::string lockedText(const GameState& g, Feature f) {
 int nextUnlock(const GameState& g) {
     int best = -1;
     for (int i = 0; i < FEATURE_COUNT; ++i) {
-        if (hasBit(g.unlocked, i)) continue;
+        if (hasBit(g.unlocked, i) || FEATURES[i].title < 0) continue;   // the special ones have no title to aim for
         if (best < 0 || FEATURES[i].title < FEATURES[best].title) best = i;
     }
     return best;
@@ -265,7 +384,8 @@ Notes syncUnlocks(GameState& g) {
     Notes out;
     int ti = titleIndex(renownOf(g));
     for (int i = 0; i < FEATURE_COUNT; ++i) {
-        if (hasBit(g.unlocked, i) || FEATURES[i].title > ti) continue;
+        if (hasBit(g.unlocked, i)) continue;
+        if (FEATURES[i].title < 0 ? !specialFeatureReady(g, i) : FEATURES[i].title > ti) continue;
         g.unlocked |= 1u << i;
         std::string name = FEATURES[i].name;
         name[0] = (char)std::toupper((unsigned char)name[0]);
@@ -276,20 +396,25 @@ Notes syncUnlocks(GameState& g) {
 
 int featureOfStat(Stat st) {
     switch (st) {
-        case Stat::CuriosOwned:   return (int)Feature::Curios;
+        case Stat::CuriosOwned:
+        case Stat::ShopCurios:    return (int)Feature::Curios;
         case Stat::MonolithStage: return (int)Feature::Monolith;
         case Stat::ShardsTraded:  return (int)Feature::Market;
-        case Stat::ContractsDone: return (int)Feature::Contracts;
+        case Stat::ContractsDone:
+        case Stat::BestStanding:  return (int)Feature::Contracts;
         case Stat::CrewHired:
         case Stat::CrewMined:
-        case Stat::CrewSize:      return (int)Feature::Crew;
+        case Stat::CrewSize:
+        case Stat::Expeditions:   return (int)Feature::Crew;
         case Stat::OrreryStage:   return (int)Feature::Orrery;
+        case Stat::GadgetsBuilt:  return (int)Feature::Workshop;
         default:                  return -1;
     }
 }
 
 void grandfatherUnlocks(GameState& g) {
-    bool used[FEATURE_COUNT] = {
+    // Only saves from before v7 need this, and those can't have anything newer than the Orrery.
+    bool used[] = {
         g.curiosOwned != 0,
         g.monolithStage > 0 || g.monolithProgress > 0,
         g.shardsTraded > 0 || g.shards > 0,
@@ -299,6 +424,6 @@ void grandfatherUnlocks(GameState& g) {
     };
     // Open everything up to the latest feature in use, so the unlocked set has no gaps.
     int last = -1;
-    for (int i = 0; i < FEATURE_COUNT; ++i) if (used[i]) last = i;
+    for (int i = 0; i < (int)std::size(used); ++i) if (used[i]) last = i;
     for (int i = 0; i <= last; ++i) g.unlocked |= 1u << i;
 }

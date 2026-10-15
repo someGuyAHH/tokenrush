@@ -42,6 +42,11 @@ std::vector<std::string> Console::lines(size_t last) const {
     return std::vector<std::string>(out_.begin() + (std::ptrdiff_t)from, out_.end());
 }
 
+size_t Console::total() const {
+    std::lock_guard lk(outM_);
+    return total_;
+}
+
 std::string Console::partial() const {
     std::lock_guard lk(outM_);
     return partial_;
@@ -58,6 +63,7 @@ void Console::append(const char* s, size_t n) {
         if (s[i] == '\n') {
             out_.push_back(std::move(partial_));
             partial_.clear();
+            ++total_;
             if (out_.size() > KEEP_LINES) out_.pop_front();
         } else if (s[i] != '\r') {
             partial_ += s[i];

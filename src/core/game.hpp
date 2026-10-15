@@ -24,7 +24,11 @@ inline constexpr int       MAX_LEVEL            = 1'000'000;      // sanity cap 
 
 // ----- Infection -----
 bool infected(const GameState& g, Strain s);   // has this strain and isn't cured yet
-long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, or less with Amnesia
+long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, less with Amnesia, more with the Tuning Fork
+double bonusChance(const GameState& g, double odds = 1.0);     // a mine turning into a bonus (odds: Gold Rush)
+double jackpotChance(const GameState& g, double odds = 1.0);   // ...or a jackpot
+double bonusSize(const GameState& g);                          // how many base yields a bonus adds
+double handMult(const GameState& g);                           // gadgets that change what mining by hand pays
 
 // ----- Upgrades -----
 long long costPickaxe(int lvl);
@@ -33,10 +37,16 @@ long long costDrone(int lvl);
 long long costBot(int lvl);
 
 int baseYield(const GameState& g);
-int botInterval(int botLvl);   // seconds between Mining Bot mines
+int botInterval(int botLvl);              // seconds between Mining Bot mines, by level
+int botIntervalOf(const GameState& g);    // the same, with gadgets (Night Shift halves it)
 
 struct UpgradeRef { const char* name; long long cost; int* lvl; };
 std::array<UpgradeRef, 4> upgrades(GameState& g);
+
+// ----- Gadgets -----
+bool gadgetOn(const GameState& g, Gadget x);         // built, equipped and working (not broken or unplugged)
+bool gadgetEquipped(const GameState& g, Gadget x);   // in a slot, working or not
+long long passiveCapSeconds(const GameState& g);   // how long Drones keep earning while you're away
 
 // ----- Events -----
 int activeEvent(const GameState& g, std::time_t t);   // EV_NONE once it has expired
@@ -45,14 +55,17 @@ EventFx fxNow(const GameState& g, std::time_t t);
 // ----- Orrery perks -----
 inline constexpr int MAX_CREW_SLOTS = 5;    // the most crew slots there can ever be
 inline constexpr int CREW_LEVEL_LIMIT = 8;  // the highest crew level there can ever be
+bool stageWorks(const GameState& g, int stage);   // built and not cracked by a Quake
 int crewCap(const GameState& g);            // 4, or 5 after the Base Plate
 int crewLevelCap(const GameState& g);       // 5, or 8 after the Gearwork
 int contractSlots(const GameState& g);      // 1, or 2 after the Second Ring
 bool hasResonance(const GameState& g);      // after the First Ring
 
 // ----- Income -----
-// Every token that enters the economy goes through earn(), so lifetime stats stay honest.
-void earn(GameState& g, long long amount);
+// Every token that enters the economy goes through earn(), so lifetime stats stay honest,
+// booked under the Source it came from.
+void earn(GameState& g, long long amount, Source src);
+const char* sourceName(Source src);            // "Mining by hand", "Drones", ...
 // Resonance (Orrery stage 2): each Drone level also earns this share of an expected manual mine
 // per second, and the Mining Bot swings like a manual miner at a fraction of the power.
 inline constexpr double RESONANCE_DRONE   = 0.003;    // per Drone level, per second
@@ -69,6 +82,8 @@ void updateRates(GameState& g);                // once per second: refresh incom
 // crew, contract pay). Measured from lifetimeEarned, so spending doesn't drag it down.
 inline constexpr int EARN_WINDOW_SECONDS = 10;
 double recentEarnRate(const GameState& g);
+std::array<double, SOURCE_COUNT> recentSourceRates(const GameState& g);   // the same, split by Source
+std::string incomeSplit(const GameState& g);   // "mining 61%, drones 27%, bot 12%" (empty while nothing comes in)
 void updatePassive(GameState& g, std::time_t t);
 void applyOfflineEarnings(GameState& g, std::time_t tNow);
 void normalizeStreak(GameState& g, std::time_t t);
@@ -78,7 +93,8 @@ void resetGame(GameState& g, std::time_t t);   // 'wipe': everything back to the
 long long statValue(const GameState& g, Stat st);
 int renownOf(const GameState& g);
 int titleIndex(int renown);
-void checkGoals(GameState& g, MessageLog& log);   // also records title times and cures an infection
+void checkGoals(GameState& g, MessageLog& log);   // also records title times, cures an infection and pays secret goals
+void spotSecret(GameState& g, Secret s);          // an action saw a secret goal happen; checkGoals pays it
 
 // ----- Stats and history -----
 inline constexpr int STATS_EVERY = 300;   // play seconds between chart samples

@@ -47,6 +47,7 @@
 #include "contracts.hpp"
 #include "crew.hpp"
 #include "game.hpp"
+#include "stars.hpp"
 #include "util.hpp"
 
 namespace {
@@ -263,6 +264,70 @@ void addCrewFields(std::vector<Field>& fields) {
         fields.push_back(numAt(sec, "raises", [i](GameState& g) -> int& { return crewSlot(g, i).raises; }, 0, MAX_RAISES, present));
         fields.push_back(numAt(sec, "sulk", [i](GameState& g) -> int& { return crewSlot(g, i).sulk; }, 0, 24 * 3600, present));
         fields.push_back(boolAt(sec, "missedPay", [i](GameState& g) -> bool& { return crewSlot(g, i).missedPay; }, present));
+        fields.push_back(numAt(sec, "away", [i](GameState& g) -> int& { return crewSlot(g, i).away; }, 0, 24 * 3600, present));
+        fields.push_back(numAt(sec, "trip", [i](GameState& g) -> int& { return crewSlot(g, i).trip; }, 0, EXPEDITION_COUNT - 1, present));
+        fields.push_back(numAt(sec, "hurt", [i](GameState& g) -> int& { return crewSlot(g, i).hurt; }, 0, 24 * 3600, present));
+    }
+}
+
+// "a ; b ; c" -> {"a", "b", "c"}
+std::vector<std::string> splitFields(const std::string& text) {
+    std::vector<std::string> out;
+    std::stringstream ss(text);
+    std::string item;
+    while (std::getline(ss, item, ';')) out.push_back(trim(item));
+    return out;
+}
+
+int roleOf(const std::string& id) {
+    for (int r = 0; r < ROLE_COUNT; ++r) if (lower(id) == ROLES[r].id) return r;
+    return -1;
+}
+
+// The shelf's keepsakes and the Stats tab's former crew: one line each, "[keepsakes] 1 = ...".
+void addPeopleFields(std::vector<Field>& fields) {
+    for (size_t i = 0; i < KEEPSAKE_MAX; ++i) {
+        fields.push_back(Field{
+            "keepsakes", std::to_string(i + 1),
+            [i](const GameState& g) {
+                const Keepsake& k = g.keepsakes[i];
+                return k.item + " ; " + k.from + " ; " + ROLES[(int)k.role].id + " ; " + k.why + " ; " + std::to_string(k.at);
+            },
+            [i](GameState& g, const std::string& text) {
+                std::vector<std::string> p = splitFields(text);
+                Keepsake k;
+                int role = p.size() == 5 ? roleOf(p[2]) : -1;
+                if (role < 0 || p[0].empty() || p[0].size() > 80 || !parseNumber(p[4], k.at)) return false;
+                k.item = p[0]; k.from = p[1]; k.role = (Role)role; k.why = p[3];
+                if (g.keepsakes.size() <= i) g.keepsakes.resize(i + 1);
+                g.keepsakes[i] = k;
+                return true;
+            },
+            [i](const GameState& g) { return i < g.keepsakes.size(); }});
+    }
+    for (size_t i = 0; i < FORMER_CREW_MAX; ++i) {
+        fields.push_back(Field{
+            "formercrew", std::to_string(i + 1),
+            [i](const GameState& g) {
+                const FormerCrew& c = g.formerCrew[i];
+                return c.name + " ; " + ROLES[(int)c.role].id + " ; " + std::to_string(c.level) + " ; " + std::to_string(c.stars) + " ; " +
+                       TRAITS[(int)c.trait].id + " ; " + c.how + " ; " + std::to_string(c.at);
+            },
+            [i](GameState& g, const std::string& text) {
+                std::vector<std::string> p = splitFields(text);
+                FormerCrew c;
+                int role = p.size() == 7 ? roleOf(p[1]) : -1;
+                int trait = -1;
+                for (int t = 0; role >= 0 && t < TRAIT_COUNT; ++t) if (lower(p[4]) == TRAITS[t].id) trait = t;
+                if (role < 0 || trait < 0 || p[0].empty() || !parseNumber(p[2], c.level) || !parseNumber(p[3], c.stars) ||
+                    !parseNumber(p[6], c.at))
+                    return false;
+                c.name = p[0]; c.role = (Role)role; c.trait = (Trait)trait; c.how = p[5];
+                if (g.formerCrew.size() <= i) g.formerCrew.resize(i + 1);
+                g.formerCrew[i] = c;
+                return true;
+            },
+            [i](const GameState& g) { return i < g.formerCrew.size(); }});
     }
 }
 
@@ -351,6 +416,7 @@ void addContractSlot(std::vector<Field>& fields, const std::string& sec, size_t 
         present});
     fields.push_back(numAt(sec, "client", [c](GameState& g) -> int& { return c(g).client; }, 0, CLIENT_COUNT - 1, present));
     fields.push_back(boolAt(sec, "big", [c](GameState& g) -> bool& { return c(g).big; }, present));
+    fields.push_back(boolAt(sec, "signature", [c](GameState& g) -> bool& { return c(g).signature; }, present));
     fields.push_back(numAt(sec, "target", [c](GameState& g) -> LL& { return c(g).target; }, 1LL, big, present));
     fields.push_back(numAt(sec, "start", [c](GameState& g) -> LL& { return c(g).start; }, 0LL, big, present));
     fields.push_back(numAt(sec, "duration", [c](GameState& g) -> int& { return c(g).duration; }, 1, 24 * 3600, present));
@@ -371,6 +437,25 @@ void addContractFields(std::vector<Field>& fields) {
     fields.push_back(numAt("contract", "streak", [](GameState& g) -> LL& { return g.contractStreak; }, 0LL, big, never));
     fields.push_back(numAt("contract", "peakStreak", [](GameState& g) -> LL& { return g.contractPeakStreak; }, 0LL, big, never));
 
+    // Standing with every client, in CLIENTS order: "0, 3, -2, ...". Missing ones stay 0.
+    fields.push_back(Field{
+        "jobs", "standing",
+        [](const GameState& g) {
+            std::string out;
+            for (int i = 0; i < CLIENT_COUNT; ++i) out += (i ? ", " : "") + std::to_string(g.standing[(size_t)i]);
+            return out;
+        },
+        [](GameState& g, const std::string& text) {
+            std::stringstream ss(text);
+            std::string item;
+            for (int i = 0; i < CLIENT_COUNT && std::getline(ss, item, ','); ++i) {
+                int v = 0;
+                if (!parseNumber(trim(item), v) || v < STANDING_MIN || v > STANDING_MAX) return false;
+                g.standing[(size_t)i] = v;
+            }
+            return true;
+        },
+        [](const GameState& g) { return std::any_of(g.standing.begin(), g.standing.end(), [](int v) { return v != 0; }); }});
     fields.push_back(numAt("jobs", "streak", [](GameState& g) -> LL& { return g.contractStreak; }, 0LL, big, any));
     fields.push_back(numAt("jobs", "peakStreak", [](GameState& g) -> LL& { return g.contractPeakStreak; }, 0LL, big, any));
     for (size_t i = 0; i < 2; ++i) {
@@ -411,6 +496,7 @@ const std::vector<Field>& saveFields() {
         numField("stats", "contractsFailed",&GameState::contractsFailed),
         numField("stats", "crewHired",      &GameState::crewHired),
         numField("stats", "crewMined",      &GameState::crewMined),
+        numField("stats", "expeditionsDone", &GameState::expeditionsDone),
         numField("stats", "audits",         &GameState::audits),
         numField("stats", "biggestJackpot", &GameState::biggestJackpot),
         numField("stats", "bestEarnRate",   &GameState::bestEarnRate),
@@ -418,6 +504,9 @@ const std::vector<Field>& saveFields() {
 
         maskField("progress", "goalsDone",   &GameState::goalsDone,   GOAL_COUNT,
                   [](int i) { return GOALS[i].name; }),
+        maskField("progress", "secretsDone", &GameState::secretsDone, SECRET_COUNT,
+                  [](int i) { return SECRETS[i].id; }),
+        numField("progress", "refusedInRow", &GameState::refusedInRow, 0, 1'000'000),
         maskField("progress", "unlocked",    &GameState::unlocked,    FEATURE_COUNT,
                   [](int i) { return FEATURES[i].id; }),
         maskField("progress", "curiosOwned", &GameState::curiosOwned, CURIO_COUNT,
@@ -439,11 +528,70 @@ const std::vector<Field>& saveFields() {
               },
               [](const GameState& g) { return g.customPromptOwned && !g.customPrompt.empty(); }},
 
+        maskField("cosmetics", "themesOwned", &GameState::themesOwned, THEME_COUNT,
+                  [](int i) { return THEMES[i].id; }),
+        // An unknown theme (hand-edited, or from a newer build) falls back to Classic: it's
+        // only a look, not worth rejecting the whole save over.
+        Field{"cosmetics", "theme",
+              [](const GameState& g) -> std::string { return THEMES[std::clamp(g.themeSel, 0, THEME_COUNT - 1)].id; },
+              [](GameState& g, const std::string& text) {
+                  std::string t = lower(trim(text));
+                  g.themeSel = 0;
+                  for (int i = 0; i < THEME_COUNT; ++i)
+                      if (t == THEMES[i].id) g.themeSel = i;
+                  return true;
+              }},
+
+        maskField("workshop", "built", &GameState::gadgetsOwned, GADGET_COUNT, [](int i) { return GADGETS[i].id; }),
+        // The slots: "tuningfork, -, lavacore". Unknown gadgets leave the slot empty.
+        Field{"workshop", "slots",
+              [](const GameState& g) {
+                  std::string out;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) {
+                      int x = g.gadgetSlots[(size_t)i];
+                      out += (i ? ", " : "") + std::string(x >= 0 && x < GADGET_COUNT ? GADGETS[x].id : "-");
+                  }
+                  return out;
+              },
+              [](GameState& g, const std::string& text) {
+                  std::stringstream ss(text);
+                  std::string item;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) {
+                      g.gadgetSlots[(size_t)i] = -1;
+                      if (!std::getline(ss, item, ',')) continue;
+                      for (int x = 0; x < GADGET_COUNT; ++x)
+                          if (lower(trim(item)) == GADGETS[x].id) g.gadgetSlots[(size_t)i] = x;
+                  }
+                  return true;
+              },
+              [](const GameState& g) { return g.gadgetsOwned != 0; }},
+
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
         numField("market", "heat",       &GameState::heat, 0, MAX_HEAT),
         numField("market", "heatClock",  &GameState::heatClock, 0, 24 * 3600),
 
         numField("crew", "paydayClock", &GameState::paydayClock, 0, 24 * 3600),
+
+        numField("disasters", "clock",          &GameState::disasterClock, 0, 24 * 3600),
+        numField("disasters", "dronesDown",     &GameState::dronesDown, 0, MAX_LEVEL),
+        numField("disasters", "dronesDownSecs", &GameState::dronesDownSecs, 0, 24 * 3600),
+        numField("disasters", "paused",         &GameState::machinesPaused, 0, 24 * 3600),
+        boolField("disasters", "botBroken",     &GameState::botBroken),
+        maskField("disasters", "cracked",       &GameState::orreryCracked, ORRERY_STAGE_COUNT, [](int i) { return ORRERY[i].name; }),
+        maskField("disasters", "gadgetsBroken", &GameState::gadgetsBroken, GADGET_COUNT, [](int i) { return GADGETS[i].id; }),
+        numField("disasters", "unplugged",      &GameState::gadgetsUnplugged, 0, 24 * 3600),
+        numField("stats", "disastersHit",       &GameState::disastersHit),
+        numField("stats", "disastersStopped",   &GameState::disastersStopped),
+
+        maskField("stars", "lit",              &GameState::starsLit, CONSTELLATION_COUNT, [](int i) { return CONSTELLATIONS[i].id; }),
+        numField("stars", "lastContractAt",    &GameState::lastContractAt, std::numeric_limits<long long>::min(), std::numeric_limits<long long>::max()),
+        numField("stars", "fullCrewPaydays",   &GameState::fullCrewPaydays, 0, 1'000'000),
+        numField("stars", "stoppedInRow",      &GameState::stoppedInRow, 0, 1'000'000),
+        maskField("stars", "signatureClients", &GameState::signatureClients, CLIENT_COUNT, [](int i) { return CLIENTS[i].id; }),
+        numField("stars", "heat10At",          &GameState::heat10At, -1LL, std::numeric_limits<long long>::max()),
+        numField("stars", "handsOffSince",     &GameState::handsOffSince),
+        numField("stars", "handsOffFrom",      &GameState::handsOffFrom),
+        numField("stars", "handsOffMines",     &GameState::handsOffMines),
 
         numField("orrery", "stage",    &GameState::orreryStage, 0, ORRERY_STAGE_COUNT),
         numField("orrery", "progress", &GameState::orreryProgress),
@@ -453,8 +601,18 @@ const std::vector<Field>& saveFields() {
         boolAt("infection", "cured", [](GameState& g) -> bool& { return g.cured; },
                [](const GameState& g) { return g.strain != Strain::None; }),
 
+        numField("ledger", "shardsBought",    &GameState::shardsBought),
+        numField("ledger", "shardsSold",      &GameState::shardsSold),
+        numField("ledger", "tokensOnBuys",    &GameState::tokensOnBuys),
+        numField("ledger", "tokensFromSells", &GameState::tokensFromSells),
+        numField("ledger", "tradeCost",       &GameState::tradeCost),
+
         historyField(),
         };
+        // Lifetime income by source: [income] mining = ..., drones = ...
+        static const char* const sourceKeys[SOURCE_COUNT] = {"mining", "drones", "bot", "crew", "contracts", "other"};
+        for (int i = 0; i < SOURCE_COUNT; ++i)
+            f.push_back(numAt("income", sourceKeys[i], [i](GameState& g) -> long long& { return g.earnedBy[(size_t)i]; }));
         Present investing = [](const GameState& g) { return g.investment.amount > 0; };
         using LL = long long;
         f.push_back(numAt("investment", "amount", [](GameState& g) -> LL& { return g.investment.amount; }, 0LL,
@@ -466,6 +624,7 @@ const std::vector<Field>& saveFields() {
         f.push_back(boolAt("investment", "scam", [](GameState& g) -> bool& { return g.investment.scam; }, investing));
         addCrewFields(f);
         addContractFields(f);
+        addPeopleFields(f);
         return f;
     }();
     return fields;
@@ -544,9 +703,21 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
         g.promptSel = 0;
     }
     g.autoOn = g.autoOn && g.autoUnlocked;
+    g.orreryCracked &= (1u << g.orreryStage) - 1;            // only built stages can be cracked
+    g.gadgetsBroken &= g.gadgetsOwned;
+    if (g.bot == 0) g.botBroken = false;
+    if (!themeOwned(g, g.themeSel)) g.themeSel = 0;          // a hand-edited theme you never bought
+    for (size_t i = 0; i < g.gadgetSlots.size(); ++i) {      // equipped gadgets must be built, and in one slot only
+        int x = g.gadgetSlots[i];
+        bool dup = std::find(g.gadgetSlots.begin(), g.gadgetSlots.begin() + (std::ptrdiff_t)i, x) != g.gadgetSlots.begin() + (std::ptrdiff_t)i;
+        if (x >= 0 && (!hasBit(g.gadgetsOwned, x) || dup)) g.gadgetSlots[i] = -1;
+    }
 
-    // Crew slots that were only half-written (say, [crew.3] with no name) are dropped.
+    // Crew slots that were only half-written (say, [crew.3] with no name) are dropped, and so are
+    // gaps in the keepsake and former crew lists (a hand-edited file that skips a number).
     std::erase_if(g.crew, [](const CrewMember& c) { return c.name.empty(); });
+    std::erase_if(g.keepsakes, [](const Keepsake& k) { return k.item.empty(); });
+    std::erase_if(g.formerCrew, [](const FormerCrew& c) { return c.name.empty(); });
 
     for (Contract& c : g.contracts)
         if (c.secondsLeft <= 0) c.secondsLeft = 1;   // fails on the next tick

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
@@ -13,6 +14,7 @@
 #include "core/actions.hpp"
 #include "core/content.hpp"
 #include "core/game.hpp"
+#include "core/stars.hpp"
 #include "core/util.hpp"
 #include "term.hpp"
 
@@ -118,14 +120,20 @@ void doCurios(Shared& s, const std::string& arg) {
             out() << "\n" << paint(Style::Header, "=== CURIOS ===") << "  Tokens: " << paint(Style::Tokens, num(g.tokens))
                       << "   Shelf: " << std::popcount(g.curiosOwned) << "/" << CURIO_COUNT << "\n";
             for (int set = 0; set < CURIO_SET_COUNT; ++set) {
-                out() << paint(Style::Bold, CURIO_SETS[set]) << "\n";
+                out() << paint(Style::Bold, CURIO_SETS[set]) << (set == DEALER_SET ? paint(Style::Muted, "   not in any shop: the Curio Dealer, or a lucky expedition") : "") << "\n";
                 for (int i = 0; i < CURIO_COUNT; ++i) {
                     if (CURIOS[i].set != set) continue;
                     bool owned = hasBit(g.curiosOwned, i);
-                    std::string row = padLeft(std::to_string(i + 1), 2) + ") " + (owned ? "[x] " : "[ ] ") + padRight(CURIOS[i].name, 25);
-                    if (owned) out() << "  " << paint(Style::Good, row) << paint(Style::Muted, std::string("\"") + CURIOS[i].flavor + "\"") << "\n";
-                    else       out() << "  " << row << padLeft(num(CURIOS[i].cost), 7) << "\n";
+                    std::string row = padLeft(std::to_string(i + 1), 2) + ") " + (owned ? "[x] " : "[ ] ") + padRight(owned || inShop(i) ? CURIOS[i].name : "???", 27);
+                    if (owned)           out() << "  " << paint(Style::Good, row) << paint(Style::Muted, std::string("\"") + CURIOS[i].flavor + "\"") << "\n";
+                    else if (inShop(i))  out() << "  " << row << padLeft(num(CURIOS[i].cost), 11) << "\n";
+                    else                 out() << "  " << paint(Style::Muted, row) << "\n";
                 }
+            }
+            if (!g.keepsakes.empty()) {
+                out() << paint(Style::Bold, "Keepsakes") << paint(Style::Muted, "   left by your crew") << "\n";
+                for (const Keepsake& k : g.keepsakes)
+                    out() << "  " << padRight(k.item, 42) << paint(Style::Muted, k.why) << "\n";
             }
             out() << "Buy which? (number, 0 to go back)\n> " << std::flush;
         } // unlock before waiting on input
@@ -187,6 +195,99 @@ void doPrompt(Shared& s, const std::string& arg) {
         out = choosePrompt(s.g, (int)n - 1);
     }
     printNotes(out);
+}
+
+// ----- The Constellations -----
+void doStars(Shared& s) {
+    std::lock_guard lk(s.m);
+    const GameState& g = s.g;
+    out() << paint(Style::Header, "=== THE CONSTELLATIONS ===") << "  " << std::popcount(g.starsLit) << "/" << CONSTELLATION_COUNT << " lit\n\n";
+    for (const std::vector<SkyGlyph>& row : skyMap(g)) {
+        std::string line;
+        for (const SkyGlyph& c : row) {
+            switch (c.kind) {
+                case SkyCell::Empty: line += " "; break;
+                case SkyCell::Dust:  line += paint(Style::Muted, c.text); break;
+                case SkyCell::Star:
+                case SkyCell::Label: line += c.lit ? paintHue(CONSTELLATIONS[c.constellation].hue, c.text, c.kind == SkyCell::Star)
+                                                   : paint(Style::Muted, c.text); break;
+            }
+        }
+        out() << "  " << line << "\n";
+    }
+    out() << "\n";
+    for (int i = 0; i < CONSTELLATION_COUNT; ++i) {
+        const ConstellationInfo& c = CONSTELLATIONS[i];
+        bool lit = hasBit(g.starsLit, i);
+        std::string progress = lit ? "" : starProgress(g, i);
+        out() << "  " << (lit ? paintHue(c.hue, "[*] " + padRight(c.name, 15), true) : paint(Style::Muted, "[ ] ") + padRight(c.name, 15))
+              << (lit ? paint(Style::Muted, c.feat) : std::string(c.feat))
+              << (progress.empty() ? "" : paint(Style::Muted, "   (" + progress + ")")) << "\n";
+    }
+    out() << paint(Style::Muted, "They give nothing but the sky. Each one is a feat you pulled off.") << "\n";
+}
+
+// ----- Themes -----
+// One line in a theme's own colors, on its own background: what the game would look like.
+static std::string swatch(int theme) {
+    const ThemeInfo& t = THEMES[theme];
+    struct Part { Style st; const char* text; };
+    static const Part parts[] = {
+        {Style::Header, "Heading"}, {Style::Plain, "  "}, {Style::Tokens, "1,234 tokens"}, {Style::Plain, "  "},
+        {Style::Shards, "56 shards"}, {Style::Plain, "  "}, {Style::Good, "good"}, {Style::Plain, " "},
+        {Style::Bad, "bad"}, {Style::Plain, " "}, {Style::Warn, "warning"}, {Style::Plain, " "},
+        {Style::Event, "EVENT"}, {Style::Plain, " "}, {Style::Heat, "heat"}, {Style::Plain, " "}, {Style::Muted, "quiet"},
+    };
+    if (!colorOn()) return "";
+    std::string bg = t.classic ? "" : "\x1b[48;2;" + std::to_string(t.hue[(int)Hue::Background].r) + ";" +
+                                          std::to_string(t.hue[(int)Hue::Background].g) + ";" +
+                                          std::to_string(t.hue[(int)Hue::Background].b) + "m";
+    std::string text = t.classic ? "" : "\x1b[38;2;" + std::to_string(t.hue[(int)Hue::Text].r) + ";" +
+                                            std::to_string(t.hue[(int)Hue::Text].g) + ";" +
+                                            std::to_string(t.hue[(int)Hue::Text].b) + "m";
+    std::string out = bg + text + " ";
+    for (const Part& p : parts) {
+        std::string painted = paintIn(theme, p.st, p.text);
+        // paintIn() ends with a full reset, which would drop the background: put it back after each part.
+        out += painted + (painted.size() > std::strlen(p.text) ? bg + text : "");
+    }
+    return out + " \x1b[0m";
+}
+
+void doTheme(Shared& s, const std::string& arg) {
+    if (arg.empty()) {
+        std::lock_guard lk(s.m);
+        const GameState& g = s.g;
+        out() << paint(Style::Header, "=== THEMES ===") << "  Shards: " << paint(Style::Shards, num(g.shards))
+              << paint(Style::Muted, "   (a theme belongs to this profile)") << "\n";
+        for (int i = 0; i < THEME_COUNT; ++i) {
+            const ThemeInfo& t = THEMES[i];
+            std::string state = i == g.themeSel ? paint(Style::Good, "in use") : themeOwned(g, i) ? std::string(t.cost ? "owned" : "free")
+                                                                                : paint(Style::Shards, count(t.cost, "shard"));
+            out() << "  " << (i + 1) << ") " << paint(Style::Bold, padRight(t.name, 11)) << padVisible(state, 14)
+                  << paint(Style::Muted, t.blurb) << "\n";
+            if (std::string sw = swatch(i); !sw.empty()) out() << "     " << sw << "\n";
+        }
+        out() << "Use 'theme <n>' (or its name) to buy or switch. Classic uses your terminal's own colors; the others are 24-bit color.\n";
+        return;
+    }
+
+    int idx = -1;
+    long long n;
+    if (parseLongLong(arg, n) && n >= 1 && n <= THEME_COUNT) idx = (int)n - 1;
+    for (int i = 0; i < THEME_COUNT && idx < 0; ++i)
+        if (lower(arg) == THEMES[i].id) idx = i;
+    if (idx < 0) { out() << "Usage: theme [1-" << THEME_COUNT << " or a name]  (see 'theme')\n"; return; }
+
+    Notes notes;
+    int now;
+    {
+        std::lock_guard lk(s.m);
+        notes = chooseTheme(s.g, idx);
+        now = s.g.themeSel;
+    }
+    setTheme(now);   // from here on, everything prints in it
+    printNotes(notes);
 }
 
 // ----- The Monolith -----

@@ -30,6 +30,28 @@ inline constexpr int    NIGHT_OWL_IDLE = 30;    // seconds without mining before
 
 // How much a crew member actually counts for: their level times promotions, trait, raises,
 // sulking and (for Night Owls) whether you're mining. Role effects are built from this.
+// ----- Expeditions -----
+// A member can go off exploring: they don't work while away (wages still come out on payday),
+// and come back with shards, sometimes something better, sometimes an injury.
+inline constexpr int EXPEDITION_COUNT = 3;
+inline constexpr int HURT_SECONDS = 900;   // half effort after a rough trip
+struct ExpeditionInfo {
+    const char* id;
+    const char* name;      // "a deep expedition"
+    int seconds;
+    double loot;           // how many shards, relative to a short trip
+    double curioChance;    // finds a curio no shop sells
+    double traitChance;    // comes back with a trait (if they had none)
+    double levelChance;    // learns a thing or two: +1 level (if below the cap)
+    double injuryChance;   // before Fixers
+};
+extern const ExpeditionInfo EXPEDITIONS[EXPEDITION_COUNT];
+int expeditionByName(const std::string& word);                 // "short", "long", "deep" (or 1-3); -1 if neither
+long long expeditionLoot(const GameState& g, const CrewMember& c, int trip);   // the typical shards they bring back
+double injuryChance(const GameState& g, int trip);             // with your Fixers' help
+Notes sendExpedition(GameState& g, int crewIdx, int trip);
+bool isAway(const CrewMember& c);
+
 double effectiveLevel(const GameState& g, const CrewMember& c);
 double roleLevels(const GameState& g, Role r);   // sum of effective levels of everyone with that role
 int levelCap(const GameState& g, const CrewMember& c);          // crewLevelCap() plus promotions

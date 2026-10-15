@@ -1,6 +1,7 @@
 #pragma once
 // Game state, plus the objects that are shared between threads.
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <ctime>
@@ -24,6 +25,13 @@ struct Note {
 };
 using Notes = std::vector<Note>;   // what a player action returns instead of printing
 
+// ----- Income sources -----
+// Every token that enters the economy is booked under one of these (see earn() in game.hpp),
+// so the Stats tab can say where the money comes from.
+enum class Source : int { Mining, Drones, Bot, Crew, Contracts, Other, Count };
+inline constexpr int SOURCE_COUNT = (int)Source::Count;
+using SourceTotals = std::array<long long, SOURCE_COUNT>;
+
 // ----- Crew and contracts -----
 struct CrewMember {
     std::string name;
@@ -34,10 +42,33 @@ struct CrewMember {
     int raises = 0;              // raises they asked for and got (a choice event): +1 wage, +25% work each
     int sulk = 0;                // seconds of sulking left after a refused raise (half the work)
     bool missedPay = false;      // Loyal only: already stayed through one missed payday
+    int away = 0;                // seconds until they're back from an expedition (0 = here)
+    int trip = 0;                // which expedition (index into EXPEDITIONS, crew.hpp)
+    int hurt = 0;                // seconds of half effort left after an expedition went badly
 };
 
+// ----- People who left, and what they left behind -----
+struct Keepsake {                // on your shelf: from a crew member who quit, or got their third star
+    std::string item;            // "Mara's Lucky Wrench"
+    std::string from;            // "Mara"
+    Role role = Role::Miner;
+    std::string why;             // "quit when you couldn't pay"
+    long long at = 0;            // play seconds
+};
+struct FormerCrew {              // the Stats tab remembers everyone who ever left
+    std::string name;
+    Role role = Role::Miner;
+    int level = 1;
+    int stars = 0;
+    Trait trait = Trait::None;
+    std::string how;             // "quit (unpaid)", "fired"
+    long long at = 0;            // play seconds
+};
+inline constexpr size_t KEEPSAKE_MAX = 30;      // the oldest go first past these
+inline constexpr size_t FORMER_CREW_MAX = 40;
+
 // ----- Choice events -----
-enum class ChoiceKind : int { None, ShadyBroker, Investor, Rival, Raise, Bribe };
+enum class ChoiceKind : int { None, ShadyBroker, Investor, Rival, Raise, Bribe, Dealer };
 
 struct Choice {                  // the question on the table, if any (not saved: it would expire anyway)
     ChoiceKind kind = ChoiceKind::None;
@@ -45,6 +76,7 @@ struct Choice {                  // the question on the table, if any (not saved
     long long tokens = 0;        // what it costs or stakes
     long long shards = 0;        // Shady Broker: how many shards
     std::string crewName;        // Raise: who's asking
+    int curio = -1;              // Dealer: which curio
 };
 
 struct Investment {              // money lent to the Investor (saved)
@@ -61,6 +93,17 @@ struct Race {                    // the Rival Miner's bet (not saved: quitting m
     int secondsLeft = 0;
 };
 
+// ----- Disasters (see disasters.hpp) -----
+struct Disaster {                // the warning that's running, if any (not saved: quitting drops it)
+    int kind = -1;               // a DisasterKind, or -1 for none
+    int secondsLeft = 0;
+    long long tokens = 0;        // what stopping it costs
+    long long shards = 0;
+    int target = -1;             // a Quake's Orrery stage, a Short Circuit's gadget
+    bool chasing = false;        // Thieves: you're after them
+    long long chaseStart = 0;    // manualMines when the chase began
+};
+
 // ----- History -----
 struct HistorySample {           // one point on the Stats chart
     long long playSeconds = 0;
@@ -71,8 +114,9 @@ struct HistorySample {           // one point on the Stats chart
 
 struct Contract {
     ContractKind kind = ContractKind::Earn;
-    int client = 0;              // index into CLIENTS, flavor only
+    int client = 0;              // index into CLIENTS
     bool big = false;            // big jobs take a shard stake and pay more
+    bool signature = false;      // a Trusted client's special job: longer, no stake, double pay
     long long target = 0;
     long long start = 0;         // the stat's value when the contract was accepted
     int duration = 0;            // seconds you get once you accept
@@ -115,6 +159,7 @@ struct GameState {
     std::vector<Contract> contracts;    // the jobs you're working on (1 slot, 2 with the Orrery's Second Ring)
     std::vector<Contract> offers;       // regenerated after loading (not saved)
     int offerClock = 0;                 // seconds until a fresh offer appears
+    std::array<int, CLIENT_COUNT> standing{};   // with each client, -10..10 (see contracts.hpp)
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far
 
@@ -126,6 +171,15 @@ struct GameState {
     long long rateMarkMines = 0;
     long long rateSkip = 0;             // contract payouts, which shouldn't count as "income"
     std::deque<long long> earnedSamples;   // lifetimeEarned once a second, newest last (not saved)
+    SourceTotals earnedBy{};            // lifetime tokens per Source (saves from before v9 start at 0)
+    std::deque<SourceTotals> sourceSamples;   // earnedBy once a second, like earnedSamples (not saved)
+
+    // The market ledger: what trading shards has cost and paid (market orders and the Shady Broker)
+    long long shardsBought = 0;
+    long long shardsSold = 0;
+    long long tokensOnBuys = 0;         // tokens spent buying shards
+    long long tokensFromSells = 0;      // tokens received selling them
+    long long tradeCost = 0;            // paid to the spread and price impact, against the mid price
 
     // Crew
     std::vector<CrewMember> crew;
@@ -147,6 +201,7 @@ struct GameState {
     long long contractsDone = 0;
     long long contractsFailed = 0;
     long long crewHired = 0;
+    long long expeditionsDone = 0;
     long long crewMined = 0;
     long long audits = 0;
 
@@ -156,6 +211,31 @@ struct GameState {
     int choiceClock = 0;             // seconds until the next one (0 = not set yet; not saved)
     Investment investment;
     Race race;
+
+    // Disasters and the damage they leave
+    Disaster disaster;
+    int disasterClock = 0;           // seconds of play until the next one (0 = not set yet)
+    int dronesDown = 0;              // Drones burnt out by a Power Surge...
+    int dronesDownSecs = 0;          // ...until this runs out
+    int machinesPaused = 0;          // seconds the Drones and Bot stay off (breakers pulled)
+    bool botBroken = false;          // until repaired
+    std::uint32_t orreryCracked = 0; // bit i = ORRERY[i] cracked: its perk is off until repaired
+    std::uint32_t gadgetsBroken = 0; // bit i = GADGETS[i] broken until repaired
+    int gadgetsUnplugged = 0;        // seconds every gadget stays off (unplugged against a Short Circuit)
+    long long disastersHit = 0;
+    long long disastersStopped = 0;
+
+    // The Constellations (stars.hpp): what's lit, and the feats being tracked
+    std::uint32_t starsLit = 0;      // bit i = CONSTELLATIONS[i] lit
+    std::uint32_t starsFound = 0;    // done by an action, lit by the next checkGoals (not saved)
+    long long lastContractAt = -1'000'000;   // play seconds when the last contract was finished (the Twins)
+    int fullCrewPaydays = 0;         // paydays in a row with a full crew of 5 and nobody leaving (the Hearth)
+    int stoppedInRow = 0;            // disasters stopped since the last one hit (the Lantern)
+    std::uint32_t signatureClients = 0;   // bit i = finished a signature job for CLIENTS[i] (the Crown)
+    long long heat10At = -1;         // play seconds when heat was last 10 (the Phoenix)
+    long long handsOffSince = 0;     // the Hourglass's hour: when it started...
+    long long handsOffFrom = 0;      // ...lifetimeEarned then...
+    long long handsOffMines = 0;     // ...and manualMines then
 
     // Infection (see content.hpp): a strain, until the Orrery cures it
     Strain strain = Strain::None;
@@ -168,12 +248,21 @@ struct GameState {
     std::vector<HistorySample> history;
 
     std::uint32_t goalsDone = 0;     // bit i = GOALS[i] complete
+    std::uint32_t secretsDone = 0;   // bit i = SECRETS[i] found (and paid)
+    std::uint32_t secretsFound = 0;  // spotted by an action or a tick, paid by the next checkGoals (not saved)
+    int refusedInRow = 0;            // offers you said no to since the last yes (a secret goal)
+    std::vector<Keepsake> keepsakes;
+    std::vector<FormerCrew> formerCrew;
     std::uint32_t unlocked = 0;      // bit i = FEATURES[i] is open (see game.hpp, Unlocks)
     std::uint32_t curiosOwned = 0;   // bit i = CURIOS[i] owned
     std::uint32_t promptsOwned = 1;  // bit i = PROMPTS[i] owned; bit 0 (the default) is free
     int promptSel = 0;               // index into PROMPTS, or PROMPT_COUNT for the custom prompt
     bool customPromptOwned = false;
     std::string customPrompt;        // 1-5 characters, shown with a space after it
+    int themeSel = 0;                // index into THEMES
+    std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
+    std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)
+    std::uint32_t themesOwned = 0;   // bit i = THEMES[i] bought (free ones count as owned anyway)
     int monolithStage = 0;           // stages completed
     long long monolithProgress = 0;  // tokens poured into the current stage
     int orreryStage = 0;             // stages completed
@@ -202,7 +291,7 @@ public:
     std::vector<LogEntry> recent(size_t n);      // the last n, shown or not
 
 private:
-    static constexpr size_t HISTORY_MAX = 100;
+    static constexpr size_t HISTORY_MAX = 400;
     std::mutex m_;
     std::deque<LogEntry> pending_;
     std::deque<LogEntry> history_;

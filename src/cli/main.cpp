@@ -65,6 +65,7 @@ static SessionEnd runSession(const std::filesystem::path& dir, const std::string
     Shared s;
     std::mt19937 rng(makeSeed());
     StartReport start = startGame(s, rng);
+    setTheme(s.g.themeSel);   // the profile's own colors (no workers yet, so no lock needed)
     printNotes(start.notes);
     if (!profile.empty()) std::cout << "Playing as " << paint(Style::Bold, profile) << ".\n";
     if (start.fresh) {
@@ -133,6 +134,7 @@ static SessionEnd runSession(const std::filesystem::path& dir, const std::string
 
     printPending(s);
     bool saved = saveNow(s);
+    setTheme(0);   // the profile picker is nobody's: back to Classic
     if (end == SessionEnd::Logout) std::cout << (saved ? "Saved.\n" : paint(Style::Bad, "Save failed.") + "\n");
     else                           std::cout << (saved ? "Saved. Bye.\n" : paint(Style::Bad, "Save failed. Bye.") + "\n");
     return end;

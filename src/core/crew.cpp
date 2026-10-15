@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <string>
 
 #include "game.hpp"
@@ -42,7 +43,69 @@ void refreshCandidates(GameState& g, std::mt19937& rng) {
     g.candidateClock = CANDIDATE_REFRESH;
 }
 
+// Someone left: the Stats tab remembers them.
+void remember(GameState& g, const CrewMember& c, const std::string& how) {
+    g.formerCrew.push_back({c.name, c.role, c.level, c.stars, c.trait, how, g.playSeconds});
+    if (g.formerCrew.size() > FORMER_CREW_MAX) g.formerCrew.erase(g.formerCrew.begin());
+}
+
+// A keepsake for the shelf, picked by who they are (the same person always leaves the same thing).
+std::string leaveKeepsake(GameState& g, const CrewMember& c, const std::string& why) {
+    static const char* const items[ROLE_COUNT][6] = {
+        {"Lucky Wrench", "Dented Helmet", "Lamp That Never Dies", "Notched Pickaxe Handle", "Lump of Fool's Gold", "Coffee-Stained Map of the Mine"},
+        {"Battered Ledger", "Pen That Only Writes Numbers", "Ticker-Tape Bracelet", "Lucky Calculator", "Very Firm Handshake (Framed)", "Rubber Stamp: SOLD"},
+        {"Compass That Points at Shards", "Boots Full of Sand", "Pocket Telescope", "Map With One X on It", "Jar of Interesting Pebbles", "Well-Chewed Pencil"},
+        {"Burner Phone", "Fake Mustache", "Envelope (Empty Now)", "Little Black Book", "Spare Set of Fingerprints", "Business Card: 'A Friend'"},
+    };
+    size_t pick = std::hash<std::string>{}(c.name + ROLES[(int)c.role].id) % 6;
+    std::string item = c.name + "'s " + items[(int)c.role][pick];
+    g.keepsakes.push_back({item, c.name, c.role, why, g.playSeconds});
+    if (g.keepsakes.size() > KEEPSAKE_MAX) g.keepsakes.erase(g.keepsakes.begin());
+    return item;
+}
+
+// Someone's back from an expedition: what did they find?
+void comeBack(GameState& g, CrewMember& c, MessageLog& log, std::mt19937& rng) {
+    std::uniform_real_distribution<double> uni(0.0, 1.0);
+    const ExpeditionInfo& e = EXPEDITIONS[std::clamp(c.trip, 0, EXPEDITION_COUNT - 1)];
+    double luck = 0.6 + 0.8 * uni(rng);
+    long long shards = std::llround((double)expeditionLoot(g, c, c.trip) * luck);
+    std::string found;
+
+    bool injured = uni(rng) < injuryChance(g, c.trip);
+    if (injured) {
+        shards /= 2;
+        c.hurt = HURT_SECONDS;
+    }
+    if (uni(rng) < e.curioChance) {
+        std::vector<int> missing;
+        for (int i = 0; i < CURIO_COUNT; ++i)
+            if (!inShop(i) && !hasBit(g.curiosOwned, i)) missing.push_back(i);
+        if (missing.empty()) {
+            shards += shards / 2;   // nothing left to find: they sold it on the way back
+        } else {
+            int cur = missing[std::uniform_int_distribution<size_t>(0, missing.size() - 1)(rng)];
+            g.curiosOwned |= 1u << cur;
+            found += ", found " + theCurio(cur) + " (on your shelf)";
+        }
+    }
+    if (c.trait == Trait::None && uni(rng) < e.traitChance) {
+        c.trait = (Trait)std::uniform_int_distribution<int>(1, TRAIT_COUNT - 1)(rng);
+        found += ", came back changed: now " + std::string(TRAITS[(int)c.trait].name);
+    }
+    if (c.level < levelCap(g, c) && uni(rng) < e.levelChance) {
+        c.level += 1;
+        found += ", learned a thing or two (now level " + std::to_string(c.level) + ")";
+    }
+    g.shards += shards;
+    g.expeditionsDone += 1;
+    std::string msg = who(c) + " is back from " + e.name + ": +" + count(shards, "shard") + found + ".";
+    if (injured) msg += " They got hurt out there: half effort for " + duration(HURT_SECONDS) + ".";
+    log.push(injured ? Sev::Warn : Sev::Good, msg);
+}
+
 void payday(GameState& g, MessageLog& log) {
+    size_t before = g.crew.size();
     long long paid = 0;
     std::vector<CrewMember> stayed;
     for (CrewMember c : g.crew) {
@@ -55,12 +118,17 @@ void payday(GameState& g, MessageLog& log) {
         } else if (c.trait == Trait::Loyal && !c.missedPay) {
             c.missedPay = true;
             log.push(Sev::Warn, who(c) + " wasn't paid, but is staying out of loyalty. Next time they walk.");
+            spotSecret(g, Secret::LoyalToAFault);
             stayed.push_back(c);
         } else {
-            log.push(Sev::Bad, who(c) + " wasn't paid and quit.");
+            remember(g, c, "quit (unpaid)");
+            std::string item = leaveKeepsake(g, c, "quit when you couldn't pay");
+            log.push(Sev::Bad, who(c) + " wasn't paid and quit. They left something behind: " + item + " (on your shelf).");
         }
     }
     g.crew = std::move(stayed);
+    // The Hearth: a full crew of five, paid, nobody walking out.
+    g.fullCrewPaydays = before >= 5 && g.crew.size() == before ? g.fullCrewPaydays + 1 : 0;
     if (paid > 0) log.push(Sev::Info, "Payday: your crew took " + count(paid, "shard") + ".");
 }
 
@@ -70,7 +138,47 @@ void fillCandidates(GameState& g, std::mt19937& rng) {
     if (g.candidates.empty()) refreshCandidates(g, rng);
 }
 
+// ----- Expeditions -----
+const ExpeditionInfo EXPEDITIONS[EXPEDITION_COUNT] = {
+    {"short", "a short expedition", 600,  1.0, 0.02, 0.05, 0.00, 0.05},
+    {"long",  "a long expedition",  1800, 3.5, 0.08, 0.15, 0.10, 0.12},
+    {"deep",  "a deep expedition",  3600, 8.0, 0.20, 0.25, 0.30, 0.25},
+};
+
+bool isAway(const CrewMember& c) { return c.away > 0; }
+
+int expeditionByName(const std::string& word) {
+    std::string w = lower(trim(word));
+    for (int i = 0; i < EXPEDITION_COUNT; ++i)
+        if (w == EXPEDITIONS[i].id || w == std::to_string(i + 1)) return i;
+    return -1;
+}
+
+long long expeditionLoot(const GameState& g, const CrewMember& c, int trip) {
+    CrewMember home = c;
+    home.away = 0;   // how good they are when they're working
+    double scout = c.role == Role::Scout ? 1.5 : 1.0;   // finding things is their job
+    return std::max(1LL, std::llround(EXPEDITIONS[trip].loot * (8.0 + 4.0 * effectiveLevel(g, home)) * scout));
+}
+
+double injuryChance(const GameState& g, int trip) {
+    return EXPEDITIONS[trip].injuryChance * (1.0 - std::min(0.6, 0.06 * roleLevels(g, Role::Fixer)));
+}
+
+Notes sendExpedition(GameState& g, int idx, int trip) {
+    if (!isUnlocked(g, Feature::Crew)) return {{Sev::Warn, lockedText(g, Feature::Crew)}};
+    if (idx < 0 || idx >= (int)g.crew.size()) return {{Sev::Warn, "No such crew member."}};
+    if (trip < 0 || trip >= EXPEDITION_COUNT) return {{Sev::Warn, "Short, long or deep?"}};
+    CrewMember& c = g.crew[(size_t)idx];
+    if (isAway(c)) return {{Sev::Info, c.name + " is already away (back in " + duration(c.away) + ")."}};
+    c.away = EXPEDITIONS[trip].seconds;
+    c.trip = trip;
+    return {{Sev::Good, who(c) + " set off on " + EXPEDITIONS[trip].name + ". Back in " + duration(c.away) +
+                        " (only while the game is open). Their wages still come out on payday."}};
+}
+
 double effectiveLevel(const GameState& g, const CrewMember& c) {
+    if (isAway(c)) return 0.0;   // off exploring
     double e = (double)c.level * (1.0 + PROMO_EFFECT * c.stars) * (1.0 + RAISE_EFFECT * c.raises);
     switch (c.trait) {
         case Trait::Diligent: e *= 1.25; break;
@@ -83,7 +191,8 @@ double effectiveLevel(const GameState& g, const CrewMember& c) {
         default: break;
     }
     if (c.sulk > 0) e *= 0.5;
-    return e;
+    if (c.hurt > 0) e *= 0.5;
+    return e * fxNow(g, g.lastUpdate).crew;   // a Payday Rush doubles everyone
 }
 
 double roleLevels(const GameState& g, Role r) {
@@ -140,6 +249,7 @@ std::string starsText(const CrewMember& c) {
 }
 
 std::string crewEffectText(const GameState& g, const CrewMember& c) {
+    if (isAway(c)) return std::string("away on ") + EXPEDITIONS[std::clamp(c.trip, 0, EXPEDITION_COUNT - 1)].name + ", back in " + duration(c.away);
     double e = effectiveLevel(g, c);
     std::string s;
     switch (c.role) {
@@ -152,6 +262,7 @@ std::string crewEffectText(const GameState& g, const CrewMember& c) {
         case Role::Count:  break;
     }
     if (c.sulk > 0) s += " (sulking, half effort)";
+    if (c.hurt > 0) s += " (hurt, half effort for " + duration(c.hurt) + ")";
     return s;
 }
 
@@ -174,8 +285,11 @@ Notes hire(GameState& g, int idx) {
 
 Notes fire(GameState& g, int idx) {
     if (idx < 0 || idx >= (int)g.crew.size()) return {{Sev::Warn, "No such crew member."}};
+    if (isAway(g.crew[(size_t)idx])) return {{Sev::Warn, g.crew[(size_t)idx].name + " is away on an expedition. You can let them go when they're back."}};
     CrewMember c = g.crew[(size_t)idx];
     g.crew.erase(g.crew.begin() + idx);
+    remember(g, c, "fired");
+    g.fullCrewPaydays = 0;   // the Hearth wants nobody leaving
     return {{Sev::Info, who(c) + " packed up and left."}};
 }
 
@@ -183,6 +297,7 @@ Notes train(GameState& g, int idx) {
     if (!isUnlocked(g, Feature::Crew)) return {{Sev::Warn, lockedText(g, Feature::Crew)}};
     if (idx < 0 || idx >= (int)g.crew.size()) return {{Sev::Warn, "No such crew member."}};
     CrewMember& c = g.crew[(size_t)idx];
+    if (isAway(c)) return {{Sev::Warn, c.name + " is away on an expedition (back in " + duration(c.away) + ")."}};
     if (c.level >= levelCap(g, c)) {
         return {{Sev::Info, c.name + " is at their level cap (" + std::to_string(levelCap(g, c)) + "). Promote them to go further" +
                             std::string(crewLevelCap(g) < CREW_LEVEL_LIMIT ? ", or finish the Orrery's Gearwork." : ".")}};
@@ -200,6 +315,7 @@ Notes promote(GameState& g, int idx) {
     if (!isUnlocked(g, Feature::Crew)) return {{Sev::Warn, lockedText(g, Feature::Crew)}};
     if (idx < 0 || idx >= (int)g.crew.size()) return {{Sev::Warn, "No such crew member."}};
     CrewMember& c = g.crew[(size_t)idx];
+    if (isAway(c)) return {{Sev::Warn, c.name + " is away on an expedition (back in " + duration(c.away) + ")."}};
     if (c.level < levelCap(g, c)) {
         return {{Sev::Info, c.name + " can only be promoted at their level cap (" + std::to_string(levelCap(g, c)) +
                             "). Train them first."}};
@@ -209,10 +325,17 @@ Notes promote(GameState& g, int idx) {
 
     g.shards -= cost;
     c.stars += 1;
-    return {{Sev::Good, who(c) + " was promoted to " + std::string((size_t)c.stars, '*') + " (" + std::to_string(c.stars) +
+    Notes extra;
+    if (c.stars == 3) {
+        std::string item = leaveKeepsake(g, c, "a thank-you for their third star");
+        extra.push_back({Sev::Event, c.name + " is so proud of their third star they gave you something: " + item + " (on your shelf)."});
+    }
+    Notes out = {{Sev::Good, who(c) + " was promoted to " + std::string((size_t)c.stars, '*') + " (" + std::to_string(c.stars) +
                         (c.stars == 1 ? " star" : " stars") + "): level cap " + std::to_string(levelCap(g, c)) + ", every level worth +" +
                         std::to_string((int)std::lround(100 * PROMO_EFFECT * c.stars)) + "%. Next promotion: " +
                         num(promoteCost(c)) + " shards."}};
+    out.insert(out.end(), extra.begin(), extra.end());
+    return out;
 }
 
 void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
@@ -228,15 +351,19 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
     EventFx fx = fxNow(g, t);
 
-    for (CrewMember& c : g.crew)
+    for (CrewMember& c : g.crew) {
         if (c.sulk > 0) --c.sulk;
+        if (c.hurt > 0) --c.hurt;
+        if (c.away > 0 && --c.away == 0) comeBack(g, c, log, rng);
+    }
 
     for (const CrewMember& c : g.crew) {
+        if (isAway(c)) continue;   // exploring, not working
         switch (c.role) {
             case Role::Miner:
                 if (g.crewClock % MINER_EVERY == 0) {
                     long long gain = toTokens((double)minerSwing(g, c) * fx.mining);
-                    earn(g, gain);
+                    earn(g, gain, Source::Crew);
                     g.crewMined = addTokens(g.crewMined, gain);
                     g.crewMinedSinceReport = addTokens(g.crewMinedSinceReport, gain);
                 }

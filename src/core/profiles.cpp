@@ -68,7 +68,7 @@ std::string Profiles::find(const std::string& name) const {
 
 bool Profiles::exists(const std::string& name) const { return !find(name).empty(); }
 
-bool Profiles::validName(const std::string& raw, std::string& why) const {
+bool Profiles::validName(const std::string& raw, std::string& why, const std::string& renaming) const {
     std::string name = trim(raw);
     if (name.empty())      { why = "Give the profile a name."; return false; }
     if (name.size() > 24)  { why = "Keep it to 24 characters or fewer."; return false; }
@@ -84,7 +84,8 @@ bool Profiles::validName(const std::string& raw, std::string& why) const {
                                            "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"};
     for (const char* r : reserved)
         if (lower(name) == r) { why = "Windows doesn't allow that name for a folder."; return false; }
-    if (exists(name)) { why = "There's already a profile called " + name + "."; return false; }
+    bool sameProfile = !renaming.empty() && lower(name) == lower(renaming);   // "bob" -> "Bob"
+    if (exists(name) && !sameProfile) { why = "There's already a profile called " + name + "."; return false; }
     return true;
 }
 
@@ -125,6 +126,31 @@ bool Profiles::remove(const std::string& name, std::string& why) {
     std::error_code ec;
     fs::remove_all(dirOf(real), ec);
     if (ec) { why = "Couldn't delete it: " + ec.message(); return false; }
+    return true;
+}
+
+bool Profiles::rename(const std::string& name, const std::string& raw, std::string& why) {
+    std::string real = find(name);
+    if (real.empty()) { why = "No profile called " + name + "."; return false; }
+    std::string to = trim(raw);
+    if (to == real) { why = "That's already its name."; return false; }
+    if (!validName(to, why, real)) return false;
+
+    std::error_code ec;
+    if (lower(to) == lower(real)) {
+        // Only the case changes. On Windows (and macOS) the folder names count as the same, so
+        // go through a temporary name rather than trust a direct rename.
+        fs::path tmp = folder() / (real + ".renaming");
+        fs::rename(dirOf(real), tmp, ec);
+        if (!ec) {
+            fs::rename(tmp, dirOf(to), ec);
+            std::error_code back;
+            if (ec) fs::rename(tmp, dirOf(real), back);   // put it back the way it was
+        }
+    } else {
+        fs::rename(dirOf(real), dirOf(to), ec);
+    }
+    if (ec) { why = "Couldn't rename it: " + ec.message(); return false; }
     return true;
 }
 

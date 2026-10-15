@@ -5,6 +5,7 @@
 #include "commands.hpp"
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/util.hpp"
@@ -27,18 +28,22 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Clear:    return Outcome::Clear;
         case Cmd::Unknown:  out() << paint(Style::Warn, "Unknown command. Type 'help'.") << "\n"; break;
         case Cmd::Locked:   break;   // commandAllowed already said why
-        case Cmd::Help:     printHelp(s); break;
+        case Cmd::Help:     printHelp(s, rest); break;
         case Cmd::Status:   printStatus(s); break;
         case Cmd::Stats:    doStats(s); break;
         case Cmd::Mine:     doMine(s, rng); break;
         case Cmd::Shop:     doShop(s, rest); break;
         case Cmd::Auto:     doAuto(s, arg); break;
-        case Cmd::Log:      doLog(s); break;
+        case Cmd::Respond:  doRespond(s); break;
+        case Cmd::Repair:   doRepair(s, arg); break;
+        case Cmd::Log:      doLog(s, rest); break;
         case Cmd::Save:     out() << (saveNow(s) ? paint(Style::Good, "Saved.") : paint(Style::Bad, "Save failed.")) << "\n"; break;
-        case Cmd::Wipe:     doWipe(s); break;
+        case Cmd::Wipe:     doWipe(s); setTheme(0); break;
         case Cmd::Goals:    doGoals(s); break;
         case Cmd::Curios:   doCurios(s, arg); break;
         case Cmd::Prompt:   doPrompt(s, rest); break;
+        case Cmd::Theme:    doTheme(s, arg); break;
+        case Cmd::Stars:    doStars(s); break;
         case Cmd::Orrery:   doOrrery(s, arg); break;
         case Cmd::Monolith: doBuild(s, ""); break;
         case Cmd::Build:    doBuild(s, arg); break;
@@ -46,6 +51,11 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Buy:       doBuy(s, arg); break;
         case Cmd::Sell:      doSell(s, arg); break;
         case Cmd::Contracts: doContracts(s); break;
+        case Cmd::Clients:   doClients(s); break;
+        case Cmd::Workshop:  doWorkshop(s); break;
+        case Cmd::Craft:     doCraft(s, rest); break;
+        case Cmd::Equip:     doEquip(s, rest); break;
+        case Cmd::Unequip:   doUnequip(s, rest); break;
         case Cmd::Accept:    doAccept(s, arg); break;
         case Cmd::Abandon:   doAbandon(s, arg); break;
         case Cmd::Crew:      doCrew(s); break;
@@ -53,6 +63,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Fire:      doFire(s, arg); break;
         case Cmd::Train:     doTrain(s, arg); break;
         case Cmd::Promote:   doPromote(s, arg); break;
+        case Cmd::Expedition: doExpedition(s, rest); break;
         case Cmd::Yes:       doAnswer(s, rng, true); break;
         case Cmd::No:        doAnswer(s, rng, false); break;
         case Cmd::Quit:      result = Outcome::Quit; break;
@@ -66,6 +77,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         std::lock_guard lk(s.m);
         checkContract(s.g, s.log);
         checkRace(s.g, s.log);
+        checkDisaster(s.g, s.log);
         checkGoals(s.g, s.log);
     }
     return result;

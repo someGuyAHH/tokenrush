@@ -12,6 +12,16 @@ std::time_t nowSec() {
     return std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 }
 
+int localHour(std::time_t t) {
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    return tm.tm_hour;
+}
+
 unsigned makeSeed() {
     // random_device can be deterministic on some MinGW builds, so mix in the clock.
     return std::random_device{}() ^

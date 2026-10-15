@@ -4,7 +4,8 @@
 // state, call into the core, and turn what comes back into colored text.
 //
 //   dispatch.cpp  one typed line -> the right function below (shared by the CLI and the TUI console)
-//   commands.cpp  parsing, help, status, stats, goals, log, mining, offers, auto, wipe
+//   help.cpp      the command table: names, aliases, 'help' and 'help <command>'
+//   commands.cpp  status, stats, goals, log, mining, offers, auto, wipe
 //   spending.cpp  shop, curios, prompt styles, the Monolith
 //   economy.cpp   market, contracts, crew
 
@@ -20,14 +21,16 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
+    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair, Stars,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
-Cmd parseCmd(const std::string& word);   // expects lowercase
+Cmd parseCmd(const std::string& word);   // expects lowercase (help.cpp, from the command table)
+int commandFeature(Cmd c);               // the Feature a command needs, or -1 (help.cpp)
 
 // ----- commands.cpp -----
 bool commandAllowed(Shared& s, Cmd c);           // false (after saying why) for a feature that isn't unlocked yet
-void printHelp(Shared& s);                       // only lists what's unlocked
+void printHelp(Shared& s, const std::string& topic = "");   // only lists what's unlocked; a topic explains one command (help.cpp)
 void printStatus(Shared& s);
 void printPending(Shared& s);                    // background messages, shown before each prompt
 std::string promptText(Shared& s);               // "[Title] > "
@@ -35,14 +38,18 @@ void doMine(Shared& s, std::mt19937& rng);
 void doStats(Shared& s);
 void doAnswer(Shared& s, std::mt19937& rng, bool yes);   // the open offer (choice event)
 void doAuto(Shared& s, const std::string& arg);
+void doRespond(Shared& s);                       // the disaster that's coming: stop it
+void doRepair(Shared& s, const std::string& arg); // no arg: what's broken; "2" or "all": fix it
 void doGoals(Shared& s);
-void doLog(Shared& s);
+void doLog(Shared& s, const std::string& args);   // [n] [good|bad|warn|event|info]
 void doWipe(Shared& s);
 
 // ----- spending.cpp -----
 void doShop(Shared& s, const std::string& args);     // no args: the shop menu; "1 10": buy right away
 void doCurios(Shared& s, const std::string& arg);    // no arg: the shelf menu; "3": buy that one
 void doPrompt(Shared& s, const std::string& arg);
+void doTheme(Shared& s, const std::string& arg);
+void doStars(Shared& s);                             // the Constellations: the sky map and the feats     // no arg: every theme with a preview; "3" or "glacier": buy or switch
 void doBuild(Shared& s, const std::string& arg); // empty arg just shows the Monolith
 void doOrrery(Shared& s, const std::string& arg); // empty arg just shows the Orrery
 
@@ -50,11 +57,18 @@ void doOrrery(Shared& s, const std::string& arg); // empty arg just shows the Or
 class Profiles;
 std::string pickProfile(Profiles& profiles);   // the chosen profile's name, or "" to quit
 
+// ----- workshop.cpp -----
+void doWorkshop(Shared& s);
+void doCraft(Shared& s, const std::string& arg);     // a number or a name
+void doEquip(Shared& s, const std::string& arg);
+void doUnequip(Shared& s, const std::string& arg);
+
 // ----- economy.cpp -----
 void doMarket(Shared& s);
 void doBuy(Shared& s, const std::string& arg);   // <n|max>
 void doSell(Shared& s, const std::string& arg);  // <n|all>
 void doContracts(Shared& s);
+void doClients(Shared& s);                       // standing with every client
 void doAccept(Shared& s, const std::string& arg);
 void doAbandon(Shared& s, const std::string& arg);   // empty: the only job
 void doCrew(Shared& s);
@@ -62,3 +76,4 @@ void doHire(Shared& s, const std::string& arg);
 void doFire(Shared& s, const std::string& arg);
 void doTrain(Shared& s, const std::string& arg);
 void doPromote(Shared& s, const std::string& arg);
+void doExpedition(Shared& s, const std::string& args);   // <n> <short|long|deep>; anything less explains

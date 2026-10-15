@@ -58,6 +58,9 @@ struct Ui {
     int fireArmed = -1;
     Clock::time_point fireArmedUntil{};
 
+    // Crew tab: which expedition the Send buttons start
+    int expeditionTrip = 0;
+
     // Goals tab
     int goalSelected = 0;
 
@@ -70,6 +73,8 @@ struct Ui {
     std::string consoleLine;
     int consoleCursor = 0;
     int historyAt = -1;        // -1: typing a new line; otherwise an index into the console's history
+    int consoleScroll = 0;     // lines scrolled back from the bottom (0: following the newest output)
+    size_t consoleSeen = 0;    // Console::total() at the last frame, to hold the view still while scrolled back
 
     bool typing() const;       // a text box has focus
 
@@ -79,6 +84,17 @@ struct Ui {
     void saveNow();
     float mineCooldownLeft() const;                               // 1 = just mined, 0 = ready
 };
+
+// ----- Themes (widgets.cpp) -----
+// Every color on screen comes from the profile's theme. Classic maps to the original named
+// terminal colors, so it looks exactly as before; the others are 24-bit RGB, background included.
+void useTheme(int theme);                  // done by Ui::snapshot() every frame
+int currentTheme();
+ftxui::Color hue(Hue h);                   // the current theme's color for a role
+ftxui::Color hueOf(int theme, Hue h);      // another theme's (for previews)
+ftxui::Decorator muted();                  // quiet text: faint in Classic, the Muted color elsewhere
+ftxui::Decorator track();                  // a gauge's empty part: the Panel color when themed (Classic: nothing)
+ftxui::Element themed(ftxui::Element e);   // the theme's background and text color under a whole screen
 
 // ----- widgets.cpp -----
 // `cond ? Color::Green : Color::Default` doesn't compile: the names come from different
@@ -120,6 +136,8 @@ ftxui::Component CrewPage(Ui& ui);
 ftxui::Component CuriosPage(Ui& ui);
 ftxui::Component MonolithPage(Ui& ui);
 ftxui::Component OrreryPage(Ui& ui);
+ftxui::Component WorkshopPage(Ui& ui);
+ftxui::Component StarsPage(Ui& ui);
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);
 ftxui::Component ConsolePage(Ui& ui);

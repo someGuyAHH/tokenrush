@@ -16,6 +16,7 @@
 // type instead, and Esc steps out. Tab/arrows/Enter work too, and everything is clickable.
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -24,11 +25,13 @@
 #include "console.hpp"
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
 #include "core/profiles.hpp"
 #include "core/session.hpp"
 #include "core/util.hpp"
+#include "shell/term.hpp"
 #include "ui.hpp"
 
 using namespace ftxui;
@@ -46,6 +49,7 @@ const TabDef TABS[] = {
     {"Mine", -1}, {"Shop", -1}, {"Goals", -1}, {"Stats", -1},
     {"Curios", (int)Feature::Curios}, {"Monolith", (int)Feature::Monolith}, {"Market", (int)Feature::Market},
     {"Jobs", (int)Feature::Contracts}, {"Crew", (int)Feature::Crew}, {"Orrery", (int)Feature::Orrery},
+    {"Workshop", (int)Feature::Workshop}, {"Stars", (int)Feature::Stars},
     {"Console", -1},   // always last; ':' opens it from anywhere
 };
 constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
@@ -53,23 +57,23 @@ constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
 Element statusBar(const tui::Ui& ui) {
     const GameState& g = ui.snap;
     int renown = renownOf(g);
-    Elements top = {text(" Tokens ") | dim, tui::tokens(g.tokens) | bold};
+    Elements top = {text(" Tokens ") | tui::muted(), tui::tokens(g.tokens) | bold};
     if (isUnlocked(g, Feature::Market)) {
-        top.push_back(text("   Shards ") | dim);
+        top.push_back(text("   Shards ") | tui::muted());
         top.push_back(tui::shards(g.shards) | bold);
-        top.push_back(text(" @" + fixed(g.shardPrice, 1)) | dim);
+        top.push_back(text(" @" + fixed(g.shardPrice, 1)) | tui::muted());
     }
     if (isUnlocked(g, Feature::Contracts)) {
-        top.push_back(text("   Heat ") | dim);
+        top.push_back(text("   Heat ") | tui::muted());
         top.push_back(tui::heatBar(g.heat));
     }
     top.push_back(filler());
     if (g.strain != Strain::None) {
-        if (g.cured) top.push_back(text(std::string("cured of ") + STRAINS[(int)g.strain].name + " · ") | dim);
-        else         top.push_back(text(std::string("INFECTED: ") + STRAINS[(int)g.strain].name + " · ") | color(Color::GreenYellow) | bold);
+        if (g.cured) top.push_back(text(std::string("cured of ") + STRAINS[(int)g.strain].name + " · ") | tui::muted());
+        else         top.push_back(text(std::string("INFECTED: ") + STRAINS[(int)g.strain].name + " · ") | color(tui::hue(Hue::Infected)) | bold);
     }
     top.insert(top.end(), {
-        ui.profile.empty() ? text("") : text(ui.profile + " · ") | dim,
+        ui.profile.empty() ? text("") : text(ui.profile + " · ") | tui::muted(),
         text(TITLES[titleIndex(renown)].name) | bold, text(" "),
     });
 
@@ -77,32 +81,40 @@ Element statusBar(const tui::Ui& ui) {
     int ev = activeEvent(g, ui.snapTime);
     if (ev != EV_NONE) {
         second.push_back(text(std::string(EVENTS[ev].name) + " " + std::to_string((long long)std::difftime(g.eventEnds, ui.snapTime)) + "s") |
-                         color(Color::Magenta) | bold);
+                         color(tui::hue(Hue::Event)) | bold);
         second.push_back(text("   "));
     }
     if (g.race.stake > 0) {
         second.push_back(text("RACE " + std::to_string(g.manualMines - g.race.startMines) + "/" + std::to_string(g.race.target) +
-                              " mines, " + std::to_string(g.race.secondsLeft) + "s") | color(Color::Magenta) | bold);
+                              " mines, " + std::to_string(g.race.secondsLeft) + "s") | color(tui::hue(Hue::Event)) | bold);
         second.push_back(text("   "));
     }
     if (g.investment.amount > 0) {
-        second.push_back(text("Loan back in " + duration(g.investment.secondsLeft)) | dim);
+        second.push_back(text("Loan back in " + duration(g.investment.secondsLeft)) | tui::muted());
         second.push_back(text("   "));
     }
     for (size_t j = 0; j < g.contracts.size(); ++j) {
         const Contract& c = g.contracts[j];
         // One job gets its description; two share the line, so each shows only its gauge.
-        if (g.contracts.size() == 1) second.push_back(text("Job: " + contractText(c) + " ") | dim);
-        else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | dim);
-        second.push_back(tui::progress(contractProgress(g, c), c.target, 8));
-        second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, Color::Yellow, Color::GrayLight)));
+        if (g.contracts.size() == 1) second.push_back(text("Job: " + contractText(c) + " ") | tui::muted());
+        else second.push_back(text((j > 0 ? "   Job " : "Job ") + std::to_string(j + 1) + " ") | tui::muted());
+        second.push_back(tui::progress(contractProgress(g, c), contractGoal(c), 8));
+        second.push_back(text("  " + duration(c.secondsLeft)) | color(tui::pick(c.secondsLeft <= CONTRACT_WARN_AT, tui::hue(Hue::Warn), tui::hue(Hue::Muted))));
+    }
+    if (anythingBroken(g) || g.dronesDown > 0) {
+        std::string list;
+        for (const Repair& r : repairs(g)) list += (list.empty() ? "" : ", ") + r.what;
+        if (g.dronesDown > 0) list += (list.empty() ? "" : ", ") + num(g.dronesDown) + " Drones (back in " + duration(g.dronesDownSecs) + ")";
+        if (second.size() > 1) second.push_back(text("   "));
+        second.push_back(text("Broken: " + list) | color(tui::hue(Hue::Bad)));
+        second.push_back(text("   "));
     }
     if (int next = nextUnlock(g); next >= 0 && g.contracts.empty()) {
         const Title& t = TITLES[FEATURES[next].title];
         second.push_back(text("Next unlock: " + std::string(FEATURES[next].name) + " at the title " + t.name + " (" +
-                              std::to_string(renown) + "/" + std::to_string(t.renown) + " renown)") | dim);
+                              std::to_string(renown) + "/" + std::to_string(t.renown) + " renown)") | tui::muted());
     } else if (g.contracts.empty()) {
-        second.push_back(text("No contract. See the Jobs tab.") | dim);
+        second.push_back(text("No contract. See the Jobs tab.") | tui::muted());
     }
     return vbox({hbox(top), hbox(second)});
 }
@@ -113,7 +125,11 @@ Element logPane(Shared& s) {
     Elements rows;
     for (const LogEntry& e : s.log.recent((size_t)n)) rows.push_back(tui::logLine(e));
     while ((int)rows.size() < n) rows.push_back(text(""));   // fixed height, so nothing jumps
-    return window(text(" LOG ") | bold, vbox(rows));
+    if (THEMES[tui::currentTheme()].classic) return window(text(" LOG ") | bold, vbox(rows));
+    // Themed: a quiet frame with an accent title on the slightly lighter panel color, so the
+    // messages stand out from the border and the log from the page below.
+    return window(text(" LOG ") | bold | color(tui::hue(Hue::Accent)), vbox(rows)) | color(tui::hue(Hue::Muted)) |
+           bgcolor(tui::hue(Hue::Panel));
 }
 
 }  // namespace
@@ -177,11 +193,19 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     };
     MenuOption tabOpt = MenuOption::Horizontal();
     tabOpt.focused_entry = &tabFocus;
+    auto classicTab = tabOpt.entries_option.transform;   // FTXUI's own look, kept for the Classic theme
+    tabOpt.entries_option.transform = [classicTab](const EntryState& st) {
+        if (THEMES[tui::currentTheme()].classic) return classicTab(st);
+        // Themed: the open tab is a chip in the accent color, the rest are quiet.
+        if (st.active) return text(st.label) | bold | color(tui::hue(Hue::Background)) | bgcolor(tui::hue(Hue::Accent));
+        Element e = text(st.label) | color(tui::hue(st.focused ? Hue::Text : Hue::Muted));
+        return st.focused ? e | underlined : e;
+    };
     tabOpt.on_change = [&] { if (ui.tab >= 0 && ui.tab < (int)tabPage.size()) showPage(tabPage[(size_t)ui.tab]); };
     Component tabBar = Menu(&tabNames, &ui.tab, tabOpt);
     Components pageList = {tui::MinePage(ui), tui::ShopPage(ui), tui::GoalsPage(ui), tui::StatsPage(ui), tui::CuriosPage(ui),
                            tui::MonolithPage(ui), tui::MarketPage(ui), tui::JobsPage(ui), tui::CrewPage(ui),
-                           tui::OrreryPage(ui), tui::ConsolePage(ui)};
+                           tui::OrreryPage(ui), tui::WorkshopPage(ui), tui::StarsPage(ui), tui::ConsolePage(ui)};
     Component pages = Container::Tab(pageList, &ui.page);
     ui.snapshot();
     refreshTabs();
@@ -192,9 +216,19 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     Component noBtn = tui::Btn("No (n)", [answer] { answer(false); });
     Component offerBar = Maybe(Container::Horizontal({yesBtn, noBtn}), [&ui] { return hasChoice(ui.snap); });
 
-    // The offer bar comes last in the focus order, so an offer showing up never moves the keyboard
-    // onto its Yes button (a stray Enter would accept). Click it, or press y / n.
-    Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar}), [&] {
+    // ----- Disasters -----
+    auto respond = [&ui] { ui.run([](GameState& g) { return respondDisaster(g); }); };
+    Component respondBtn = tui::Btn([&ui] {
+        if (!disasterPending(ui.snap)) return std::string("");
+        std::string verb = DISASTERS[ui.snap.disaster.kind].verb;
+        verb[0] = (char)std::toupper((unsigned char)verb[0]);
+        return verb + " (x)";
+    }, respond);
+    Component dangerBar = Maybe(respondBtn, [&ui] { return disasterPending(ui.snap); });
+
+    // The offer and danger bars come last in the focus order, so one showing up never moves the
+    // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
+    Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar, dangerBar}), [&] {
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
         // On the Console, the typing line always has the keyboard.
@@ -202,22 +236,32 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
 
         Element offer = text("");
         if (hasChoice(ui.snap)) {
-            offer = hbox({text(" OFFER ") | bgcolor(Color::Magenta) | color(Color::White) | bold, text(" "),
-                          paragraph(choiceText(ui.snap)) | flex, text("  " + std::to_string(ui.snap.choice.secondsLeft) + "s  ") | dim,
+            offer = hbox({text(" OFFER ") | bgcolor(tui::hue(Hue::Event)) | color(tui::hue(Hue::ButtonText)) | bold, text(" "),
+                          paragraph(choiceText(ui.snap)) | flex, text("  " + std::to_string(ui.snap.choice.secondsLeft) + "s  ") | tui::muted(),
                           yesBtn->Render(), text(" "), noBtn->Render()});
         }
-        return vbox({
+        Element danger = text("") | size(HEIGHT, EQUAL, 0);
+        if (disasterPending(ui.snap)) {
+            danger = hbox({text(" DANGER ") | bgcolor(tui::hue(Hue::Bad)) | color(tui::hue(Hue::ButtonText)) | bold, text(" "),
+                           text(std::string(DISASTERS[ui.snap.disaster.kind].name) + ": ") | bold | color(tui::hue(Hue::Bad)),
+                           paragraph(disasterText(ui.snap)) | flex,
+                           text("  " + std::to_string(ui.snap.disaster.secondsLeft) + "s  ") | color(tui::hue(Hue::Warn)) | bold,
+                           respondBtn->Render()});
+        }
+        return tui::themed(vbox({
             logPane(s),
             statusBar(ui),
+            danger,
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),
             tabBar->Render(),
-            separatorLight(),
+            THEMES[tui::currentTheme()].classic ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
             text(ui.page == CONSOLE_PAGE
-                     ? std::string(" Esc back to the game   Up/Down earlier lines   (everything you type goes to the console)")
-                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   : console   ") + (profile.empty() ? "" : "p profile   ") +
-                           "q quit") | dim,
-        });
+                     ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
+                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
+                           (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
+                           "q quit") | tui::muted(),
+        }));
     });
 
     Component root = CatchEvent(layout, [&](Event e) {
@@ -234,6 +278,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (e == Event::Character('m')) { ui.mineNow(); return true; }
         if (e == Event::Character('s')) { ui.saveNow(); return true; }
         if (e == Event::Character('y') && hasChoice(ui.snap)) { answer(true); return true; }
+        if (e == Event::Character('x') && disasterPending(ui.snap)) { respond(); return true; }
         if (e == Event::Character('n') && hasChoice(ui.snap)) { answer(false); return true; }
         if (e == Event::Character(':')) { showPage(CONSOLE_PAGE); return true; }
         if (e == Event::Character('p') && !profile.empty()) { end = SessionEnd::Logout; screen.Exit(); return true; }
@@ -257,6 +302,8 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     console.stop();
     workers.stop();
     bool saved = saveNow(s);
+    tui::useTheme(0);   // the profile picker is nobody's: back to Classic
+    setTheme(0);
     if (end == SessionEnd::Quit) std::cout << (saved ? "Saved. Bye.\n" : "Save failed. Bye.\n");
     else if (!saved)             std::cout << "Save failed!\n";
     return end;
