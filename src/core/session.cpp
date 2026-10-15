@@ -19,6 +19,8 @@ ArgsResult parseLaunchArgs(int argc, char** argv, const std::string& program, La
         std::string a = argv[i], v;
         if (a == "--no-color") {
             opt.noColor = true;
+        } else if (a == "--no-update-check") {
+            opt.noUpdateCheck = true;
         } else if (a == "--profile") {
             if (!value(i, a, v)) return ArgsResult::Error;
             opt.profile = v;
@@ -29,10 +31,11 @@ ArgsResult parseLaunchArgs(int argc, char** argv, const std::string& program, La
             if (!value(i, a, v)) return ArgsResult::Error;
             opt.saveDir = v;
         } else if (a == "--help" || a == "-h") {
-            message = "Usage: " + program + " [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color]\n"
-                      "  --profile   play this profile without the picker (created if it doesn't exist)\n"
-                      "  --data-dir  where profiles live (default: " + defaultDataRoot().string() + ")\n"
-                      "  --save-dir  play straight from this folder, ignoring profiles";
+            message = "Usage: " + program + " [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color] [--no-update-check]\n"
+                      "  --profile          play this profile without the picker (created if it doesn't exist)\n"
+                      "  --data-dir         where profiles live (default: " + defaultDataRoot().string() + ")\n"
+                      "  --save-dir         play straight from this folder, ignoring profiles\n"
+                      "  --no-update-check  started from play.py, don't look for updates on GitHub";
             return ArgsResult::Help;
         } else {
             message = "Unknown option: " + a + "  (try --help)";

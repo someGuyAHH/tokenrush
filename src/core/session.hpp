@@ -15,11 +15,13 @@ struct LaunchOptions {
     std::string profile;              // --profile: skip the picker (created if it doesn't exist)
     std::filesystem::path saveDir;    // --save-dir: play straight from this folder, no profiles
     bool noColor = false;
+    bool noUpdateCheck = false;       // --no-update-check: don't look on GitHub (see play.py)
 };
 
 enum class ArgsResult { Ok, Help, Error };
 
-// Understands --profile <name>, --data-dir <folder>, --save-dir <folder>, --no-color and --help.
+// Understands --profile <name>, --data-dir <folder>, --save-dir <folder>, --no-color,
+// --no-update-check and --help.
 // For Help and Error, `message` says what to print. `program` is the name in the usage line.
 ArgsResult parseLaunchArgs(int argc, char** argv, const std::string& program, LaunchOptions& opt, std::string& message);
 

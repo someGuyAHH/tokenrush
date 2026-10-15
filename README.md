@@ -29,7 +29,17 @@ Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
 
 ## Run
 
-    tokenrush-tui [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color]
+    python play.py [options]     # recommended: builds if needed, and keeps the game up to date
+    tokenrush-tui [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color] [--no-update-check]
+
+**Updates.** Started through `play.py` (from a git clone), the game checks GitHub for new
+commits in the background. If there are any, the profile screen says what's new and offers
+**update now** / **not now**, and in the game the log says so and `u` updates. On a yes the
+game saves and quits, and `play.py` runs `git pull --ff-only`, then `build.py`, then starts the
+game again. If the pull or the build fails (say, your own edits clash with the update), it
+shows git's or g++'s reason and starts the version you had. Started any other way, or with
+`--no-update-check`, the game never looks. (The game can't do it alone: Windows won't
+overwrite a running `.exe`.)
 
 It starts with a **profile picker**: choose a profile, make a new one, or delete one (no
 passwords, for now). Each profile is a folder with its own save:
@@ -41,6 +51,7 @@ passwords, for now). Each profile is a folder with its own save:
 - `--data-dir <folder>` keeps profiles somewhere else.
 - `--save-dir <folder>` ignores profiles and plays straight from that folder.
 - `--no-color` (or the `NO_COLOR` environment variable) turns colors off.
+- `--no-update-check` skips the update check under `play.py`.
 
 A save from before profiles (the `.save` folder next to the exe) can be imported from the
 picker. The original is kept, renamed to `tokenrush.save.imported`. Profiles can be renamed from

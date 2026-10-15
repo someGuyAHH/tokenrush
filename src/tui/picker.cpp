@@ -3,10 +3,13 @@
 // simply restarts with fresh buttons.
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 #include "core/profiles.hpp"
 #include "core/util.hpp"
 #include "ui.hpp"
+#include "update.hpp"
 
 using namespace ftxui;
 
@@ -111,9 +114,16 @@ std::string pickProfile(Profiles& profiles) {
         });
         Component quitBtn = FlatBtn([] { return std::string("quit"); }, [&] { screen.Exit(); });
 
+        // An update found by play.py's check: update now (quit, and play.py pulls, builds and
+        // starts the game again), or not now (not asked again this run).
+        auto updateShown = [] { return tui::updateReady() && !tui::updateDismissed(); };
+        Component updateBtn = FlatBtn([] { return std::string("update now"); }, [&] { requestUpdate(); screen.Exit(); });
+        Component laterBtn = FlatBtn([] { return std::string("not now"); }, [] { dismissUpdate(); });
+        Component updateRow = Maybe(Container::Horizontal({updateBtn, laterBtn}), updateShown);
+
         Components bottom = {input, createBtn};
         if (legacy) bottom.push_back(importBtn);
-        Component all = Container::Vertical({Grid(rows), Container::Horizontal(bottom), quitBtn});
+        Component all = Container::Vertical({Grid(rows), Container::Horizontal(bottom), quitBtn, updateRow});
 
         Component ui = Renderer(all, [&] {
             Elements lines;
@@ -127,14 +137,22 @@ std::string pickProfile(Profiles& profiles) {
                                box, text("   "), createBtn->Render()};
             if (legacy) { newRow.push_back(text("   ")); newRow.push_back(importBtn->Render()); }
 
-            Elements body = {
-                text(""),
-                text("   Choose a profile") | color(hue(Hue::Accent)),
-                text(""),
+            Elements body = {text("")};
+            if (updateShown()) {
+                UpdateInfo u = *updateAvailable();
+                body.push_back(hbox({text("   Update: ") | color(hue(Hue::Accent)), paragraph(updateSummary(u)) | color(hue(Hue::Text)) | flex}));
+                if (u.edited) body.push_back(text("   You've changed some of the code; if the update touches the same files it'll stop and say so.") | muted());
+                body.push_back(hbox({text("   "), updateBtn->Render(), text("   "), laterBtn->Render(),
+                                     text("     or press u") | muted()}));
+                body.push_back(text(""));
+            }
+            for (Element e : {text("   Choose a profile") | color(hue(Hue::Accent)), text("")}) body.push_back(e);
+            Elements rest = {
                 vbox(lines),
                 text(""),
                 hbox(newRow),
             };
+            for (Element& e : rest) body.push_back(e);
             if (legacy)
                 body.push_back(text(" Found a save from before profiles: " + Profiles::legacySave().string() +
                                     ". Type a name (or leave it empty for \"Default\") and import it.") | muted());
@@ -158,11 +176,20 @@ std::string pickProfile(Profiles& profiles) {
                 return true;
             }
             if (e == Event::CtrlC || e == Event::Escape) { screen.Exit(); return true; }
+            if (e == Event::Character('u') && updateShown() && !input->Focused()) { requestUpdate(); screen.Exit(); return true; }
             return false;
         });
 
-        screen.Loop(root);
-        if (!restart) return chosen;   // a profile, or "" to quit
+        {
+            // Redraw once the update check finishes, so its prompt shows up without a key press.
+            std::jthread waker([&screen](std::stop_token st) {
+                while (!st.stop_requested() && !updateCheckDone()) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (!st.stop_requested()) screen.PostEvent(Event::Custom);
+            });
+            screen.Loop(root);
+        }
+        if (updateRequested()) return "";   // main() hands over to play.py
+        if (!restart) return chosen;        // a profile, or "" to quit
     }
 }
 
