@@ -127,7 +127,14 @@ std::string choiceText(const GameState& g) {
             return "A rival miner bets " + num(c.tokens) + " tokens you can't mine " + std::to_string(RACE_MINES) +
                    " times in " + std::to_string(RACE_SECONDS) + " seconds. Win and you double it.";
         case ChoiceKind::Raise:
-            return c.crewName + " wants a raise: +1 shard per payday, and they'll work 25% harder. Say no and they'll sulk for a while.";
+            for (const CrewMember& m : g.crew) {
+                if (m.name != c.crewName) continue;
+                CrewMember raised = m;
+                raised.raises += 1;
+                return c.crewName + " wants a raise: their wage goes from " + count(wageOf(g, m), "shard") + " to " +
+                       num(wageOf(g, raised)) + " per payday, and they'll work 25% harder. Say no and they'll sulk for a while.";
+            }
+            return c.crewName + " wants a raise.";
         case ChoiceKind::Bribe:
             return "An auditor hints that " + num(c.tokens) + " tokens would make 2 heat disappear.";
         case ChoiceKind::Dealer:
@@ -180,8 +187,10 @@ Notes answerChoice(GameState& g, bool yes, std::mt19937& rng) {
             return {{Sev::Event, "GO! Mine " + std::to_string(RACE_MINES) + " times in " + std::to_string(RACE_SECONDS) + " seconds!"}};
         case ChoiceKind::Raise:
             if (CrewMember* m = crewNamed(g, c.crewName)) {
+                long long before = wageOf(g, *m);
                 m->raises += 1;
-                return {{Sev::Good, c.crewName + " beams. Wage +1, and they'll work harder."}};
+                return {{Sev::Good, c.crewName + " beams. Wage " + num(before) + " -> " + count(wageOf(g, *m), "shard") +
+                                    " per payday, and they'll work harder."}};
             }
             return {{Sev::Info, c.crewName + " isn't on your crew anymore."}};
         case ChoiceKind::Bribe:

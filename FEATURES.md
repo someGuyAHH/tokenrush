@@ -404,7 +404,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   30% less if Ambitious) and gives **+3 levels of cap** and **+25% per level**. There's no hard
   limit; it just stops being worth it. The Train button turns into Promote; the Console has
   `promote <n>`.
-- **Wage** = level (×2 Greedy, half Frugal, ×2 Mutiny) + raises. Still paid while away.
+- **Wage:** see Wages above (rank-based since v10). Still paid while away.
 - **Former crew:** everyone who quits or is fired is remembered (`[formercrew]`, the last 40),
   shown under Stats. A full crew of 5 through paydays with nobody leaving counts for the Hearth.
 
@@ -433,7 +433,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
      back in 10 min, 20% of the time they vanish. The loan is saved in `[investment]`.
   3. **Rival Miner** (needs 2,000 tokens): bet 5% of your tokens; mine 40 times by hand within
      60 s to double it. The race isn't saved, so quitting mid-race loses the bet.
-  4. **Raise Request** (Crew open): yes gives +1 wage and +25% work (at most 3 raises per
+  4. **Raise Request** (Crew open): yes gives +25% work for good, and the wage that goes with it (the offer says what it'll be) (at most 3 raises per
      member); no means they sulk at half effort for 10 min.
   5. **Bribe the Auditor** (heat 3+): pay about 3 min of income to drop heat by 2.
   6. **Curio Dealer** (Curios open): one of the Under the Counter curios you don't have and can
