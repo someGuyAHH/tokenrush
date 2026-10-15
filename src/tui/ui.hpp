@@ -107,7 +107,9 @@ ftxui::Element themed(ftxui::Element e);   // the theme's background and text co
 inline ftxui::Color pick(bool cond, ftxui::Color a, ftxui::Color b) { return cond ? a : b; }
 
 ftxui::Color sevColor(Sev sev);
-ftxui::Element logLine(const LogEntry& e);
+// A log message as screen lines `width` wide: wrapped at words, the time on the first line only.
+// With `maxLines` it stops there, ending in "...".
+ftxui::Elements logLines(const LogEntry& e, int width, int maxLines = 0);
 ftxui::Element cell(const std::string& s, int width);             // fixed-width text
 ftxui::Element tokens(long long n);                               // gold number
 ftxui::Element shards(long long n);                               // blue number

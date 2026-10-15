@@ -290,9 +290,13 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Big jobs (35%):**
   - Longer, and targets of 1.2–1.7×.
   - A shard stake of 3–60.
-  - They pay 0.5 × value + 4–8 shards.
-  - Small jobs pay 0.25 × value + 1–3 shards.
+  - They pay 0.7 × value + 4–8 shards.
+  - Small jobs pay 0.35 × value + 1–3 shards.
+  - The shards grow with each doubling of income: × (1 + log2(income / 10K)), at least ×1
+    (about ×8 at 1M tokens/s, ×17 at 500M/s). A shard costs about the same at every stage, so
+    they can't follow income one for one the way tokens do.
   - Brokers add up to +200% shards.
+  - The stake is capped at 60, or half the shard pay if that's more.
 - **Slots:** 1, or 2 after the Orrery's Second Ring.
 - **Failing or abandoning:** you lose the stake and gain heat (+1, big +2). Finishing a big job cools heat by 1.
 - **Gadgets:** Forged Papers give new offers 25% more time for 20% less pay; the Fog Machine
@@ -334,7 +338,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Roles** (all use the member's *effective level*):
   - **Miner:** a swing every 5 s worth expectedMine × (0.15 + 0.10 × eff).
   - **Broker:** a tighter spread, less price impact, more contract shards.
-  - **Scout:** min(95%, 25% + 10% × eff) chance a minute to find 1..eff shards.
+  - **Scout:** min(95%, 25% + 10% × eff) chance a minute to find shards: eff at best, and no less
+    than 40% (10 at most) below that (L8: 5–8, L22: 14–22).
   - **Fixer:** heat cools faster; blocks min(75%, 15% × eff) of audits.
 - **Effective level** = level × (1 + 0.25 × stars) × (1 + 0.25 × raises) × trait, ×0.5 while
   sulking or hurt, ×2 for an idle Night Owl, ×2 during a Payday Rush, and 0 while away.

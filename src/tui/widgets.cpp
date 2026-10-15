@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 
 #include "core/choices.hpp"
 #include "core/contracts.hpp"
@@ -166,11 +167,58 @@ Color sevColor(Sev sev) {
     return hue(Hue::Text);
 }
 
-Element logLine(const LogEntry& e) {
-    Element msg = text(e.text) | color(sevColor(e.sev));
-    if (e.sev == Sev::Event) msg = msg | bold;
-    // A long message is cut at the right edge; the timestamp keeps its room.
-    return hbox({text(e.stamp + "  ") | muted() | size(WIDTH, EQUAL, (int)e.stamp.size() + 2), msg | flex_shrink});
+// Columns on screen: every byte but UTF-8 continuation bytes is a character.
+static int columns(const std::string& s) {
+    return (int)std::count_if(s.begin(), s.end(), [](char ch) { return ((unsigned char)ch & 0xC0) != 0x80; });
+}
+
+// The first `n` characters of `s` (keeping whole UTF-8 characters).
+static size_t bytesFor(const std::string& s, int n) {
+    size_t i = 0;
+    for (int k = 0; i < s.size() && k < n; ++k)
+        do ++i; while (i < s.size() && ((unsigned char)s[i] & 0xC0) == 0x80);
+    return i;
+}
+
+static std::vector<std::string> wrapWords(const std::string& s, int width) {
+    width = std::max(width, 8);
+    std::vector<std::string> lines;
+    std::string line, word;
+    std::istringstream in(s);
+    while (in >> word) {
+        while (columns(word) > width) {   // a word wider than the box: cut it
+            if (!line.empty()) { lines.push_back(line); line.clear(); }
+            size_t cut = bytesFor(word, width);
+            lines.push_back(word.substr(0, cut));
+            word.erase(0, cut);
+        }
+        if (word.empty()) continue;
+        if (line.empty()) line = word;
+        else if (columns(line) + 1 + columns(word) <= width) line += " " + word;
+        else { lines.push_back(line); line = word; }
+    }
+    if (!line.empty() || lines.empty()) lines.push_back(line);
+    return lines;
+}
+
+Elements logLines(const LogEntry& e, int width, int maxLines) {
+    // Wrapped to fit; the time only on the first line, so each message reads as one block.
+    int stampW = (int)e.stamp.size() + 2;
+    Elements out;
+    std::vector<std::string> parts = wrapWords(e.text, width - stampW);
+    if (maxLines > 0 && (int)parts.size() > maxLines) {   // no room for all of it: its start, then "..."
+        parts.resize((size_t)maxLines);
+        std::string& last = parts.back();
+        int room = std::max(width - stampW, 8) - 3;
+        if (columns(last) > room) last.resize(bytesFor(last, room));
+        last += "...";
+    }
+    for (size_t i = 0; i < parts.size(); ++i) {
+        Element msg = text(parts[i]) | color(sevColor(e.sev));
+        if (e.sev == Sev::Event) msg = msg | bold;
+        out.push_back(hbox({text(i == 0 ? e.stamp + "  " : "") | muted() | size(WIDTH, EQUAL, stampW), msg}));
+    }
+    return out;
 }
 
 // Understands the codes the shell's paint() writes: reset, bold, the 16 basic colors (30-37,

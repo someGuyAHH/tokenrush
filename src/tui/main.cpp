@@ -124,8 +124,20 @@ Element statusBar(const tui::Ui& ui) {
 Element logPane(Shared& s) {
     // 6 lines on a 30-row terminal, fewer on smaller ones so the tabs keep their room.
     int n = std::clamp(Terminal::Size().dimy - 24, tui::LOG_ROWS_MIN, tui::LOG_ROWS_MAX);
+    // Newest at the bottom; walk back until the box is full. Long messages wrap, so an old one
+    // that doesn't fit whole shows its start, ending in "...".
+    int width = Terminal::Size().dimx - 2;   // inside the frame
+    std::vector<Elements> blocks;
+    int used = 0;
+    std::vector<LogEntry> recent = s.log.recent((size_t)n);
+    for (auto it = recent.rbegin(); it != recent.rend() && used < n; ++it) {
+        Elements lines = tui::logLines(*it, width, n - used);
+        used += (int)lines.size();
+        blocks.push_back(std::move(lines));
+    }
     Elements rows;
-    for (const LogEntry& e : s.log.recent((size_t)n)) rows.push_back(tui::logLine(e));
+    for (auto it = blocks.rbegin(); it != blocks.rend(); ++it)
+        for (Element& line : *it) rows.push_back(line);
     while ((int)rows.size() < n) rows.push_back(text(""));   // fixed height, so nothing jumps
     if (THEMES[tui::currentTheme()].classic) return window(text(" LOG ") | bold, vbox(rows));
     // Themed: a quiet frame with an accent title on the slightly lighter panel color, so the

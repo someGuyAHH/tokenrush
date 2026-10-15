@@ -76,6 +76,11 @@ long long niceRound(double v) {
     return toTokens(std::round(v / mag) * mag);
 }
 
+// A shard costs about the same at every stage, so job shards can't follow income one for one the
+// way tokens do (that would flood the market). They grow with each doubling of income instead:
+// x1 at 10K tokens/s, about x8 at 1M/s, x17 at 500M/s.
+double contractShardScale(double power) { return 1.0 + std::max(0.0, std::log2(std::max(power, 1.0) / 1e4)); }
+
 int roundTo30(double seconds) { return std::max(30, (int)std::lround(seconds / 30.0) * 30); }
 
 Contract makeOffer(const GameState& g, std::mt19937& rng) {
@@ -173,13 +178,15 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     double pay = kindPay * TIERS[(int)tier].pay * (c.signature ? 2.0 : 1.0) * (gadgetOn(g, Gadget::ForgedPapers) ? 0.8 : 1.0);   // ...less pay
     if (gadgetOn(g, Gadget::FogMachine)) shardsPay *= 0.5;
     double brokerBonus = 1.0 + std::min(2.0, 0.10 * roleLevels(g, Role::Broker));
+    shardsPay *= brokerBonus * contractShardScale(power);
     if (c.big) {
-        c.rewardTokens = niceRound(value * 0.5 * tokensPay * pay);
-        c.rewardShards = std::llround(between(4, 8) * brokerBonus * shardsPay * pay);
-        c.stake = c.signature ? 0 : std::clamp<long long>(std::llround(value * 0.1 / SHARD_FAIR_PRICE), 3, 60);
+        c.rewardTokens = niceRound(value * 0.7 * tokensPay * pay);
+        c.rewardShards = std::llround(between(4, 8) * shardsPay * pay);
+        long long stakeCap = std::max(60LL, c.rewardShards / 2);   // up to 60, or half of what it pays
+        c.stake = c.signature ? 0 : std::clamp<long long>(std::llround(value * 0.1 / SHARD_FAIR_PRICE), 3, stakeCap);
     } else {
-        c.rewardTokens = niceRound(value * 0.25 * tokensPay * pay);
-        c.rewardShards = std::max(1LL, std::llround(between(1, 3) * brokerBonus * shardsPay * pay));
+        c.rewardTokens = niceRound(value * 0.35 * tokensPay * pay);
+        c.rewardShards = std::max(1LL, std::llround(between(1, 3) * shardsPay * pay));
         c.stake = 0;
     }
     return c;

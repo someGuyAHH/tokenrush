@@ -61,7 +61,8 @@ long long promoteCost(const CrewMember& c);                     // in shards
 long long wageOf(const GameState& g, const CrewMember& c);      // shards per payday
 long long totalWages(const GameState& g);
 double scoutChance(const GameState& g, const CrewMember& c);
-int scoutMaxFind(const GameState& g, const CrewMember& c);      // a find is 1..this many shards
+int scoutMaxFind(const GameState& g, const CrewMember& c);      // a find is scoutMinFind..this many shards
+int scoutMinFind(const GameState& g, const CrewMember& c);
 long long minerSwing(const GameState& g, const CrewMember& c);  // tokens per swing, events ignored
 std::string traitName(const CrewMember& c);                     // "" for no trait
 std::string crewEffectText(const GameState& g, const CrewMember& c);   // "+7.1M tokens every 5s"

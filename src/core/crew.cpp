@@ -236,6 +236,12 @@ long long totalWages(const GameState& g) {
 
 double scoutChance(const GameState& g, const CrewMember& c) { return std::min(0.95, 0.25 + 0.10 * effectiveLevel(g, c)); }
 int scoutMaxFind(const GameState& g, const CrewMember& c) { return std::max(1, (int)std::lround(effectiveLevel(g, c))); }
+// A find is close to the best they can do: within 40% of it (10 shards at most), not anywhere
+// from 1 up.
+int scoutMinFind(const GameState& g, const CrewMember& c) {
+    int top = scoutMaxFind(g, c);
+    return std::max(1, top - std::clamp(top * 4 / 10, 1, 10));
+}
 
 long long minerSwing(const GameState& g, const CrewMember& c) {
     return std::max(1LL, toTokens(expectedMine(g) * (0.15 + 0.10 * effectiveLevel(g, c))));
@@ -257,7 +263,8 @@ std::string crewEffectText(const GameState& g, const CrewMember& c) {
         case Role::Broker: s = "spread -" + percent(0.006 * e) + ", impact -" + percent(std::min(0.5, 0.08 * e), 0) +
                                ", contract shards +" + percent(std::min(2.0, 0.10 * e), 0); break;
         case Role::Scout:  s = percent(scoutChance(g, c), 0) + "/min to find " +
-                               (scoutMaxFind(g, c) == 1 ? std::string("a shard") : "1-" + std::to_string(scoutMaxFind(g, c)) + " shards"); break;
+                               (scoutMaxFind(g, c) == 1 ? std::string("a shard")
+                                                         : std::to_string(scoutMinFind(g, c)) + "-" + std::to_string(scoutMaxFind(g, c)) + " shards"); break;
         case Role::Fixer:  s = "heat cools faster, blocks " + percent(std::min(0.75, 0.15 * e), 0) + " of audits"; break;
         case Role::Count:  break;
     }
@@ -370,7 +377,7 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
                 break;
             case Role::Scout:
                 if (g.crewClock % SCOUT_EVERY == 0 && uni(rng) < scoutChance(g, c)) {
-                    std::uniform_int_distribution<int> found(1, scoutMaxFind(g, c));
+                    std::uniform_int_distribution<int> found(scoutMinFind(g, c), scoutMaxFind(g, c));
                     int n = found(rng);
                     g.shards += n;
                     log.push(Sev::Good, who(c) + " found " + count(n, "shard") + ".");
