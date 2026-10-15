@@ -43,6 +43,12 @@ bool validCustomPrompt(const std::string& text, std::string& why);
 Notes setCustomPrompt(GameState& g, const std::string& text);
 std::string promptOf(const GameState& g);    // what to print before the cursor, e.g. "> "
 
+// ----- The Workshop (gadgets) -----
+Notes craftGadget(GameState& g, int idx);     // build it (needs its curio and shards); equipped if a slot is free
+Notes equipGadget(GameState& g, int idx);
+Notes unequipGadget(GameState& g, int idx);
+int freeGadgetSlot(const GameState& g);       // -1 when all are taken
+
 // ----- The Monolith -----
 struct BuildResult {
     Notes notes;

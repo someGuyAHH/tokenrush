@@ -41,6 +41,7 @@ struct CommandInfo {
 
 constexpr int MARKET = (int)Feature::Market, CONTRACTS = (int)Feature::Contracts, CREW = (int)Feature::Crew;
 constexpr int CURIOS = (int)Feature::Curios, MONOLITH = (int)Feature::Monolith, ORRERY = (int)Feature::Orrery;
+constexpr int WORKSHOP = (int)Feature::Workshop;
 
 const std::vector<CommandInfo>& commands() {
     static const std::vector<CommandInfo> table = {
@@ -194,6 +195,18 @@ const std::vector<CommandInfo>& commands() {
          {{"promote 1", "promote the first member"}, {"pr 1", "the same"}},
          {"train", "crew"}, CREW, BUSINESS},
 
+        {Cmd::Expedition, {"expedition", "exp", "send"}, "expedition <n> <short|long|deep>", "Send a crew member exploring",
+         {"An expedition takes a member away for 10 minutes (short), 30 (long) or an hour (deep). While they're away they "
+          "don't work, and their wages still come out on payday. The timer only runs while the game is open.",
+          "When they come back they bring shards: more for longer trips and higher levels, and half as much again for a "
+          "Scout. Longer trips can also turn up a curio no shop sells (from the Under the Counter set), give a member with "
+          "no trait one, or teach them a level. They can also come back hurt (half effort for 15 minutes, and half the "
+          "shards); Fixers who stay home make that rarer.",
+          "With just a member (or nothing), it shows the odds for each trip and what that member would typically bring back."},
+         {{"expedition", "the trips and the odds"}, {"expedition 2", "what member 2 would bring back"},
+          {"expedition 2 deep", "send member 2 on a deep expedition"}, {"exp 1 short", "the same, shorter"}},
+         {"crew"}, CREW, BUSINESS},
+
         // ----- Spending -----
         {Cmd::Curios, {"curios", "c"}, "curios [n]", "Buy collectibles for your shelf",
          {"Curios are collectibles in sets. They don't make you richer: owning them, and completing sets, is for "
@@ -239,6 +252,31 @@ const std::vector<CommandInfo>& commands() {
          {{"orrery", "look at it"}, {"orrery 500", "set 500 shards into it"},
           {"orrery all", "everything except your crew's next payday"}},
          {"market", "buy"}, ORRERY, SPENDING},
+
+        {Cmd::Workshop, {"workshop", "ws", "gadgets"}, "workshop", "Gadgets: what you've built, what's equipped, what you could build",
+         {"The Workshop turns curios into gadgets. Each gadget is built from one curio you own (the curio stays on your "
+          "shelf) plus some shards, and once built it's yours to equip in one of 3 slots or take off again, as often as "
+          "you like.",
+          "Every gadget is a trade-off: something gets better and something gets worse. The Tuning Fork makes your streak "
+          "last longer but halves your jackpots; the Night Shift doubles the Mining Bot but your own mining pays less; the "
+          "Golden Ledger tightens the market but lets audits start a point of heat sooner. Pick the ones that fit how "
+          "you're playing right now.",
+          "The list shows every gadget, what it's built from, its price, and both sides of the deal."},
+         {{"workshop", "the list and your slots"}, {"ws", "the same"}},
+         {"craft", "equip", "unequip", "curios"}, WORKSHOP, SPENDING},
+        {Cmd::Craft, {"craft"}, "craft <n|name>", "Build a gadget (needs its curio and shards)",
+         {"Builds gadget n from the 'workshop' list. You need its curio on your shelf (it stays there) and the shards. "
+          "A new gadget goes straight into a free slot; with all three taken, it waits on the bench."},
+         {{"craft 2", "build the second gadget"}, {"craft tuning", "names (or their start) work too"}},
+         {"workshop", "equip"}, WORKSHOP, SPENDING},
+        {Cmd::Equip, {"equip"}, "equip <n|name>", "Put a gadget you've built into a free slot",
+         {"Equipping is free and instant. With all three slots taken, unequip one first."},
+         {{"equip 5", "equip the fifth gadget"}},
+         {"unequip", "workshop"}, WORKSHOP, SPENDING},
+        {Cmd::Unequip, {"unequip"}, "unequip <n|name>", "Take a gadget off (it stays built)",
+         {"Frees its slot. The gadget stays built, so you can equip it again any time for nothing."},
+         {{"unequip 5", "take off the fifth gadget"}},
+         {"equip", "workshop"}, WORKSHOP, SPENDING},
 
         // ----- Progress and other -----
         {Cmd::Goals, {"goals", "g"}, "goals", "Goals, renown, titles and what they unlock",

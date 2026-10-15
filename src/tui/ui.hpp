@@ -58,6 +58,9 @@ struct Ui {
     int fireArmed = -1;
     Clock::time_point fireArmedUntil{};
 
+    // Crew tab: which expedition the Send buttons start
+    int expeditionTrip = 0;
+
     // Goals tab
     int goalSelected = 0;
 
@@ -133,6 +136,7 @@ ftxui::Component CrewPage(Ui& ui);
 ftxui::Component CuriosPage(Ui& ui);
 ftxui::Component MonolithPage(Ui& ui);
 ftxui::Component OrreryPage(Ui& ui);
+ftxui::Component WorkshopPage(Ui& ui);
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);
 ftxui::Component ConsolePage(Ui& ui);

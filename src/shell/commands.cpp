@@ -105,7 +105,7 @@ void printStatus(Shared& s) {
 
     if (isUnlocked(g, Feature::Contracts)) {
         out() << "Heat:   " << paint(Style::Heat, heatBar(g.heat, MAX_HEAT)) << " " << g.heat << "/" << MAX_HEAT;
-        if (g.heat >= AUDIT_MIN_HEAT) out() << paint(Style::Warn, "  (audits possible)");
+        if (g.heat >= auditMinHeat(g)) out() << paint(Style::Warn, "  (audits possible)");
         out() << "\n";
     }
 
@@ -130,7 +130,7 @@ void printStatus(Shared& s) {
     out() << "  Drone   lvl " << g.drone << "  passive: " << perSecond(passiveRatePerSec(g) * fx.passive)
               << " tok/s  next cost: " << num(ups[2].cost) << "\n";
     out() << "  Bot     lvl " << g.bot;
-    if (g.bot > 0) out() << "  mines every " << botInterval(g.bot) << "s";
+    if (g.bot > 0) out() << "  mines every " << botIntervalOf(g) << "s";
     else           out() << "  (not built)";
     out() << "  next cost: " << num(ups[3].cost) << "\n";
 

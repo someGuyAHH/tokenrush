@@ -24,7 +24,11 @@ inline constexpr int       MAX_LEVEL            = 1'000'000;      // sanity cap 
 
 // ----- Infection -----
 bool infected(const GameState& g, Strain s);   // has this strain and isn't cured yet
-long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, or less with Amnesia
+long long streakTimeout(const GameState& g);    // STREAK_TIMEOUT, less with Amnesia, more with the Tuning Fork
+double bonusChance(const GameState& g, double odds = 1.0);     // a mine turning into a bonus (odds: Gold Rush)
+double jackpotChance(const GameState& g, double odds = 1.0);   // ...or a jackpot
+double bonusSize(const GameState& g);                          // how many base yields a bonus adds
+double handMult(const GameState& g);                           // gadgets that change what mining by hand pays
 
 // ----- Upgrades -----
 long long costPickaxe(int lvl);
@@ -33,10 +37,15 @@ long long costDrone(int lvl);
 long long costBot(int lvl);
 
 int baseYield(const GameState& g);
-int botInterval(int botLvl);   // seconds between Mining Bot mines
+int botInterval(int botLvl);              // seconds between Mining Bot mines, by level
+int botIntervalOf(const GameState& g);    // the same, with gadgets (Night Shift halves it)
 
 struct UpgradeRef { const char* name; long long cost; int* lvl; };
 std::array<UpgradeRef, 4> upgrades(GameState& g);
+
+// ----- Gadgets -----
+bool gadgetOn(const GameState& g, Gadget x);   // built, equipped and working
+long long passiveCapSeconds(const GameState& g);   // how long Drones keep earning while you're away
 
 // ----- Events -----
 int activeEvent(const GameState& g, std::time_t t);   // EV_NONE once it has expired

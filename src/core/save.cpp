@@ -263,6 +263,9 @@ void addCrewFields(std::vector<Field>& fields) {
         fields.push_back(numAt(sec, "raises", [i](GameState& g) -> int& { return crewSlot(g, i).raises; }, 0, MAX_RAISES, present));
         fields.push_back(numAt(sec, "sulk", [i](GameState& g) -> int& { return crewSlot(g, i).sulk; }, 0, 24 * 3600, present));
         fields.push_back(boolAt(sec, "missedPay", [i](GameState& g) -> bool& { return crewSlot(g, i).missedPay; }, present));
+        fields.push_back(numAt(sec, "away", [i](GameState& g) -> int& { return crewSlot(g, i).away; }, 0, 24 * 3600, present));
+        fields.push_back(numAt(sec, "trip", [i](GameState& g) -> int& { return crewSlot(g, i).trip; }, 0, EXPEDITION_COUNT - 1, present));
+        fields.push_back(numAt(sec, "hurt", [i](GameState& g) -> int& { return crewSlot(g, i).hurt; }, 0, 24 * 3600, present));
     }
 }
 
@@ -492,6 +495,7 @@ const std::vector<Field>& saveFields() {
         numField("stats", "contractsFailed",&GameState::contractsFailed),
         numField("stats", "crewHired",      &GameState::crewHired),
         numField("stats", "crewMined",      &GameState::crewMined),
+        numField("stats", "expeditionsDone", &GameState::expeditionsDone),
         numField("stats", "audits",         &GameState::audits),
         numField("stats", "biggestJackpot", &GameState::biggestJackpot),
         numField("stats", "bestEarnRate",   &GameState::bestEarnRate),
@@ -536,6 +540,30 @@ const std::vector<Field>& saveFields() {
                       if (t == THEMES[i].id) g.themeSel = i;
                   return true;
               }},
+
+        maskField("workshop", "built", &GameState::gadgetsOwned, GADGET_COUNT, [](int i) { return GADGETS[i].id; }),
+        // The slots: "tuningfork, -, lavacore". Unknown gadgets leave the slot empty.
+        Field{"workshop", "slots",
+              [](const GameState& g) {
+                  std::string out;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) {
+                      int x = g.gadgetSlots[(size_t)i];
+                      out += (i ? ", " : "") + std::string(x >= 0 && x < GADGET_COUNT ? GADGETS[x].id : "-");
+                  }
+                  return out;
+              },
+              [](GameState& g, const std::string& text) {
+                  std::stringstream ss(text);
+                  std::string item;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) {
+                      g.gadgetSlots[(size_t)i] = -1;
+                      if (!std::getline(ss, item, ',')) continue;
+                      for (int x = 0; x < GADGET_COUNT; ++x)
+                          if (lower(trim(item)) == GADGETS[x].id) g.gadgetSlots[(size_t)i] = x;
+                  }
+                  return true;
+              },
+              [](const GameState& g) { return g.gadgetsOwned != 0; }},
 
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
         numField("market", "heat",       &GameState::heat, 0, MAX_HEAT),
@@ -654,6 +682,11 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
     }
     g.autoOn = g.autoOn && g.autoUnlocked;
     if (!themeOwned(g, g.themeSel)) g.themeSel = 0;          // a hand-edited theme you never bought
+    for (size_t i = 0; i < g.gadgetSlots.size(); ++i) {      // equipped gadgets must be built, and in one slot only
+        int x = g.gadgetSlots[i];
+        bool dup = std::find(g.gadgetSlots.begin(), g.gadgetSlots.begin() + (std::ptrdiff_t)i, x) != g.gadgetSlots.begin() + (std::ptrdiff_t)i;
+        if (x >= 0 && (!hasBit(g.gadgetsOwned, x) || dup)) g.gadgetSlots[i] = -1;
+    }
 
     // Crew slots that were only half-written (say, [crew.3] with no name) are dropped, and so are
     // gaps in the keepsake and former crew lists (a hand-edited file that skips a number).

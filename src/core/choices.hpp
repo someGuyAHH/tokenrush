@@ -28,6 +28,7 @@ long long dealerPrice(int curio);
 void choicesTick(GameState& g, MessageLog& log, std::mt19937& rng);   // once per second
 void checkRace(GameState& g, MessageLog& log);                         // after mining: did you just win?
 
+int choiceSeconds(const GameState& g);            // how long you get to answer (the Debug Duck cuts it)
 bool hasChoice(const GameState& g);
 std::string choiceText(const GameState& g);       // the offer, in a sentence or two
 Notes answerChoice(GameState& g, bool yes, std::mt19937& rng);

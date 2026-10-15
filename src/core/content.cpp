@@ -53,6 +53,13 @@ const CurioInfo CURIOS[] = {
 };
 static_assert(std::size(CURIOS) == CURIO_COUNT);
 
+std::string theCurio(int curio) {
+    std::string name = CURIOS[curio].name;
+    if (name.rfind("The ", 0) == 0) return "the " + name.substr(4);
+    if (name.rfind("A ", 0) == 0) return "a " + name.substr(2);
+    return "the " + name;
+}
+
 // ----- Prompt styles -----
 const PromptStyle PROMPTS[] = {
     {"classic", "> ",       0},
@@ -234,6 +241,8 @@ constexpr Goal GOALS[] = {
     {"Full House",     "Have 5 crew members at once",       Stat::CrewSize,          5,  3},
     {"Clockwork Sky",  "Complete the Orrery",               Stat::OrreryStage, ORRERY_STAGE_COUNT, 12},
     {"Regular",        "Become Trusted by a client",        Stat::BestStanding,      6,  3},
+    {"Gadgeteer",      "Build 3 gadgets",                   Stat::GadgetsBuilt,      3,  3},
+    {"Explorer",       "Finish 5 crew expeditions",         Stat::Expeditions,       5,  3},
 };
 static_assert(std::size(GOALS) == GOAL_COUNT);
 
@@ -267,7 +276,7 @@ constexpr Title TITLES[] = {
     {40, "Legend"},
     {55, "Monolith-Maker"},
     {68, "Kingpin"},
-    {90, "Celestial"},   // every goal, Orrery included
+    {96, "Celestial"},   // every goal, Orrery included
 };
 static_assert(std::size(TITLES) == TITLE_COUNT);
 
@@ -299,8 +308,25 @@ const FeatureInfo FEATURES[] = {
     {"Contracts",    "contracts", 4, "timed jobs that pay tokens and shards"},             // Magnate
     {"the Crew",     "crew",      5, "hires who mine, trade, scout and handle heat"},      // Legend
     {"the Orrery",   "orrery",    6, "the late-game build, made of shards"},               // Monolith-Maker
+    {"the Workshop", "workshop",  7, "gadgets built from your curios: trade-offs to equip"}, // Kingpin
+    {"the Constellations", "stars", -1, "feats that light up the sky around the Orrery"},  // the Orrery's Sun
 };
 static_assert(std::size(FEATURES) == FEATURE_COUNT);
+
+// ----- Gadgets -----
+const GadgetInfo GADGETS[] = {
+    {"debugduck",    "Debug Duck",      0,  150, "offers come twice as often",                 "you only get 20 seconds to answer them"},
+    {"tuningfork",   "Tuning Fork",     1,  250, "your streak lasts 25 seconds (+10)",         "jackpots come half as often"},
+    {"lavacore",     "Lava Core",       2,  400, "Drones earn 50% more",                       "they only earn 4 hours while you're away (not 12)"},
+    {"forgedpapers", "Forged Papers",   4,  500, "new contracts give you 25% more time",       "they pay 20% less"},
+    {"luckypenny",   "Lucky Penny",     5,  650, "bonuses come 50% more often",                "they pay 30% less"},
+    {"nightshift",   "Night Shift",     6,  900, "the Mining Bot works twice as fast",         "mining by hand pays 25% less"},
+    {"goldenledger", "Golden Ledger",   7, 1200, "the market spread is 2 points tighter",      "audits can start at heat 2 (not 3)"},
+    {"lightningrod", "Lightning Rod",   8, 1800, "random events come twice as often",          "they last half as long"},
+    {"fogmachine",   "Fog Machine",     9, 2600, "heat cools twice as fast",                   "contracts pay half the shards"},
+    {"moonanchor",   "Moon Anchor",    10, 4000, "the shard price swings half as hard",        "your own trades move it twice as much"},
+};
+static_assert(std::size(GADGETS) == GADGET_COUNT);
 
 // ----- Crew -----
 const RoleInfo ROLES[] = {

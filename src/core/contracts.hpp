@@ -46,6 +46,7 @@ std::string contractText(const Contract& c);     // "Mine 60 times"
 std::string progressText(const GameState& g, const Contract& c);   // "51/180", or "2m 10s of 5m 00s" for endurance jobs
 
 int heatCoolSeconds(const GameState& g);
+int auditMinHeat(const GameState& g);           // AUDIT_MIN_HEAT, or one less with the Golden Ledger
 double auditChance(const GameState& g);         // per second
 double auditBlockChance(const GameState& g);    // chance a Fixer makes an audit go away
 double auditShare(const GameState& g);          // fraction of tokens an audit takes

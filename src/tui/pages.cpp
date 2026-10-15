@@ -71,12 +71,10 @@ Component MinePage(Ui& ui) {
                              text(" tokens/s"), text("  (last " + std::to_string(EARN_WINDOW_SECONDS) + "s)") | muted()});
         std::string split = incomeSplit(g);
 
-        double bonusChance = std::min(0.70, 0.06 + 0.04 * g.magnet);
-        double jackpotChance = std::min(0.20, 0.01 + 0.005 * g.magnet);
         Element stats = hbox({
-            text("Base " + std::to_string(baseYield(g)) + "   Bonus " + percent(bonusChance, 0) + "   Jackpot " +
-                 percent(jackpotChance) + "   Passive " + perSecond(passiveRatePerSec(g)) + "/s" +
-                 (g.bot > 0 ? "   Bot every " + std::to_string(botInterval(g.bot)) + "s" : "")) | muted(),
+            text("Base " + std::to_string(baseYield(g)) + "   Bonus " + percent(bonusChance(g), 0) + "   Jackpot " +
+                 percent(jackpotChance(g)) + "   Passive " + perSecond(passiveRatePerSec(g)) + "/s" +
+                 (g.bot > 0 ? "   Bot every " + std::to_string(botIntervalOf(g)) + "s" : "")) | muted(),
         });
 
         return vbox({
@@ -164,7 +162,7 @@ Component ShopPage(Ui& ui) {
                              license->Render()}));
         rows.push_back(note("The Auto-Buyer buys your cheapest upgrade whenever you have " +
                             std::to_string(AUTOBUY_RESERVE) + "x its cost."));
-        if (g.bot > 0) rows.push_back(note("Mining Bot mines every " + std::to_string(botInterval(g.bot)) + "s."));
+        if (g.bot > 0) rows.push_back(note("Mining Bot mines every " + std::to_string(botIntervalOf(g)) + "s."));
 
         rows.push_back(text(""));
         rows.push_back(hbox({heading("Themes"), text("   bought with shards, kept by this profile") | muted()}));
@@ -388,7 +386,7 @@ Component JobsPage(Ui& ui) {
             rows.push_back(hbox(line));
         }
         rows.push_back(filler());
-        rows.push_back(note("Failing costs the stake and adds heat (big jobs +2). Heat " + std::to_string(AUDIT_MIN_HEAT) +
+        rows.push_back(note("Failing costs the stake and adds heat (big jobs +2). Heat " + std::to_string(auditMinHeat(g)) +
                             "+ invites audits."));
         return vbox(rows);
     });
@@ -396,7 +394,7 @@ Component JobsPage(Ui& ui) {
 
 // ----- Crew -----
 Component CrewPage(Ui& ui) {
-    Components trains, fires, hires;
+    Components trains, fires, hires, sends;
     for (int i = 0; i < MAX_CREW_SLOTS; ++i) {
         // Train until the level cap, then the same button promotes.
         auto atCap = [&ui, i] { const CrewMember& c = ui.snap.crew[(size_t)i]; return c.level >= levelCap(ui.snap, c); };
@@ -421,8 +419,16 @@ Component CrewPage(Ui& ui) {
                 }
             });
         auto present = [&ui, i] { return i < (int)ui.snap.crew.size(); };
+        Component se = Btn("Send", [&ui, i] { ui.run([&ui, i](GameState& g) { return sendExpedition(g, i, ui.expeditionTrip); }); },
+                           [&ui, i] { return i < (int)ui.snap.crew.size() && !isAway(ui.snap.crew[(size_t)i]); });
         trains.push_back(Maybe(tr, present));
         fires.push_back(Maybe(fi, present));
+        sends.push_back(Maybe(se, present));
+    }
+    Components trips;
+    for (int t = 0; t < EXPEDITION_COUNT; ++t) {
+        trips.push_back(Btn([&ui, t] { return std::string(t == ui.expeditionTrip ? "> " : "  ") + EXPEDITIONS[t].id + " " + duration(EXPEDITIONS[t].seconds); },
+                            [&ui, t] { ui.expeditionTrip = t; }, [&ui, t] { return t == ui.expeditionTrip; }));
     }
     for (int i = 0; i < CANDIDATE_COUNT; ++i) {
         Component h = Btn("Hire", [&ui, i] { ui.run([i](GameState& g) { return hire(g, i); }); },
@@ -431,11 +437,12 @@ Component CrewPage(Ui& ui) {
         hires.push_back(Maybe(h, [&ui, i] { return i < (int)ui.snap.candidates.size(); }));
     }
     Components rowsC;
-    for (int i = 0; i < MAX_CREW_SLOTS; ++i) rowsC.push_back(Container::Horizontal({trains[(size_t)i], fires[(size_t)i]}));
+    for (int i = 0; i < MAX_CREW_SLOTS; ++i) rowsC.push_back(Container::Horizontal({trains[(size_t)i], sends[(size_t)i], fires[(size_t)i]}));
+    rowsC.push_back(Container::Horizontal(trips));
     for (auto& h : hires) rowsC.push_back(h);
     Component box = Container::Vertical(rowsC);
 
-    return Renderer(box, [&ui, trains, fires, hires] {
+    return Renderer(box, [&ui, trains, fires, hires, sends, trips] {
         const GameState& g = ui.snap;
         Elements rows;
         Elements top = {heading("Crew " + std::to_string(g.crew.size()) + "/" + std::to_string(crewCap(g))),
@@ -452,8 +459,23 @@ Component CrewPage(Ui& ui) {
             rows.push_back(hbox({cell(c.name, 9) | bold, cell(ROLES[(int)c.role].name, 8),
                                  cell("L" + std::to_string(c.level) + "/" + std::to_string(levelCap(g, c)), 7),
                                  cell(starsText(c), 6) | color(hue(Hue::Tokens)) | bold, cell(traitName(c), 14) | color(hue(Hue::Accent)),
-                                 text(crewEffectText(g, c)) | flex, text("  "), cost, trains[i]->Render(), text(" "),
-                                 fires[i]->Render()}));
+                                 text(crewEffectText(g, c)) | (isAway(c) ? muted() : nothing) | flex, text("  "), cost, trains[i]->Render(), text(" "),
+                                 sends[i]->Render(), text(" "), fires[i]->Render()}));
+        }
+        // Expeditions: pick a length, then Send someone.
+        {
+            const ExpeditionInfo& e = EXPEDITIONS[ui.expeditionTrip];
+            Elements tripRow = {text("Expedition ") | bold};
+            for (const Component& t : trips) { tripRow.push_back(t->Render()); tripRow.push_back(text(" ")); }
+            tripRow.push_back(text("  curio " + percent(e.curioChance, 0) + ", trait " + percent(e.traitChance, 0) + ", level " +
+                                   percent(e.levelChance, 0) + ", ") | muted());
+            tripRow.push_back(text("injury " + percent(injuryChance(g, ui.expeditionTrip), 0)) | color(hue(Hue::Warn)));
+            rows.push_back(text(""));
+            rows.push_back(hbox(tripRow));
+            Elements loot = {text("  typical haul: ") | muted()};
+            for (const CrewMember& c : g.crew)
+                if (!isAway(c)) { loot.push_back(text(c.name + " ")); loot.push_back(shards(expeditionLoot(g, c, ui.expeditionTrip))); loot.push_back(text(" sh   ")); }
+            rows.push_back(hbox(loot));
         }
         rows.push_back(text(""));
         rows.push_back(hbox({heading("Looking for work"), text("   new faces in " + duration(g.candidateClock)) | muted()}));
@@ -624,6 +646,57 @@ Component OrreryPage(Ui& ui) {
         }
         return vbox({vbox(art), text(""), status, hbox(btnRow), filler(),
                      note("Built with shards: buy them on the Market (big orders push the price up), or let Scouts and contracts bring them in.")});
+    });
+}
+
+// ----- Workshop -----
+Component WorkshopPage(Ui& ui) {
+    Components btns;
+    for (int i = 0; i < GADGET_COUNT; ++i) {
+        auto equippedNow = [&ui, i] { return gadgetOn(ui.snap, (Gadget)i); };
+        btns.push_back(Btn(
+            [&ui, i, equippedNow] {
+                if (!hasBit(ui.snap.gadgetsOwned, i)) return "Build " + num(GADGETS[i].cost) + " sh";
+                return std::string(equippedNow() ? "Unequip" : " Equip ");
+            },
+            [&ui, i] {
+                ui.run([i](GameState& g) {
+                    if (!hasBit(g.gadgetsOwned, i)) return craftGadget(g, i);
+                    return gadgetOn(g, (Gadget)i) ? unequipGadget(g, i) : equipGadget(g, i);
+                });
+            },
+            [&ui, i, equippedNow] {
+                const GameState& g = ui.snap;
+                if (!hasBit(g.gadgetsOwned, i)) return hasBit(g.curiosOwned, GADGETS[i].curio) && g.shards >= GADGETS[i].cost;
+                return equippedNow() || freeGadgetSlot(g) >= 0;
+            }));
+    }
+    Component box = Container::Vertical(btns);
+
+    return Renderer(box, [&ui, btns] {
+        const GameState& g = ui.snap;
+        Elements slots = {heading("Workshop"), text("   slots ")};
+        for (int i = 0; i < GADGET_SLOTS; ++i) {
+            int x = g.gadgetSlots[(size_t)i];
+            slots.push_back(text("[") | muted());
+            slots.push_back(x >= 0 ? text(GADGETS[x].name) | color(hue(Hue::Good)) | bold : text("empty") | muted());
+            slots.push_back(text("] ") | muted());
+        }
+        slots.push_back(text("   shards ") | muted());
+        slots.push_back(shards(g.shards));
+        Elements rows = {hbox(slots), text("")};
+        for (int i = 0; i < GADGET_COUNT; ++i) {
+            const GadgetInfo& x = GADGETS[i];
+            bool built = hasBit(g.gadgetsOwned, i), on = gadgetOn(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
+            Element name = text(x.name) | bold | color(on ? hue(Hue::Good) : built ? hue(Hue::Text) : hue(Hue::Muted));
+            Element right = curio || built ? btns[(size_t)i]->Render() : text("needs its curio") | muted();
+            rows.push_back(hbox({name | size(WIDTH, EQUAL, 16), text("+ ") | color(hue(Hue::Good)), text(x.plus) | flex, text(" "), right}));
+            rows.push_back(hbox({text("from " + theCurio(x.curio)) | muted() | size(WIDTH, EQUAL, 34), text("- ") | color(hue(Hue::Bad)),
+                                 text(x.minus) | flex}));
+        }
+        Element hint = note("Each gadget is built once from a curio you own (it stays on the shelf) and some shards. Equip up to " +
+                            std::to_string(GADGET_SLOTS) + "; swap them whenever you like, for free.");
+        return vbox({vbox(rows) | yframe | flex, hint});
     });
 }
 

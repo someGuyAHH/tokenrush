@@ -24,6 +24,7 @@ inline constexpr int SHOP_CURIO_COUNT = 12;        // CURIOS[0..11] are in the s
 inline constexpr int DEALER_SET = 3;
 struct CurioInfo { const char* name; int set; long long cost; const char* flavor; };
 inline bool inShop(int curio) { return curio < SHOP_CURIO_COUNT; }
+std::string theCurio(int curio);   // "the Lava Lamp", "the First Token Ever", "a Spare Moon": for the middle of a sentence
 extern const char* const CURIO_SETS[];
 extern const CurioInfo CURIOS[];
 
@@ -93,7 +94,7 @@ enum class Stat {
     Lifetime, ManualMines, Jackpots, BestStreak, BotTotal,
     EventsSeen, CuriosOwned, MonolithStage, UpgradeLevels, PlayMinutes,
     ShardsTraded, ContractsDone, CrewHired, CrewMined, OrreryStage, CrewSize,
-    BestStanding, ShopCurios,
+    BestStanding, ShopCurios, GadgetsBuilt, Expeditions,
 };
 
 struct Goal { const char* name; const char* desc; Stat stat; long long target; int renown; };
@@ -108,7 +109,7 @@ inline constexpr int SECRET_COUNT = (int)Secret::Count;
 static_assert(SECRET_COUNT <= 32, "GameState::secretsDone is a 32-bit mask");
 struct SecretGoal { const char* id; const char* name; const char* hint; const char* desc; long long shards; };
 extern const SecretGoal SECRETS[];   // indexed by Secret
-inline constexpr int GOAL_COUNT = 27;
+inline constexpr int GOAL_COUNT = 29;
 static_assert(GOAL_COUNT <= 32, "GameState::goalsDone is a 32-bit mask");
 extern const Goal GOALS[];
 
@@ -132,15 +133,34 @@ extern const StrainInfo STRAINS[];   // indexed by Strain
 // ----- Unlocks -----
 // A new player starts with mining, the shop and the goals. Everything else opens up as titles
 // are earned, in this order (the TUI's tabs follow it too).
-enum class Feature : int { Curios, Monolith, Market, Contracts, Crew, Orrery, Count };
+// The Constellations are the exception: they open when the Orrery is complete, not with a title.
+enum class Feature : int { Curios, Monolith, Market, Contracts, Crew, Orrery, Workshop, Stars, Count };
 inline constexpr int FEATURE_COUNT = (int)Feature::Count;
 struct FeatureInfo {
     const char* name;    // "the Market"
     const char* id;      // what the save file uses
-    int title;           // index into TITLES: earning that title opens it
+    int title;           // index into TITLES: earning that title opens it (-1: something else does, see game.cpp)
     const char* blurb;   // one line on what it is
 };
 extern const FeatureInfo FEATURES[];   // indexed by Feature
+
+// ----- Gadgets (the Workshop) -----
+// Built once from a curio you own (it stays on the shelf) and some shards, then equipped in one
+// of GADGET_SLOTS slots. Every gadget is a trade-off: something better, something worse.
+enum class Gadget : int {
+    DebugDuck, TuningFork, LavaCore, ForgedPapers, LuckyPenny, NightShift, GoldenLedger, LightningRod, FogMachine, MoonAnchor, Count,
+};
+inline constexpr int GADGET_COUNT = (int)Gadget::Count;
+inline constexpr int GADGET_SLOTS = 3;
+struct GadgetInfo {
+    const char* id;      // what the save file uses
+    const char* name;
+    int curio;           // index into CURIOS: the one it's built from
+    long long cost;      // in shards
+    const char* plus;    // what gets better
+    const char* minus;   // what gets worse
+};
+extern const GadgetInfo GADGETS[];   // indexed by Gadget
 
 // ----- Crew -----
 enum class Role : int { Miner, Broker, Scout, Fixer, Count };

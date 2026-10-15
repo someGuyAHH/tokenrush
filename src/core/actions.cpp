@@ -21,22 +21,22 @@ MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
     int streakForMult = std::min(g.streak, 20);
     r.mult = 1.0 + 0.05 * (double)streakForMult;   // up to 2.0x at streak 20+
 
-    double bonusChance   = std::min(0.70, (0.06 + 0.04  * (double)g.magnet) * fx.odds);
-    double jackpotChance = std::min(0.20, (0.01 + 0.005 * (double)g.magnet) * fx.odds);
+    double bonusP   = bonusChance(g, fx.odds);
+    double jackpotP = jackpotChance(g, fx.odds);
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
     double roll = uni(rng);
 
     long long gain = toTokens((double)raw * r.mult);
-    if (roll < jackpotChance) {
+    if (roll < jackpotP) {
         r.jackpot = true;
         gain = addTokens(gain, toTokens((double)r.base * (80.0 + 20.0 * (double)g.magnet)));
-    } else if (roll < jackpotChance + bonusChance) {
+    } else if (roll < jackpotP + bonusP) {
         r.bonus = true;
-        gain = addTokens(gain, toTokens((double)r.base * (8.0 + 4.0 * (double)g.magnet)));
+        gain = addTokens(gain, toTokens((double)r.base * bonusSize(g)));
     }
     r.meteor = fx.mining > 1.0;
-    r.gain = toTokens((double)gain * fx.mining);
+    r.gain = toTokens((double)gain * fx.mining * handMult(g));
 
     earn(g, r.gain, Source::Mining);
     if (r.gain == 777) spotSecret(g, Secret::LuckySevens);
@@ -209,6 +209,61 @@ Notes chooseTheme(GameState& g, int idx) {
     g.themeSel = idx;
     out.push_back({Sev::Info, std::string("Theme: ") + t.name + ". (It belongs to this profile.)"});
     return out;
+}
+
+// ----- The Workshop -----
+int freeGadgetSlot(const GameState& g) {
+    for (int i = 0; i < GADGET_SLOTS; ++i)
+        if (g.gadgetSlots[(size_t)i] < 0) return i;
+    return -1;
+}
+
+static bool equipped(const GameState& g, int idx) {
+    return std::find(g.gadgetSlots.begin(), g.gadgetSlots.end(), idx) != g.gadgetSlots.end();
+}
+
+Notes craftGadget(GameState& g, int idx) {
+    if (!isUnlocked(g, Feature::Workshop)) return {{Sev::Warn, lockedText(g, Feature::Workshop)}};
+    if (idx < 0 || idx >= GADGET_COUNT) return {{Sev::Warn, "No such gadget."}};
+    const GadgetInfo& x = GADGETS[idx];
+    if (hasBit(g.gadgetsOwned, idx)) return {{Sev::Info, std::string("You already have the ") + x.name + "."}};
+    if (!hasBit(g.curiosOwned, x.curio))
+        return {{Sev::Warn, std::string("The ") + x.name + " is built from " + theCurio(x.curio) + ". Get that curio first."}};
+    if (g.shards < x.cost) return {{Sev::Warn, std::string("The ") + x.name + " takes " + count(x.cost, "shard") + ". You have " + num(g.shards) + "."}};
+
+    g.shards -= x.cost;
+    g.gadgetsOwned |= 1u << idx;
+    Notes out = {{Sev::Good, std::string("Built the ") + x.name + " (" + theCurio(x.curio) + " stays on your shelf). " +
+                             "Better: " + x.plus + ". Worse: " + x.minus + "."}};
+    if (int slot = freeGadgetSlot(g); slot >= 0) {
+        g.gadgetSlots[(size_t)slot] = idx;
+        out.push_back({Sev::Info, "It's equipped (slot " + std::to_string(slot + 1) + ")."});
+    } else {
+        out.push_back({Sev::Info, "All slots are taken, so it's on the bench. 'unequip' one to make room."});
+    }
+    return out;
+}
+
+Notes equipGadget(GameState& g, int idx) {
+    if (!isUnlocked(g, Feature::Workshop)) return {{Sev::Warn, lockedText(g, Feature::Workshop)}};
+    if (idx < 0 || idx >= GADGET_COUNT) return {{Sev::Warn, "No such gadget."}};
+    const GadgetInfo& x = GADGETS[idx];
+    if (!hasBit(g.gadgetsOwned, idx)) return {{Sev::Warn, std::string("You haven't built the ") + x.name + " yet ('craft')."}};
+    if (equipped(g, idx)) return {{Sev::Info, std::string("The ") + x.name + " is already equipped."}};
+    int slot = freeGadgetSlot(g);
+    if (slot < 0) return {{Sev::Warn, "All " + std::to_string(GADGET_SLOTS) + " slots are taken. Unequip one first."}};
+    g.gadgetSlots[(size_t)slot] = idx;
+    return {{Sev::Good, std::string("Equipped the ") + x.name + ": " + x.plus + ", but " + x.minus + "."}};
+}
+
+Notes unequipGadget(GameState& g, int idx) {
+    if (idx < 0 || idx >= GADGET_COUNT) return {{Sev::Warn, "No such gadget."}};
+    for (int& slot : g.gadgetSlots) {
+        if (slot != idx) continue;
+        slot = -1;
+        return {{Sev::Info, std::string("Took off the ") + GADGETS[idx].name + "."}};
+    }
+    return {{Sev::Info, std::string("The ") + GADGETS[idx].name + " isn't equipped."}};
 }
 
 // ----- The Orrery -----

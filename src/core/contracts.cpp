@@ -111,6 +111,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     c.duration = c.kind == ContractKind::CoolOff ? roundTo30(c.big ? between(600, 900) : between(420, 600))
                                                  : roundTo30(c.big ? between(240, 420) : between(150, 240));
     if (c.signature) c.duration = roundTo30(c.duration * 1.5);
+    if (gadgetOn(g, Gadget::ForgedPapers)) c.duration = roundTo30(c.duration * 1.25);   // more time...
     c.expiresIn = (int)between(300, 600);
 
     // Size the job from how you've actually been playing, but never below what the formulas
@@ -167,7 +168,8 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         case ClientStyle::Merchants: tokensPay = 0.8; shardsPay = 1.6; break;
         default:                     break;
     }
-    double pay = kindPay * TIERS[(int)tier].pay * (c.signature ? 2.0 : 1.0);
+    double pay = kindPay * TIERS[(int)tier].pay * (c.signature ? 2.0 : 1.0) * (gadgetOn(g, Gadget::ForgedPapers) ? 0.8 : 1.0);   // ...less pay
+    if (gadgetOn(g, Gadget::FogMachine)) shardsPay *= 0.5;
     double brokerBonus = 1.0 + std::min(2.0, 0.10 * roleLevels(g, Role::Broker));
     if (c.big) {
         c.rewardTokens = niceRound(value * 0.5 * tokensPay * pay);
@@ -257,12 +259,15 @@ std::string progressText(const GameState& g, const Contract& c) {
 }
 
 int heatCoolSeconds(const GameState& g) {
-    return (int)std::lround(HEAT_COOL_SECONDS / (1.0 + 0.5 * roleLevels(g, Role::Fixer)));
+    double fog = gadgetOn(g, Gadget::FogMachine) ? 2.0 : 1.0;
+    return (int)std::lround(HEAT_COOL_SECONDS / (1.0 + 0.5 * roleLevels(g, Role::Fixer)) / fog);
 }
 
+int auditMinHeat(const GameState& g) { return gadgetOn(g, Gadget::GoldenLedger) ? AUDIT_MIN_HEAT - 1 : AUDIT_MIN_HEAT; }
+
 double auditChance(const GameState& g) {
-    if (g.heat < AUDIT_MIN_HEAT) return 0.0;
-    return (double)(g.heat - AUDIT_MIN_HEAT + 1) / 1500.0;
+    if (g.heat < auditMinHeat(g)) return 0.0;
+    return (double)(g.heat - auditMinHeat(g) + 1) / 1500.0;
 }
 
 double auditBlockChance(const GameState& g) { return std::min(0.75, 0.15 * roleLevels(g, Role::Fixer)); }

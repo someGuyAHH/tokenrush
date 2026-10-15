@@ -34,13 +34,14 @@ long long clampToLL(double v) {
 
 double marketSpread(const GameState& g) {
     double s = BASE_SPREAD + SPREAD_PER_HEAT * g.heat - SPREAD_PER_BROKER_LEVEL * roleLevels(g, Role::Broker);
+    if (gadgetOn(g, Gadget::GoldenLedger)) s -= 0.02;
     s = std::max(MIN_SPREAD, s);
     return infected(g, Strain::Static) ? 2.0 * s : s;
 }
 
 double marketImpact(const GameState& g) {
     double cut = std::min(0.5, 0.08 * roleLevels(g, Role::Broker));
-    return BASE_IMPACT * (1.0 - cut);
+    return BASE_IMPACT * (1.0 - cut) * (gadgetOn(g, Gadget::MoonAnchor) ? 2.0 : 1.0);
 }
 
 double buyPrice(const GameState& g)  { return g.shardPrice * (1.0 + marketSpread(g) / 2.0); }
@@ -121,12 +122,13 @@ void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     double lp = std::log(std::max(g.shardPrice, MIN_PRICE));
-    double vol = infected(g, Strain::Static) ? 2.0 * VOLATILITY : VOLATILITY;
+    double calm = gadgetOn(g, Gadget::MoonAnchor) ? 0.5 : 1.0;   // the Moon Anchor halves the swings
+    double vol = (infected(g, Strain::Static) ? 2.0 * VOLATILITY : VOLATILITY) * calm;
     lp += REVERSION * (std::log(SHARD_FAIR_PRICE) - lp) + vol * noise(rng);
 
     bool news = isUnlocked(g, Feature::Market);   // nobody cares about the price before the market opens
     if (uni(rng) < SHOCK_CHANCE) {
-        double size = 0.15 + 0.20 * uni(rng);
+        double size = (0.15 + 0.20 * uni(rng)) * calm;
         bool up = uni(rng) < 0.5;
         lp += up ? std::log(1.0 + size) : std::log(1.0 - size);
         g.shardPrice = std::clamp(std::exp(lp), MIN_PRICE, MAX_PRICE);

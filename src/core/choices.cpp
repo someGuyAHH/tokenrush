@@ -50,7 +50,7 @@ bool eligible(const GameState& g, ChoiceKind k) {
         case ChoiceKind::Rival:    return g.tokens >= 2000 && g.race.stake == 0;
         case ChoiceKind::Raise:
             return isUnlocked(g, Feature::Crew) &&
-                   std::any_of(g.crew.begin(), g.crew.end(), [](const CrewMember& c) { return c.raises < MAX_RAISES; });
+                   std::any_of(g.crew.begin(), g.crew.end(), [](const CrewMember& c) { return c.raises < MAX_RAISES && !isAway(c); });
         case ChoiceKind::Bribe:
             return isUnlocked(g, Feature::Contracts) && g.heat >= AUDIT_MIN_HEAT && g.tokens >= bribeCost(g);
         case ChoiceKind::Dealer:
@@ -62,7 +62,7 @@ bool eligible(const GameState& g, ChoiceKind k) {
 
 void resetClock(GameState& g, std::mt19937& rng) {
     std::uniform_int_distribution<int> next(CHOICE_EVERY_MIN, CHOICE_EVERY_MAX);
-    g.choiceClock = next(rng);
+    g.choiceClock = gadgetOn(g, Gadget::DebugDuck) ? next(rng) / 2 : next(rng);
 }
 
 void tickInvestment(GameState& g, MessageLog& log) {
@@ -83,12 +83,13 @@ void tickInvestment(GameState& g, MessageLog& log) {
 long long dealerPrice(int curio) { return toTokens((double)CURIOS[curio].cost * DEALER_MARKUP); }
 
 bool hasChoice(const GameState& g) { return g.choice.kind != ChoiceKind::None; }
+int choiceSeconds(const GameState& g) { return gadgetOn(g, Gadget::DebugDuck) ? 20 : CHOICE_SECONDS; }
 
 bool offerChoice(GameState& g, ChoiceKind kind, std::mt19937& rng) {
     if (hasChoice(g) || !eligible(g, kind)) return false;
     Choice c;
     c.kind = kind;
-    c.secondsLeft = CHOICE_SECONDS;
+    c.secondsLeft = choiceSeconds(g);
     switch (kind) {
         case ChoiceKind::ShadyBroker: c.shards = shadyShards(g); c.tokens = shadyCost(g, c.shards); break;
         case ChoiceKind::Investor:    c.tokens = g.tokens / 10; break;
@@ -96,7 +97,7 @@ bool offerChoice(GameState& g, ChoiceKind kind, std::mt19937& rng) {
         case ChoiceKind::Bribe:       c.tokens = bribeCost(g); break;
         case ChoiceKind::Raise: {
             std::vector<const CrewMember*> askers;
-            for (const CrewMember& m : g.crew) if (m.raises < MAX_RAISES) askers.push_back(&m);
+            for (const CrewMember& m : g.crew) if (m.raises < MAX_RAISES && !isAway(m)) askers.push_back(&m);
             std::uniform_int_distribution<size_t> pick(0, askers.size() - 1);
             c.crewName = askers[pick(rng)]->name;
             break;
@@ -193,7 +194,7 @@ Notes answerChoice(GameState& g, bool yes, std::mt19937& rng) {
             if (g.tokens < c.tokens) return cantAfford();
             g.tokens -= c.tokens;
             g.curiosOwned |= 1u << c.curio;
-            Notes out = {{Sev::Good, std::string("The ") + CURIOS[c.curio].name + " is yours. \"" + CURIOS[c.curio].flavor + "\""}};
+            Notes out = {{Sev::Good, std::string(CURIOS[c.curio].name) + ": yours. \"" + CURIOS[c.curio].flavor + "\""}};
             bool setDone = true;
             for (int i = 0; i < CURIO_COUNT; ++i)
                 if (CURIOS[i].set == DEALER_SET && !hasBit(g.curiosOwned, i)) setDone = false;
@@ -255,5 +256,5 @@ void choicesTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     if (pool.empty()) return;
     std::uniform_int_distribution<size_t> pick(0, pool.size() - 1);
     if (offerChoice(g, pool[pick(rng)], rng))
-        log.push(Sev::Event, "OFFER: " + choiceText(g) + " (yes/no, " + std::to_string(CHOICE_SECONDS) + "s)");
+        log.push(Sev::Event, "OFFER: " + choiceText(g) + " (yes/no, " + std::to_string(choiceSeconds(g)) + "s)");
 }

@@ -42,6 +42,9 @@ struct CrewMember {
     int raises = 0;              // raises they asked for and got (a choice event): +1 wage, +25% work each
     int sulk = 0;                // seconds of sulking left after a refused raise (half the work)
     bool missedPay = false;      // Loyal only: already stayed through one missed payday
+    int away = 0;                // seconds until they're back from an expedition (0 = here)
+    int trip = 0;                // which expedition (index into EXPEDITIONS, crew.hpp)
+    int hurt = 0;                // seconds of half effort left after an expedition went badly
 };
 
 // ----- People who left, and what they left behind -----
@@ -187,6 +190,7 @@ struct GameState {
     long long contractsDone = 0;
     long long contractsFailed = 0;
     long long crewHired = 0;
+    long long expeditionsDone = 0;
     long long crewMined = 0;
     long long audits = 0;
 
@@ -220,6 +224,8 @@ struct GameState {
     bool customPromptOwned = false;
     std::string customPrompt;        // 1-5 characters, shown with a space after it
     int themeSel = 0;                // index into THEMES
+    std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
+    std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)
     std::uint32_t themesOwned = 0;   // bit i = THEMES[i] bought (free ones count as owned anyway)
     int monolithStage = 0;           // stages completed
     long long monolithProgress = 0;  // tokens poured into the current stage

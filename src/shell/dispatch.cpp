@@ -48,6 +48,10 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Sell:      doSell(s, arg); break;
         case Cmd::Contracts: doContracts(s); break;
         case Cmd::Clients:   doClients(s); break;
+        case Cmd::Workshop:  doWorkshop(s); break;
+        case Cmd::Craft:     doCraft(s, rest); break;
+        case Cmd::Equip:     doEquip(s, rest); break;
+        case Cmd::Unequip:   doUnequip(s, rest); break;
         case Cmd::Accept:    doAccept(s, arg); break;
         case Cmd::Abandon:   doAbandon(s, arg); break;
         case Cmd::Crew:      doCrew(s); break;
@@ -55,6 +59,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Fire:      doFire(s, arg); break;
         case Cmd::Train:     doTrain(s, arg); break;
         case Cmd::Promote:   doPromote(s, arg); break;
+        case Cmd::Expedition: doExpedition(s, rest); break;
         case Cmd::Yes:       doAnswer(s, rng, true); break;
         case Cmd::No:        doAnswer(s, rng, false); break;
         case Cmd::Quit:      result = Outcome::Quit; break;

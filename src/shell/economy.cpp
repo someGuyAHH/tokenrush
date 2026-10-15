@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include "commands.hpp"
 #include "core/contracts.hpp"
@@ -196,7 +197,7 @@ void doContracts(Shared& s) {
             out() << "       " << paint(Style::Warn, std::string("Endurance: last until the end without ") + CONTRACT_KINDS[(int)o.kind].rule + ".") << "\n";
     }
     out() << paint(Style::Muted, "Fail or abandon a job and you lose the stake and gain heat (big jobs: +2), and the client remembers. "
-                                     "Heat widens market spreads, and from " + std::to_string(AUDIT_MIN_HEAT) + " up, audits can seize tokens.") << "\n";
+                                     "Heat widens market spreads, and from " + std::to_string(auditMinHeat(g)) + " up, audits can seize tokens.") << "\n";
     out() << (slots > 1 ? "Use 'accept <n>' or 'abandon <n>'. 'clients' shows who you stand well with.\n"
                         : "Use 'accept <n>' or 'abandon'. 'clients' shows who you stand well with.\n");
 }
@@ -317,6 +318,47 @@ void doTrain(Shared& s, const std::string& arg) {
         out = idx < 0 ? Notes{{Sev::Warn, "Usage: train <n>  (see 'crew')"}} : train(s.g, idx);
     }
     printNotes(out);
+}
+
+void doExpedition(Shared& s, const std::string& args) {
+    std::stringstream ss(args);
+    std::string who, len;
+    ss >> who >> len;
+    int idx = who.empty() ? -1 : parseIndex(who);
+    int trip = expeditionByName(len);
+
+    if (idx < 0 || trip < 0) {   // explain, with what each trip would bring this member (or everyone)
+        std::lock_guard lk(s.m);
+        const GameState& g = s.g;
+        if (!who.empty() && (idx < 0 || idx >= (int)g.crew.size())) { out() << "No such crew member. (See 'crew'.)\n"; return; }
+        out() << header("EXPEDITIONS") << paint(Style::Muted, "   away members don't work, but still get paid on payday") << "\n";
+        for (int t = 0; t < EXPEDITION_COUNT; ++t) {
+            const ExpeditionInfo& e = EXPEDITIONS[t];
+            out() << "  " << paint(Style::Bold, padRight(e.id, 6)) << padRight(duration(e.seconds), 9)
+                  << "curio " << padRight(percent(e.curioChance, 0), 5) << "trait " << padRight(percent(e.traitChance, 0), 5)
+                  << "level " << padRight(percent(e.levelChance, 0), 5) << paint(Style::Warn, "injury " + percent(injuryChance(g, t), 0)) << "\n";
+        }
+        out() << paint(Style::Bold, "Typical shards brought back") << "\n";
+        for (size_t i = 0; i < g.crew.size(); ++i) {
+            if (idx >= 0 && (int)i != idx) continue;
+            const CrewMember& c = g.crew[i];
+            out() << "  " << (i + 1) << ") " << padRight(c.name, 8) << padRight(ROLES[(int)c.role].name, 7);
+            if (isAway(c)) { out() << paint(Style::Muted, crewEffectText(g, c)) << "\n"; continue; }
+            for (int t = 0; t < EXPEDITION_COUNT; ++t)
+                out() << padVisible(std::string(EXPEDITIONS[t].id) + " " + paint(Style::Shards, num(expeditionLoot(g, c, t))), 16);
+            out() << "\n";
+        }
+        if (g.crew.empty()) out() << paint(Style::Muted, "  Nobody to send. Hire someone first.") << "\n";
+        out() << paint(Style::Muted, "Scouts bring back half as much again. Fixers at home make injuries rarer. A curio found is one no shop sells.") << "\n";
+        out() << "Use 'expedition <n> <short|long|deep>'.\n";
+        return;
+    }
+    Notes notes;
+    {
+        std::lock_guard lk(s.m);
+        notes = sendExpedition(s.g, idx, trip);
+    }
+    printNotes(notes);
 }
 
 void doPromote(Shared& s, const std::string& arg) {

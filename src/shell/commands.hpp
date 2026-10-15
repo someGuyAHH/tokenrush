@@ -21,7 +21,7 @@ enum class Cmd {
     Market, Buy, Sell, Contracts, Accept, Abandon, Crew, Hire, Fire, Train,
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
-    Theme, Clients,
+    Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -54,6 +54,12 @@ void doOrrery(Shared& s, const std::string& arg); // empty arg just shows the Or
 class Profiles;
 std::string pickProfile(Profiles& profiles);   // the chosen profile's name, or "" to quit
 
+// ----- workshop.cpp -----
+void doWorkshop(Shared& s);
+void doCraft(Shared& s, const std::string& arg);     // a number or a name
+void doEquip(Shared& s, const std::string& arg);
+void doUnequip(Shared& s, const std::string& arg);
+
 // ----- economy.cpp -----
 void doMarket(Shared& s);
 void doBuy(Shared& s, const std::string& arg);   // <n|max>
@@ -67,3 +73,4 @@ void doHire(Shared& s, const std::string& arg);
 void doFire(Shared& s, const std::string& arg);
 void doTrain(Shared& s, const std::string& arg);
 void doPromote(Shared& s, const std::string& arg);
+void doExpedition(Shared& s, const std::string& args);   // <n> <short|long|deep>; anything less explains
