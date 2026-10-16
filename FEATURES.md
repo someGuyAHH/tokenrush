@@ -785,11 +785,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   gameplay` (any case and spacing) makes an update **required**; `Update: minor`, or no line at
   all, makes it optional (so nothing is required by accident). `UpdateInfo` counts the gameplay
   ones among `HEAD..@{u}` (up to 200 read). Commits for this game carry the line from now on.
-  - **Required** (`updateRequired()`: a gameplay one, and this copy can fast-forward): the picker
-    shows "Gameplay update" with **update now** (or `u`) and won't open a profile (picking one says
-    why and redraws); `--profile` waits up to 8 s for the first check and shows the picker if one is
-    out. A game already open isn't interrupted: a red log line, and the footer says "u UPDATE
-    (needed)"; the next profile you open needs it. Never required: a copy with commits of its own,
+  - **Required** (`updateRequired()`: a gameplay one, and this copy can fast-forward): treated like
+    a security fix. The moment a check finds one, in the game or on the picker, the game saves and
+    shuts down with exit code 43 (`UPDATE_FORCED_EXIT_CODE`), and play.py says why, installs it and
+    starts the new version. `--profile` waits up to 8 s for the first check, so it doesn't open a
+    profile first. Never required: a copy with commits of its own,
     offline, without `play.py`, or after a failed update (play.py restarts with `--no-update-check`).
   - **Minor:** one muted line on the picker ("A small update is out... press u"), an Info line in
     the log, `u` in the footer.

@@ -282,10 +282,15 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             if (news && u->diverged)
                 s.log.push(Sev::Event, "UPDATE: " + updateSummary(*u) + ". This copy has commits of its own, so pull it yourself (git pull).");
             else if (news && u->required)
-                s.log.push(Sev::Bad, "GAMEPLAY UPDATE: " + updateSummary(*u) + ". Play on for now; profiles won't open again until it's in. "
-                                     "Press u (or type 'update') to save, quit and install it.");
+                s.log.push(Sev::Bad, "GAMEPLAY UPDATE: " + updateSummary(*u) + ". Saving and closing to install it.");
             else if (news)
                 s.log.push(Sev::Info, "A small update is out: " + updateSummary(*u) + ". u installs it whenever you like.");
+        }
+        // A gameplay update is treated like a security fix: the game saves and shuts down right
+        // away, and play.py installs it and starts the new version.
+        if (updateRequired() && !updateRequested()) {
+            requestUpdate(true);
+            screen.Exit();   // saved on the way out, like quitting
         }
         // On the Console, the typing line always has the keyboard.
         if (ui.page == CONSOLE_PAGE && !ui.typing()) pageList[CONSOLE_PAGE]->TakeFocus();
@@ -418,7 +423,7 @@ int main(int argc, char** argv) {
     }
 
     if (!opt.noUpdateCheck) startUpdateCheck();   // in the background; only does anything under play.py
-    auto exitCode = [] { return updateRequested() ? UPDATE_EXIT_CODE : 0; };
+    auto exitCode = [] { return updateExitCode(); };
 
     if (!opt.saveDir.empty()) {   // --save-dir: no profiles at all
         runGame(opt.saveDir, "");

@@ -520,9 +520,9 @@ const std::vector<CommandInfo>& commands() {
          {"When the game is started with 'python play.py', it checks GitHub for a new version when it starts and again "
           "every 5 to 10 minutes, and says so in the log. 'update' checks right away. If there's one, it saves and "
           "quits, and play.py pulls it, builds it and starts the game again (on the same profile picker).",
-          "Gameplay updates (they change how the game plays) are required: the profile screen won't open a profile "
-          "until one is installed, though a game you're already playing goes on. Minor ones (looks, wording) are up to "
-          "you. 'check' says which kind each new version is.",
+          "Gameplay updates (they change how the game plays) are treated like a security fix: as soon as one is "
+          "found, the game saves and shuts down, and play.py installs it and starts the new version. Minor ones (looks, "
+          "wording) are up to you. 'check' says which kind each new version is.",
           "If your copy has commits of its own, it can't just move ahead: pull it yourself. Started any other way (or "
           "with --no-update-check), the game doesn't check at all."},
          {{"update", "check now, and update if there's something new"}, {"u", "the same"}},

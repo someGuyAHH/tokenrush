@@ -24,6 +24,7 @@ struct Check {
     std::atomic<bool> enabled{false};
     std::atomic<bool> done{false};
     std::atomic<bool> requested{false};
+    std::atomic<bool> forced{false};
     std::atomic<bool> dismissed{false};
 };
 Check& check() {
@@ -185,8 +186,13 @@ bool checkUpdateNow(std::optional<UpdateInfo>& found) {
     return ok;
 }
 
-void requestUpdate() { check().requested = true; }
+void requestUpdate(bool forced) {
+    check().requested = true;
+    if (forced) check().forced = true;
+}
 bool updateRequested() { return check().requested; }
+bool updateForced() { return check().forced; }
+int updateExitCode() { return updateForced() ? UPDATE_FORCED_EXIT_CODE : updateRequested() ? UPDATE_EXIT_CODE : 0; }
 void dismissUpdate() { check().dismissed = true; }
 bool updateDismissed() { return check().dismissed; }
 

@@ -136,6 +136,10 @@ std::string pickProfile(Profiles& profiles) {
         Component all = Container::Vertical({Grid(rows), Container::Horizontal(bottom), quitBtn, updateRow});
 
         Component ui = Renderer(all, [&] {
+            if (updateRequired() && !updateRequested()) {   // a gameplay update: straight to installing it
+                requestUpdate(true);
+                screen.Exit();
+            }
             Elements lines;
             for (const Component& r : rows) lines.push_back(r->Render());
             if (rows.empty()) lines.push_back(text("   No profiles yet. Make one below.") | muted());

@@ -21,7 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 EXE = ROOT / "target" / "debug" / "tokenrush-tui.exe"
-UPDATE_EXIT_CODE = 42   # UPDATE_EXIT_CODE in src/core/update.hpp
+UPDATE_EXIT_CODE = 42          # UPDATE_EXIT_CODE in src/core/update.hpp
+UPDATE_FORCED_EXIT_CODE = 43   # a gameplay update: the game saved and shut itself down to get it
 BAR_WIDTH = 30
 GIT_ENV = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_SSH_COMMAND=os.environ.get("GIT_SSH_COMMAND", "ssh -o BatchMode=yes"))
 
@@ -77,9 +78,11 @@ def show_failure(step: Step, what: str, /) -> None:
     print()
 
 
-def update() -> bool:
+def update(*, forced: bool = False) -> bool:
     clear_screen()
     print("Updating TokenRush\n")
+    if forced:
+        print("A gameplay update is out, so TokenRush saved and closed itself to install it.\n")
     news = run_quiet(["git", "-C", str(ROOT), "log", "--format=%s", "HEAD..@{u}"])
     titles = news.log if news.ok else []
     if titles:
@@ -170,9 +173,9 @@ def main() -> None:
     retry = False   # after a failed update, don't ask again until the next start
     while True:
         code = play(args + (["--no-update-check"] if retry else []))
-        if code != UPDATE_EXIT_CODE:
+        if code not in (UPDATE_EXIT_CODE, UPDATE_FORCED_EXIT_CODE):
             sys.exit(code)
-        if update():
+        if update(forced=code == UPDATE_FORCED_EXIT_CODE):
             restart(args)
         retry = True
 

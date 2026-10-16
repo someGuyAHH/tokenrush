@@ -12,7 +12,8 @@
 #include <string>
 #include <vector>
 
-inline constexpr int UPDATE_EXIT_CODE = 42;   // play.py knows this one
+inline constexpr int UPDATE_EXIT_CODE = 42;          // play.py knows these two
+inline constexpr int UPDATE_FORCED_EXIT_CODE = 43;   // ...this one: a gameplay update shut the game down
 inline constexpr int UPDATE_RECHECK_MIN = 5 * 60, UPDATE_RECHECK_MAX = 10 * 60;   // seconds between checks
 
 // How much an update matters, from a line in its commit message: "Update: gameplay" (it changes how
@@ -36,8 +37,10 @@ bool updateRequired();                         // ...and it's a gameplay update:
 // Checks now, on the calling thread (a second or two of git), and returns what it found. False if
 // the check itself failed (offline, no git): `found` is then left alone.
 bool checkUpdateNow(std::optional<UpdateInfo>& found);
-void requestUpdate();                          // the player said yes: main() returns UPDATE_EXIT_CODE
+void requestUpdate(bool forced = false);       // the player said yes (or a gameplay update came out: forced)
 bool updateRequested();
+bool updateForced();
+int updateExitCode();                          // what main() returns: 0, UPDATE_EXIT_CODE or UPDATE_FORCED_EXIT_CODE
 void dismissUpdate();                          // "not now" on the profile picker: don't ask there again
 bool updateDismissed();
 std::string updateSummary(const UpdateInfo& u);   // "2 new versions: Wrap long log messages; ..."
