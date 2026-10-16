@@ -86,7 +86,9 @@ picker. The original is kept, renamed to `tokenrush.save.imported`. Profiles can
 the picker (its rename button).
 
 
-**TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (Mine, Shop, Goals, Stats, then
+**TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (`[` and `]` step to the
+previous and next one, and so do Ctrl+PgUp/PgDn and Alt+Left/Right, even while typing in the
+Console) (Mine, Shop, Goals, Stats, then
 Curios, Monolith, Market, Themes, Jobs, Crew, Orrery, Workshop, Stars, Tasks in unlock order; locked ones
 aren't shown), `m` to mine, `s` to save, `y`/`n` to answer an offer, `x` to stop a disaster,
 `:` for the Console, `p` to switch profile, `q` to quit (`p` and `q` ask first: press the same

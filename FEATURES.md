@@ -24,7 +24,13 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   (always last). Themes opens with the Market, next to it: themes cost shards, so there's
   nothing to buy there before.
 - Keys:
-  - `1`–`9` and `0`: the first ten visible tabs.
+  - `1`–`9` and `0`: the first ten visible tabs. `[` / `]`: the previous / next tab (wrapping
+    around); Ctrl+PgUp/PgDn and Alt+Left/Right do the same and work while typing too (Ctrl+Tab
+    never reaches the game: Windows Terminal and most others keep it for their own tabs).
+  - The tab bar (themed): the open tab is a bright accent chip while the tab bar has the
+    keyboard, and the accent faded 40% into the background while you're down in the page; the
+    tab under the mouse is underlined (the highlight follows the mouse only while it's over the
+    bar). Classic keeps FTXUI's own look (bold open tab, inverted under the keyboard).
   - `m`: mine.
   - `s`: save.
   - `y`/`n`: answer an offer.

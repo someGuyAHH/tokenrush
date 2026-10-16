@@ -209,7 +209,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         auto at = std::find(tabPage.begin(), tabPage.end(), ui.page);
         if (at == tabPage.end()) { ui.page = 0; at = tabPage.begin(); }
         ui.tab = (int)(at - tabPage.begin());
-        tabFocus = ui.tab;
+        tabFocus = std::clamp(tabFocus, 0, (int)tabPage.size() - 1);
     };
     auto showPage = [&](int page) {
         if (page != ui.page && ui.page != CONSOLE_PAGE) ui.previousPage = ui.page;
@@ -219,9 +219,16 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     tabOpt.focused_entry = &tabFocus;
     auto classicTab = tabOpt.entries_option.transform;   // FTXUI's own look, kept for the Classic theme
     tabOpt.entries_option.transform = [classicTab](const EntryState& st) {
-        if (themeClassic(tui::currentTheme())) return classicTab(st);
-        // Themed: the open tab is a chip in the accent color, the rest are quiet.
-        if (st.active) return text(st.label) | bold | color(tui::hue(Hue::Background)) | bgcolor(tui::hue(Hue::Accent));
+        if (themeClassic(tui::currentTheme())) return classicTab(st);   // (bold when open, inverted under the keyboard)
+        // Themed: the open tab is a chip in the accent color, bright while the tab bar has the
+        // keyboard on it, faded into the background while you're down in the page (or pointing at
+        // another tab). The tab you're pointing at is underlined.
+        if (st.active && st.focused) return text(st.label) | bold | color(tui::hue(Hue::Background)) | bgcolor(tui::hue(Hue::Accent));
+        if (st.active) {
+            Rgb a = themeRgb(tui::currentTheme(), Hue::Accent), b = themeRgb(tui::currentTheme(), Hue::Background);
+            auto mix = [](unsigned char x, unsigned char y) { return (uint8_t)((x * 40 + y * 60) / 100); };
+            return text(st.label) | bold | color(tui::hue(Hue::Text)) | bgcolor(Color::RGB(mix(a.r, b.r), mix(a.g, b.g), mix(a.b, b.b)));
+        }
         Element e = text(st.label) | color(tui::hue(st.focused ? Hue::Text : Hue::Muted));
         return st.focused ? e | underlined : e;
     };
@@ -253,6 +260,9 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
 
     // The offer and danger bars come last in the focus order, so one showing up never moves the
     // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
+    bool mouseOnTabs = false;   // the mouse is over the tab bar (so its highlight follows the mouse)
+    Box tabBox;
+
     // q and p ask first: the same key again within CONFIRM_WINDOW does it, anything else cancels.
     char leaveKey = 0;
     tui::Clock::time_point leaveUntil{};
@@ -262,6 +272,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (ui.page != THEMES_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Themes tab
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
+        if (!mouseOnTabs) tabFocus = ui.tab;   // the highlight follows the open tab, unless the mouse is pointing at another
         // Each update once per run (not once per profile): the check runs again every 5-10 minutes, and
         // only something newer than what was last announced (or turned down on the picker) is news.
         static int announced = 0;
@@ -298,7 +309,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             statusBar(ui),
             danger,
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),
-            tabBar->Render(),
+            tabBar->Render() | reflect(tabBox),
             themeClassic(tui::currentTheme()) ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
             leaveArmed()
@@ -306,14 +317,28 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
                                        : " Press p again to save and go back to the profiles (any other key stays).") | bold | color(tui::hue(Hue::Warn))
                 : text(ui.page == CONSOLE_PAGE
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
-                     : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
+                     : std::string(" 1-9 0 [ ] tabs   m mine   s save   y/n offers   ") +
                            (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
                            (updateRequired() ? "u UPDATE (needed)   " : updateReady() ? "u update   " : "") + "q quit") | tui::muted(),
         }));
     });
 
+    // The tab before or after the open one, wrapping around: [ and ], or Ctrl+PgUp/PgDn and
+    // Alt+Left/Right (those two work while typing too). (Ctrl+Tab never arrives: terminals keep it.)
+    auto stepTab = [&](int by) {
+        int n = (int)tabPage.size();
+        if (n == 0) return;
+        showPage(tabPage[(size_t)(((ui.tab + by) % n + n) % n)]);
+        refreshTabs();
+    };
+    const Event ctrlPgUp = Event::Special("\x1b[5;5~"), ctrlPgDn = Event::Special("\x1b[6;5~");
+    const Event altLeft = Event::Special("\x1b[1;3D"), altRight = Event::Special("\x1b[1;3C");
+
     Component root = CatchEvent(layout, [&](Event e) {
+        if (e.is_mouse()) mouseOnTabs = tabBox.Contain(e.mouse().x, e.mouse().y);
         if (e == Event::CtrlC) { screen.Exit(); return true; }
+        if (e == ctrlPgUp || e == altLeft) { stepTab(-1); return true; }
+        if (e == ctrlPgDn || e == altRight) { stepTab(1); return true; }
         if (ui.typing()) {   // a text box has the keys
             if (e == Event::Escape) {
                 if (ui.page == CONSOLE_PAGE) showPage(ui.previousPage == CONSOLE_PAGE ? 0 : ui.previousPage);
@@ -341,6 +366,8 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (e == Event::Character('x') && disasterPending(ui.snap)) { respond(); return true; }
         if (e == Event::Character('n') && hasChoice(ui.snap)) { answer(false); return true; }
         if (e == Event::Character(':')) { showPage(CONSOLE_PAGE); return true; }
+        if (e == Event::Character('[')) { stepTab(-1); return true; }
+        if (e == Event::Character(']')) { stepTab(1); return true; }
         if (e == Event::Character('p') && !profile.empty()) { askToLeave('p'); return true; }
         if (e == Event::Character('u') && updateReady()) { requestUpdate(); screen.Exit(); return true; }   // saved on the way out
         if (e.is_character() && e.character().size() == 1) {
