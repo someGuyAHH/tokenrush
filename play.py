@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 EXE = ROOT / "target" / "debug" / "tokenrush-tui.exe"
-UPDATE_EXIT_CODE = 42   # tui::UPDATE_EXIT_CODE
+UPDATE_EXIT_CODE = 42   # UPDATE_EXIT_CODE in src/core/update.hpp
 
 
 def build() -> bool:
@@ -37,15 +37,48 @@ def update() -> bool:
     return False
 
 
+def console_modes() -> list:
+    """The Windows console's input and output modes, to put back after the game.
+
+    The game switches the console into its own modes (no line editing, and a line feed that
+    doesn't return to the start of the line). If any of that is left behind, git's and g++'s
+    output comes out as a staircase. Elsewhere there's nothing to save: [].
+    """
+    if os.name != "nt":
+        return []
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetStdHandle.restype = wintypes.HANDLE
+    kernel32.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    modes = []
+    for which in (-10, -11):   # STD_INPUT_HANDLE, STD_OUTPUT_HANDLE
+        handle = kernel32.GetStdHandle(which)
+        mode = wintypes.DWORD()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            modes.append((kernel32, handle, mode.value))
+    return modes
+
+
+def restore_console(modes: list) -> None:
+    for kernel32, handle, mode in modes:
+        kernel32.SetConsoleMode(handle, mode)
+
+
 def play(args: list[str]) -> int:
     env = dict(os.environ, TOKENRUSH_REPO=str(ROOT), GIT_TERMINAL_PROMPT="0")
     env.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")   # never stop to ask for a password
+    modes = console_modes()
     game = subprocess.Popen([str(EXE), *args], env=env)
-    while True:
-        try:
-            return game.wait()
-        except KeyboardInterrupt:   # Ctrl+C is the game's to handle (it saves first); keep waiting
-            continue
+    try:
+        while True:
+            try:
+                return game.wait()
+            except KeyboardInterrupt:   # Ctrl+C is the game's to handle (it saves first); keep waiting
+                continue
+    finally:
+        restore_console(modes)
 
 
 def main() -> None:
