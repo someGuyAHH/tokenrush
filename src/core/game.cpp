@@ -4,6 +4,7 @@
 #include <cctype>
 #include <bit>
 #include <cmath>
+#include <limits>
 #include <iterator>
 #include <string>
 
@@ -19,6 +20,22 @@ long long costDrone  (int lvl) { long long n = (long long)lvl + 1; return 120LL 
 long long costBot    (int lvl) { long long n = (long long)lvl + 1; return 400LL * n * n; }
 
 int baseYield(const GameState& g) { return 1 + g.pickaxe; }
+
+int nextMilestone(int level) {
+    for (long long decade = 100;; decade *= 10)
+        for (long long step : {decade, decade * 5 / 2, decade * 5})
+            if (step > level) return (int)std::min<long long>(step, std::numeric_limits<int>::max());
+}
+
+int milestonesAt(int level) {
+    int n = 0;
+    for (long long decade = 100; decade <= level; decade *= 10)
+        for (long long step : {decade, decade * 5 / 2, decade * 5})
+            if (step <= level) ++n;
+    return n;
+}
+
+double milestoneMult(int level) { return std::ldexp(1.0, milestonesAt(level)); }
 int botInterval(int botLvl) { return std::max(2, 10 - botLvl); }
 int botIntervalOf(const GameState& g) {
     int i = botInterval(g.bot);
@@ -115,7 +132,7 @@ double passiveRatePerSec(const GameState& g) {
     if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
     if (g.machinesPaused > 0) return 0.0;                       // breakers pulled
     int working = std::max(0, g.drone - g.dronesDown);           // some may be burnt out by a surge
-    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0) * humBoost(g);
+    return perDrone * (double)working * milestoneMult(g.drone) * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0) * humBoost(g);
 }
 
 double botRatePerSec(const GameState& g) {
@@ -125,10 +142,11 @@ double botRatePerSec(const GameState& g) {
 
 double botRateIfRunning(const GameState& g) {
     if (g.bot <= 0) return 0.0;
-    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g) * humBoost(g);
+    double m = milestoneMult(g.bot);
+    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g) * humBoost(g) * m;
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);
-    return (perMine + bonus) / botIntervalOf(g) * humBoost(g);
+    return (perMine + bonus) / botIntervalOf(g) * humBoost(g) * m;
 }
 
 double expectedMine(const GameState& g) {

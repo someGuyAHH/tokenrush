@@ -62,7 +62,11 @@ const std::vector<CommandInfo>& commands() {
           "tokens a second, also while the game is closed, up to 12 hours), 4 Mining Bot (mines on its own, "
           "faster every level), 5 the Auto-Buyer license.",
           "Every level costs more than the last (the price grows with the square of the level). A number after "
-          "the item buys that many levels, or as many as you can afford if that's fewer."},
+          "the item buys that many levels, or as many as you can afford if that's fewer.",
+          "Milestones: Drones and the Mining Bot double everything they make at 100, 250, 500, 1,000, 2,500, 5,000, "
+          "10,000 levels and so on. The Shop tab shows each one's multiplier and the next milestone, and what one more "
+          "level of each upgrade would add to your income a second, the way you're playing now (the Pickaxe and Magnet "
+          "raise every mine, so they help everything built on mining; work out for yourself which pays off first)."},
          {{"shop", "open the shop menu"}, {"shop 1", "buy one Pickaxe level"}, {"shop 3 20", "buy up to 20 Drone levels"},
           {"shop drone 5", "items can be named too: pickaxe, magnet, drone, bot, license"}},
          {"auto", "status"}, -1, PLAYING},

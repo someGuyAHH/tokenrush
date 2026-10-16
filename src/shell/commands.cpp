@@ -150,9 +150,11 @@ void printStatus(Shared& s) {
               << "  next cost: " << num(ups[0].cost) << "\n";
     out() << "  Magnet  lvl " << g.magnet << "  next cost: " << num(ups[1].cost) << "\n";
     out() << "  Drone   lvl " << g.drone << "  passive: " << perSecond(passiveRatePerSec(g) * fx.passive)
-              << " tok/s  next cost: " << num(ups[2].cost) << "\n";
+              << " tok/s  x" << compact((long long)milestoneMult(g.drone)) << " (x2 more at " << compact(nextMilestone(g.drone)) << ")"
+              << "  next cost: " << num(ups[2].cost) << "\n";
     out() << "  Bot     lvl " << g.bot;
-    if (g.bot > 0) out() << "  mines every " << botIntervalOf(g) << "s";
+    if (g.bot > 0) out() << "  mines every " << botIntervalOf(g) << "s  x" << compact((long long)milestoneMult(g.bot))
+                         << " (x2 more at " << compact(nextMilestone(g.bot)) << ")";
     else           out() << "  (not built)";
     out() << "  next cost: " << num(ups[3].cost) << "\n";
 

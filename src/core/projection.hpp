@@ -32,7 +32,13 @@ bool movesWithTime(const std::string& value);   // tokens, shards, heat, payday,
 // on, source by source: each of mining by hand, Drones, the Bot and crew Miners scales with its own
 // formula (so Pickaxe levels do nothing for a player who doesn't mine by hand). Still no events, contracts, disasters or offers, and the price only moves
 // when a task trades.
-bool automationOn(const GameState& g);   // a task that's on (and licensed), or the Auto-Buyer
+bool automationOn(const GameState& g);
+
+// What one more level of upgrade `which` (0 Pickaxe, 1 Magnet, 2 Drone, 3 Bot) adds to your income,
+// tokens a second: each source you actually earn from, scaled by its formula (so the Pickaxe gets
+// no credit for mining by hand if you don't mine by hand). Just loaded, with nothing measured yet:
+// from incomeEstimate instead.
+double upgradeGain(const GameState& g, size_t which, int levels = 1);   // a task that's on (and licensed), or the Auto-Buyer
 
 class Forecast {
 public:

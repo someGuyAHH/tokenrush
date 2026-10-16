@@ -42,6 +42,16 @@ long long costDrone(int lvl);
 long long costBot(int lvl);
 
 int baseYield(const GameState& g);
+
+// Milestones: Drones and the Mining Bot double everything they make at 100, 250, 500, 1,000,
+// 2,500, 5,000, 10,000... levels (1, 2.5 and 5 of each power of ten). Their price grows with the
+// square of the level while a level adds a fixed amount, so without these a late Drone or Bot
+// level took hours to pay for itself. (The Pickaxe and the Magnet don't need them: they raise the
+// average mine everything else is built on, so their value keeps up on its own, and milestones
+// there would multiply each other through it.)
+int milestonesAt(int level);           // how many it has passed
+double milestoneMult(int level);       // 2 to that
+int nextMilestone(int level);          // the next one
 int botInterval(int botLvl);              // seconds between Mining Bot mines, by level
 int botIntervalOf(const GameState& g);    // the same, with gadgets (Night Shift halves it)
 

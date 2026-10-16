@@ -174,6 +174,8 @@ Completing the Orrery opens the Constellations. Once open, a feature stays open.
 before this kept everything they were already using. The table lives in `FEATURES` in
 `src/core/content.cpp`.
 
+- **Milestones.** Drones and the Mining Bot double their output at 100, 250, 500, 1,000, 2,500...
+  levels, and the Shop shows what one more level of each upgrade would add to your income a second.
 - **Mining, upgrades, curios, prompt styles, the Monolith.** The original game; the Monolith
   is the mid-game project. Upgrades can be bought 10 or 20 levels at a time (the Buy 10 and
   Buy 20 buttons, or `shop 1 10` in the Console). The Mine tab (and `status`) shows what you've

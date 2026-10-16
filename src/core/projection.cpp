@@ -93,6 +93,23 @@ std::array<double, SOURCE_COUNT> sourceFormulas(const GameState& g) {
 
 }  // namespace
 
+double upgradeGain(const GameState& g, size_t which, int levels) {
+    GameState after = g;
+    *upgrades(after)[std::min<size_t>(which, 3)].lvl += levels;
+    auto by = recentSourceRates(g);
+    double measured = 0;
+    for (size_t i = 0; i < (size_t)SOURCE_COUNT; ++i) if (i != (size_t)Source::Contracts) measured += by[i];
+    if (measured <= 0) return incomeEstimate(after) - incomeEstimate(g);
+    std::array<double, SOURCE_COUNT> f0 = sourceFormulas(g), f1 = sourceFormulas(after);
+    double gain = 0;
+    for (size_t i = 0; i < (size_t)SOURCE_COUNT; ++i) {
+        if (i == (size_t)Source::Contracts) continue;
+        if (f0[i] > 0) gain += by[i] * (f1[i] / f0[i] - 1.0);
+        else if (i != (size_t)Source::Mining) gain += f1[i];   // a source it starts (your first Drone)
+    }
+    return gain;
+}
+
 Forecast::Forecast(const GameState& now) : s_(now) {
     Projection p = projectionOf(now);
     rate0_ = p.tokensPerSec;

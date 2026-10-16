@@ -232,6 +232,19 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Mining Bot | 400·(lvl+1)² | auto-mines every max(2, 10 − lvl) s |
 
   Rust doubles all of these. Levels are capped at 1,000,000.
+- **Milestones** (`milestoneMult`): Drones and the Mining Bot double everything they make at 100,
+  250, 500, 1,000, 2,500, 5,000, 10,000... levels (1, 2.5 and 5 of each power of ten): ×64 at 5,000,
+  ×128 at 10,000. Without them a late level of either took hours to pay for itself (its price grows
+  with the square of the level while it adds a fixed amount); with them, minutes. The Pickaxe and
+  Magnet have none: they raise the average mine that mining, the Bot (with Resonance), Drones
+  (with Resonance) and the crew all build on, so their value keeps up, and milestones there would
+  multiply each other through it. In the simulator the early game is unchanged (every unlock at
+  about the same time) and income grows faster later without running away: lifetime 56T at 12
+  hours (4.6T before), 2.7×10^16 at 40 (7.3×10^14), still slowing toward the 10^18 cap.
+- **What a level adds** (`upgradeGain`, the Shop's "+X/s"): the income one more level would add,
+  from each source you actually earn from scaled by its formula, so it reflects how you play (no
+  credit for mining by hand if you don't). Just loaded, before anything's measured: the formulas
+  (`incomeEstimate`). Drones and the Bot also show their multiplier and the next milestone.
 - **Buy, Buy 10, Buy 20:** the bigger buttons buy as many as you can afford up to n
   (`buyUpgrades`, `upgradesCost`).
 - **Auto-Buyer license (2,000):** buys your cheapest upgrade whenever you have 3× its cost (checks every 5 s).

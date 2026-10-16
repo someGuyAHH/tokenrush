@@ -79,7 +79,7 @@ static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
         } else if (r < jackpotP + bonusP) {
             swing += base * bonusSize(g) * bonusBoost(g, fx.odds);
         }
-        return toTokens(swing * resonantBotPower(g) * fx.mining * humBoost(g));
+        return toTokens(swing * resonantBotPower(g) * fx.mining * humBoost(g) * milestoneMult(g.bot));
     }
 
     double gain = baseYield(g) * (0.6 + 0.2 * g.bot);
@@ -90,7 +90,7 @@ static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
     double boost = fx.odds * std::min(0.35, raw) / std::max(1e-9, bonusChance);   // Gold Rush past the cap pays more instead
     if (uni(rng) < bonusChance) gain += baseYield(g) * (4.0 + 2.0 * g.magnet) * boost;
 
-    return toTokens(gain * fx.mining * humBoost(g));
+    return toTokens(gain * fx.mining * humBoost(g) * milestoneMult(g.bot));
 }
 
 static void autoBuy(GameState& g, MessageLog& log) {

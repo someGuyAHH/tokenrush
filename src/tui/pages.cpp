@@ -13,6 +13,7 @@
 #include "core/stars.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
+#include "core/projection.hpp"
 #include "core/util.hpp"
 #include "shell/commands.hpp"
 #include "console.hpp"
@@ -137,6 +138,12 @@ static Element themeSwatch(int t) {
     return e | color(hueOf(t, Hue::Text)) | bgcolor(hueOf(t, Hue::Background));
 }
 
+// "x64, x128 at 10K": a Drone's or the Bot's milestone multiplier now, and the next one.
+static std::string milestoneText(int level) {
+    std::string next = "x" + compact((long long)milestoneMult(nextMilestone(level))) + " at " + compact(nextMilestone(level));
+    return milestonesAt(level) == 0 ? next : "x" + compact((long long)milestoneMult(level)) + ", " + next;
+}
+
 Component ShopPage(Ui& ui) {
     // One row of buttons per upgrade: Buy, Buy 10, Buy 20. The bigger ones turn blue once you
     // can afford all of it; clicked earlier, they buy as many levels as you can afford.
@@ -170,19 +177,15 @@ Component ShopPage(Ui& ui) {
             "+1 base yield (now " + num(baseYield(g)) + ")",
             oddsMaxed ? "bonus x" + compact((long long)bonusSize(g)) + ", jackpot x" + compact((long long)jackpotSize(g)) + ": +4x/+20x a level"
                       : "odds " + percent(bonusChance(g), 0) + "/" + percent(jackpotChance(g)) + ", and bigger payouts",
-            "+1 Drone (" + perSecond(passiveRatePerSec(g)) + "/s now)",
-            g.bot == 0 ? "mines on its own" : "stronger swings (every " + std::to_string(botIntervalOf(g)) + "s)",
+            "+1 Drone, " + perSecond(passiveRatePerSec(g)) + "/s now; " + milestoneText(g.drone),
+            g.bot == 0 ? "mines on its own; x2 at 100" : "swings every " + std::to_string(botIntervalOf(g)) + "s; " + milestoneText(g.bot),
         };
-        double now = std::max(1.0, incomeEstimate(g));
-        Elements rows = {hbox({heading("Upgrades"), text("   the % is what one more level adds to your income") | muted()}), text("")};
+        Elements rows = {hbox({heading("Upgrades"), text("   +/s is what one more level adds to your income, as you play now") | muted()}), text("")};
         for (size_t i = 0; i < ups.size(); ++i) {
-            *ups[i].lvl += 1;
-            double gain = incomeEstimate(g) / now - 1.0;
-            *ups[i].lvl -= 1;
-            std::string pct = gain >= 0.0995 ? "+" + percent(gain, 0) : gain >= 0.000995 ? "+" + percent(gain, 1) : "+" + percent(gain, 2);
+            std::string gain = "+" + perSecond(std::max(0.0, upgradeGain(g, i))) + "/s";
             rows.push_back(hbox({cell(ups[i].name, 12), cell("lvl " + std::to_string(*ups[i].lvl), 11),
-                                 text(effects[i]) | size(WIDTH, EQUAL, 46), text(pct) | color(hue(Hue::Good)) | size(WIDTH, EQUAL, 8),
-                                 tokens(ups[i].cost) | size(WIDTH, EQUAL, 14),
+                                 text(effects[i]) | size(WIDTH, EQUAL, 46), text(gain) | color(hue(Hue::Good)) | size(WIDTH, EQUAL, 10),
+                                 tokens(ups[i].cost) | size(WIDTH, EQUAL, 16),
                                  buys[i][0]->Render(), text(" "), buys[i][1]->Render(), text(" "), buys[i][2]->Render()}));
         }
         rows.push_back(text(""));
