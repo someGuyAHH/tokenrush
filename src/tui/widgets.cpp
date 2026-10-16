@@ -390,8 +390,9 @@ namespace {
 
 class TextBoxBase : public ComponentBase {
 public:
-    TextBoxBase(std::string* content, int* cursor, std::string placeholder, std::function<void()> onEnter, int width)
-        : content_(content), cursor_(cursor), placeholder_(std::move(placeholder)), width_(width) {
+    TextBoxBase(std::string* content, int* cursor, std::string placeholder, std::function<void()> onEnter, int width,
+                std::function<std::string()> ghost)
+        : content_(content), cursor_(cursor), placeholder_(std::move(placeholder)), width_(width), ghost_(std::move(ghost)) {
         InputOption opt;
         opt.multiline = false;
         opt.cursor_position = cursor;
@@ -409,8 +410,15 @@ public:
             size_t at = (size_t)std::clamp(*cursor_, 0, (int)s.size());
             size_t len = at < s.size() ? 1 : 0;
             while (at + len < s.size() && ((unsigned char)s[at + len] & 0xC0) == 0x80) ++len;   // a whole UTF-8 character
-            std::string under = len ? s.substr(at, len) : " ";
-            e = hbox({text(s.substr(0, at)), on ? text(under) | inverted : text(under), text(s.substr(at + len))});
+            // A suggestion (at the end of the line only): greyed out after the cursor, the cursor on its first letter.
+            std::string ghost = on && ghost_ && at == s.size() ? ghost_() : "";
+            if (!ghost.empty()) {
+                Color dim = ghostColor();
+                e = hbox({text(s), text(ghost.substr(0, 1)) | color(dim) | inverted, text(ghost.substr(1)) | color(dim)});
+            } else {
+                std::string under = len ? s.substr(at, len) : " ";
+                e = hbox({text(s.substr(0, at)), on ? text(under) | inverted : text(under), text(s.substr(at + len))});
+            }
         }
         if (width_ > 0) e = e | size(WIDTH, EQUAL, width_);
         return e | reflect(box_);
@@ -426,17 +434,26 @@ public:
     }
 
 private:
+    // The text color, halfway to the background: there, but quieter than what's typed.
+    static Color ghostColor() {
+        Rgb t = themeRgb(currentTheme(), Hue::Text), b = themeRgb(currentTheme(), Hue::Background);
+        auto mix = [](unsigned char x, unsigned char y) { return (uint8_t)((x * 45 + y * 55) / 100); };
+        return Color::RGB(mix(t.r, b.r), mix(t.g, b.g), mix(t.b, b.b));
+    }
+
     std::string* content_;
     int* cursor_;
     std::string placeholder_;
     int width_;
+    std::function<std::string()> ghost_;
     Box box_;
 };
 
 }  // namespace
 
-Component TextBox(std::string* content, int* cursor, std::string placeholder, std::function<void()> onEnter, int width) {
-    return Make<TextBoxBase>(content, cursor, std::move(placeholder), std::move(onEnter), width);
+Component TextBox(std::string* content, int* cursor, std::string placeholder, std::function<void()> onEnter, int width,
+                  std::function<std::string()> ghost) {
+    return Make<TextBoxBase>(content, cursor, std::move(placeholder), std::move(onEnter), width, std::move(ghost));
 }
 
 // ----- Grids -----

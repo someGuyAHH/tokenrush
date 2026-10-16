@@ -14,6 +14,7 @@
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/util.hpp"
+#include "shell/commands.hpp"
 #include "console.hpp"
 #include "ui.hpp"
 
@@ -1077,19 +1078,31 @@ Component StatsPage(Ui& ui) {
 // The typed commands in a tab: shell/dispatch.cpp runs each line on the Console's own thread (console.cpp).
 // The output scrolls: PgUp/PgDn or the mouse wheel go back through it, typing comes back down.
 Component ConsolePage(Ui& ui) {
+    // What the line would complete to (shell/complete.cpp), from the snapshot: greyed out, Tab takes it.
+    auto suggestion = [&ui] { return ui.console ? completion(ui.snap, ui.console->history(), ui.consoleLine) : std::string(); };
     Component input = TextBox(&ui.consoleLine, &ui.consoleCursor, "", [&ui] {
         if (ui.console) ui.console->submit(ui.consoleLine);
         ui.consoleLine.clear();
         ui.consoleCursor = 0;
         ui.historyAt = -1;
         ui.consoleScroll = 0;   // a new command: back to the bottom to see what it says
-    });
+    }, 0, suggestion);
     ui.textBoxes.push_back(input);
 
     auto page = [] { return std::max(3, Terminal::Size().dimy - 22); };   // about what the tab shows at once
 
-    Component withKeys = CatchEvent(input, [&ui, page](Event e) {
+    Component withKeys = CatchEvent(input, [&ui, page, suggestion](Event e) {
         if (!ui.console) return false;
+        // Tab (or Right at the end of the line) takes the suggestion. Tab never leaves the line.
+        bool atEnd = ui.consoleCursor >= (int)ui.consoleLine.size();
+        if (e == Event::Tab || (e == Event::ArrowRight && atEnd)) {
+            std::string more = suggestion();
+            if (more.empty()) return e == Event::Tab;
+            ui.consoleLine += more;
+            ui.consoleCursor = (int)ui.consoleLine.size();
+            ui.historyAt = -1;
+            return true;
+        }
         // Scrolling back through the output.
         int before = ui.consoleScroll;
         if (e == Event::PageUp) ui.consoleScroll += page();
@@ -1103,14 +1116,17 @@ Component ConsolePage(Ui& ui) {
         }
         if (e.is_character()) ui.consoleScroll = 0;   // typing: back to the prompt
 
-        // Up and Down walk through the lines typed before.
+        // Up and Down walk through the lines typed before, skipping any that are the same as the one showing.
         if (e != Event::ArrowUp && e != Event::ArrowDown) return false;
         std::vector<std::string> h = ui.console->history();
         if (h.empty()) return true;
+        int step = e == Event::ArrowUp ? -1 : 1;
         int at = ui.historyAt < 0 ? (int)h.size() : ui.historyAt;
-        at += e == Event::ArrowUp ? -1 : 1;
+        do at += step;
+        while (at >= 0 && at < (int)h.size() && h[(size_t)at] == ui.consoleLine);
         if (at >= (int)h.size()) { ui.historyAt = -1; ui.consoleLine.clear(); }
-        else { ui.historyAt = std::max(0, at); ui.consoleLine = h[(size_t)ui.historyAt]; }
+        else if (at < 0) { /* already at the oldest different line */ }
+        else { ui.historyAt = at; ui.consoleLine = h[(size_t)at]; }
         ui.consoleCursor = (int)ui.consoleLine.size();
         return true;
     });

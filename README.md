@@ -101,6 +101,11 @@ through its output (End, or just typing, comes back down). A few things only exi
 prompt styles (and `prompt color #ff8800`: your prompt in a color of yours, 12,000 shards once),
 `wipe`, `log` with filters, `predict`, and the `help` pages.
 
+**Typing:** the Console suggests the rest of what you're typing, greyed out: an earlier line
+that starts the same way, or else the command, subcommand, gadget, client or task-language
+word you're in the middle of. Tab (or Right at the end of the line) takes it. Up/Down walk back
+through earlier lines, skipping repeats.
+
 **Commands:** type `help` in the Console, and `help <command>` (aliases work: `help ct`) for a full page on one
 command, with examples. `logout` goes back to the profile list, `cls`/`clear` clears the
 screen, and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the

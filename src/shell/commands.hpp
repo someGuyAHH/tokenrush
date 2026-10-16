@@ -14,6 +14,7 @@
 
 #include <random>
 #include <string>
+#include <vector>
 
 #include "core/state.hpp"
 
@@ -31,6 +32,12 @@ enum class Cmd {
 
 Cmd parseCmd(const std::string& word);   // expects lowercase (help.cpp, from the command table)
 int commandFeature(Cmd c);               // the Feature a command needs, or -1 (help.cpp)
+std::vector<std::string> commandWords(const GameState& g);   // every unlocked command's names: real names first, then aliases (help.cpp)
+
+// ----- complete.cpp -----
+// What the Console would complete `line` to: the rest of it (to show greyed out, and add on Tab),
+// or "". From the newest earlier line that starts the same way, or else the word being typed.
+std::string completion(const GameState& g, const std::vector<std::string>& history, const std::string& line);
 
 // ----- commands.cpp -----
 bool commandAllowed(Shared& s, Cmd c);           // false (after saying why) for a feature that isn't unlocked yet

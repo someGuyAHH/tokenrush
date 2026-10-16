@@ -33,7 +33,7 @@ void Console::submit(const std::string& line) {
     append((line + "\n").c_str(), line.size() + 1);   // echo it after the prompt, like a terminal would
     std::lock_guard lk(inM_);
     pending_.push_back(line);
-    if (!trim(line).empty()) history_.push_back(line);
+    if (!trim(line).empty() && (history_.empty() || history_.back() != line)) history_.push_back(line);   // the same line twice: once
     inCv_.notify_one();
 }
 

@@ -149,8 +149,9 @@ ftxui::Component FlatBtn(std::function<std::string()> label, std::function<void(
 ftxui::Component MineButton(Ui& ui);
 // A one-line text box with a drawn caret. (FTXUI's own Input moves the terminal's real cursor
 // on every frame, which flickers on Windows Terminal; this keeps that cursor hidden.)
+// `ghost`, if given, is a suggestion for the rest of the line, drawn greyed out after the caret.
 ftxui::Component TextBox(std::string* content, int* cursor, std::string placeholder,
-                         std::function<void()> onEnter = nullptr, int width = 0);
+                         std::function<void()> onEnter = nullptr, int width = 0, std::function<std::string()> ghost = nullptr);
 // A column of rows (like Container::Vertical) where the rows of buttons share one column:
 // moving up or down lands on the same column in the next row, not wherever that row was last.
 // Any child with two or more children of its own counts as a row; the rest are left alone.

@@ -108,6 +108,18 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   `core/tasks.cpp`): any expression in the Tasks language with predict's extra values, worked out
   now. A comparison or and/or/not prints true/false, a time prints as a time (`8m 17s (497s)`),
   anything else as a number with separators (and short form from 10,000). Mistakes get the caret.
+- **Completion** (`shell/complete.cpp: completion`, drawn by `TextBox`'s ghost): the rest of the
+  line, greyed out after the caret (the text color 45% of the way into the background, the caret
+  on its first letter), from the TUI's snapshot so it never locks. First the newest earlier line
+  that starts with what's typed (2+ characters); else the word being typed: unlocked command
+  names (real ones before aliases) and your aliases; subcommands of task, check, predict, theme,
+  prompt, auto, buy, sell, repair, log, expedition; command names for help and alias; your
+  aliases for rmalias; client ids for bribe (Burned ones first); whole gadget names for
+  equip/unequip/craft; and the Tasks language's values and keywords in eval, predict when and
+  task add/edit/check (an alias completes like what it runs). A completed word gets a space after
+  it. Tab or Right (at the end) takes it; Tab never leaves the line.
+- **History:** a line typed twice in a row is kept once, and Up/Down skip lines that match the
+  one showing.
 - **Aliases** (`shell/aliases.cpp`): `alias <command...> <name>`: the last word is the name,
   everything before it is what it runs (case kept); `runCommand` swaps a typed alias for its
   command and puts whatever followed on the end, and shows the line it ran. `alias` lists them,

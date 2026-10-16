@@ -70,6 +70,9 @@ long long taskStartupCost(const GameState& g, const Task& t);       // ...for a 
 std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, TaskCheck& check);
 bool conditionHolds(const TaskProgram& p, GameState& g);
 std::vector<std::string> conditionValues(const TaskProgram& p);   // the values it reads, by name
+// Every word of the language, for the Console's completion: the values (predict's three too if
+// `predicting`), then the keywords and action words.
+std::vector<std::string> taskWords(bool predicting);
 
 // `eval <expression>`: the same language (predict's values too), worked out right now. `kind` says
 // what it comes to: 'b' true or false, 't' a time (seconds), 'a' a number or an amount.

@@ -877,6 +877,16 @@ double expressionValue(const TaskProgram& p, GameState& g) { return eval(p, p.co
 
 bool conditionHolds(const TaskProgram& p, GameState& g) { return p.cond < 0 || eval(p, p.cond, g) != 0; }
 
+std::vector<std::string> taskWords(bool predicting) {
+    std::vector<std::string> out;
+    for (int v = 0; v < (predicting ? VALUE_DEFS : PREDICT_ONLY_FROM); ++v) out.push_back(VALUES[v].name);
+    for (const char* w : {"and", "or", "not", "true", "false", "when", "while", "every", "if", "do", "upgrade", "buy", "sell", "train",
+                          "promote", "send", "repair", "fund", "orrery", "equip", "unequip", "autobuyer", "notify", "pickaxe", "magnet",
+                          "drone", "bot", "shards", "max", "all", "anyone", "short", "long", "deep", "on", "off"})
+        out.push_back(w);
+    return out;
+}
+
 std::vector<std::string> conditionValues(const TaskProgram& p) {
     std::vector<std::string> out;
     for (const TaskNode& n : p.nodes)

@@ -561,6 +561,17 @@ void printPage(const CommandInfo& info, bool open, const GameState& g) {
 
 }  // namespace
 
+std::vector<std::string> commandWords(const GameState& g) {
+    std::vector<std::string> out, aliases;
+    for (const CommandInfo& info : commands()) {
+        if (info.feature >= 0 && !isUnlocked(g, (Feature)info.feature)) continue;
+        out.push_back(info.names[0]);
+        aliases.insert(aliases.end(), info.names.begin() + 1, info.names.end());
+    }
+    out.insert(out.end(), aliases.begin(), aliases.end());
+    return out;
+}
+
 int commandFeature(Cmd c) {
     const CommandInfo* info = findCommand(c);
     return info ? info->feature : -1;
