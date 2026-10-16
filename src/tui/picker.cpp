@@ -35,7 +35,17 @@ std::string pickProfile(Profiles& profiles) {
         std::string placeholder = "name for a new profile";
         Component input;     // made below; the Rename buttons send the keyboard to it
 
-        auto finish = [&](const std::string& name) { chosen = name; screen.Exit(); };
+        auto finish = [&](const std::string& name) {
+            if (updateRequired()) {   // a gameplay update: no profile opens until it's in
+                message = "A gameplay update is out: install it first (update now, above, or u). Your saves stay as they are.";
+                messageColor = hue(Hue::Warn);
+                restart = true;   // redrawn, so a profile just made shows up in the list
+                screen.Exit();
+                return;
+            }
+            chosen = name;
+            screen.Exit();
+        };
         auto create = [&] {
             std::string why;
             if (renaming >= 0) {   // the box holds a new name for an existing profile
@@ -114,12 +124,12 @@ std::string pickProfile(Profiles& profiles) {
         });
         Component quitBtn = FlatBtn([] { return std::string("quit"); }, [&] { screen.Exit(); });
 
-        // An update found by play.py's check: update now (quit, and play.py pulls, builds and
-        // starts the game again), or not now (not asked again this run).
-        auto updateShown = [] { return updateReady() && !updateDismissed(); };
+        // An update found by play.py's check. A gameplay one is required: "update now" (quit, and
+        // play.py pulls, builds and starts the game again) and no profile opens until then. A minor
+        // one is a quiet line; u installs it.
+        auto updateShown = [] { return updateReady(); };
         Component updateBtn = FlatBtn([] { return std::string("update now"); }, [&] { requestUpdate(); screen.Exit(); });
-        Component laterBtn = FlatBtn([] { return std::string("not now"); }, [] { dismissUpdate(); });
-        Component updateRow = Maybe(Container::Horizontal({updateBtn, laterBtn}), updateShown);
+        Component updateRow = Maybe(updateBtn, [] { return updateRequired(); });
 
         Components bottom = {input, createBtn};
         if (legacy) bottom.push_back(importBtn);
@@ -138,12 +148,15 @@ std::string pickProfile(Profiles& profiles) {
             if (legacy) { newRow.push_back(text("   ")); newRow.push_back(importBtn->Render()); }
 
             Elements body = {text("")};
-            if (updateShown()) {
+            if (updateRequired()) {
                 UpdateInfo u = *updateAvailable();
-                body.push_back(hbox({text("   Update: ") | color(hue(Hue::Accent)), paragraph(updateSummary(u)) | color(hue(Hue::Text)) | flex}));
+                body.push_back(hbox({text("   Gameplay update: ") | bold | color(hue(Hue::Warn)), paragraph(updateSummary(u)) | color(hue(Hue::Text)) | flex}));
+                body.push_back(text("   It changes how the game plays, so profiles open once it's installed. Your saves stay as they are.") | muted());
                 if (u.edited) body.push_back(text("   You've changed some of the code; if the update touches the same files it'll stop and say so.") | muted());
-                body.push_back(hbox({text("   "), updateBtn->Render(), text("   "), laterBtn->Render(),
-                                     text("     or press u") | muted()}));
+                body.push_back(hbox({text("   "), updateBtn->Render(), text("     or press u") | muted()}));
+                body.push_back(text(""));
+            } else if (updateShown()) {
+                body.push_back(text("   A small update is out (" + updateSummary(*updateAvailable()) + "). Press u to install it, or play on.") | muted());
                 body.push_back(text(""));
             }
             for (Element e : {text("   Choose a profile") | color(hue(Hue::Accent)), text("")}) body.push_back(e);

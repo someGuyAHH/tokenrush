@@ -52,9 +52,12 @@ Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
     tokenrush-tui [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color] [--no-update-check]
 
 **Updates.** Started through `play.py` (from a git clone), the game checks GitHub for new
-commits in the background, when it starts and again every 5 to 10 minutes while you play. If
-there are any, the profile screen says what's new and offers **update now** / **not now**, and in
-the game the log says so (once per new update) and `u` updates. In the Console, `update` (or `u`)
+commits in the background, when it starts and again every 5 to 10 minutes while you play.
+Updates come in two kinds, marked in their commit messages: **gameplay** ones (`Update: gameplay`:
+they change how the game plays) are required, so the profile screen won't open a profile until
+it's installed (a game already open plays on, with a warning); **minor** ones (looks, wording,
+tools, and anything unmarked) are a quiet line on the profile screen and in the log, and `u`
+installs them whenever you like. In the Console, `update` (or `u`)
 checks right away and updates if there's something new, and `check` only looks: whether you're
 up to date, `check list` (when and what), `check titles`, `check dates`, `check count`, `check
 show <n>` (a whole commit message), `check files` and `check current`; and earlier versions with

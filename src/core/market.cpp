@@ -12,6 +12,10 @@
 
 namespace {
 
+// "164.2", or "27.2K" once a price runs into the thousands (log lines stay short).
+std::string priceText(double p) { return p < 1000.0 ? fixed(p, 1) : compact(std::llround(p)); }
+
+
 constexpr double BASE_SPREAD     = 0.05;
 constexpr double SPREAD_PER_HEAT = 0.02;
 constexpr double SPREAD_PER_BROKER_LEVEL = 0.006;
@@ -97,7 +101,7 @@ Notes buyShards(GameState& g, long long n) {
     g.shardPrice = std::clamp(g.shardPrice * std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;   // your own trade isn't news
     return {{Sev::Good, "Bought " + count(n, "shard") + " for " + compact(cost) + " tokens (avg " +
-                        fixed((double)cost / (double)n, 1) + "). Price is now " + fixed(g.shardPrice, 1) + "."}};
+                        priceText((double)cost / (double)n) + "). Price is now " + priceText(g.shardPrice) + "."}};
 }
 
 Notes sellShards(GameState& g, long long n) {
@@ -117,7 +121,7 @@ Notes sellShards(GameState& g, long long n) {
     g.shardPrice = std::clamp(g.shardPrice / std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;
     return {{Sev::Good, "Sold " + count(n, "shard") + " for " + compact(value) + " tokens (avg " +
-                        fixed((double)value / (double)n, 1) + "). Price is now " + fixed(g.shardPrice, 1) + "."}};
+                        priceText((double)value / (double)n) + "). Price is now " + priceText(g.shardPrice) + "."}};
 }
 
 void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
@@ -137,13 +141,13 @@ void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
         g.shardPrice = std::clamp(std::exp(lp), MIN_PRICE, MAX_PRICE);
         g.lastReportedPrice = g.shardPrice;
         if (news) log.push(Sev::Event, std::string(up ? "MARKET: Shard rush! Price jumps to " : "MARKET: Crash! Price drops to ") +
-                             fixed(g.shardPrice, 1) + ".");
+                             priceText(g.shardPrice) + ".");
     } else {
         g.shardPrice = std::clamp(std::exp(lp), MIN_PRICE, MAX_PRICE);
         double move = g.shardPrice / g.lastReportedPrice - 1.0;
         if (std::abs(move) >= REPORT_MOVE) {
             if (news) log.push(Sev::Info, std::string("Market: shard price ") + (move > 0 ? "rose" : "fell") +
-                                " to " + fixed(g.shardPrice, 1) + ".");
+                                " to " + priceText(g.shardPrice) + ".");
             g.lastReportedPrice = g.shardPrice;
         }
     }

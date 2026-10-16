@@ -267,10 +267,13 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (auto u = updateAvailable(); u && u->behind > announced) {
             bool news = !(announced == 0 && updateDismissed());
             announced = u->behind;
-            if (news)
-                s.log.push(Sev::Event, "UPDATE: " + updateSummary(*u) +
-                                           (u->diverged ? ". This copy has commits of its own, so pull it yourself (git pull)."
-                                                        : ". Press u (or type 'update') to save, quit and update."));
+            if (news && u->diverged)
+                s.log.push(Sev::Event, "UPDATE: " + updateSummary(*u) + ". This copy has commits of its own, so pull it yourself (git pull).");
+            else if (news && u->required)
+                s.log.push(Sev::Bad, "GAMEPLAY UPDATE: " + updateSummary(*u) + ". Play on for now; profiles won't open again until it's in. "
+                                     "Press u (or type 'update') to save, quit and install it.");
+            else if (news)
+                s.log.push(Sev::Info, "A small update is out: " + updateSummary(*u) + ". u installs it whenever you like.");
         }
         // On the Console, the typing line always has the keyboard.
         if (ui.page == CONSOLE_PAGE && !ui.typing()) pageList[CONSOLE_PAGE]->TakeFocus();
@@ -304,7 +307,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
                      : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
                            (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
-                           (updateReady() ? "u update   " : "") + "q quit") | tui::muted(),
+                           (updateRequired() ? "u UPDATE (needed)   " : updateReady() ? "u update   " : "") + "q quit") | tui::muted(),
         }));
     });
 
@@ -403,6 +406,10 @@ int main(int argc, char** argv) {
             return 2;
         }
         name = profiles.find(opt.profile);
+        // --profile skips the picker, which is where a gameplay update is required: give the first
+        // check a few seconds, and if one is out, show the picker after all.
+        for (int i = 0; i < 80 && updatesEnabled() && !updateCheckDone(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (updateRequired()) name.clear();
     }
 
     // Pick a profile, play it, and come back to the picker after 'p'.

@@ -739,9 +739,22 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   so it says "pull it yourself"), the newest three commit titles, and whether tracked files are
   edited. It runs at start and again every 5 to 10 minutes (random); offline, the last answer
   stands. The Console's `update` runs one right away (one check at a time, behind a mutex).
-- **Where it shows:** the profile picker's update row (**update now** / **not now**, or `u`); in the
-  game a log line for each newer update (one turned down on the picker isn't repeated), the `u`
-  key and a footer hint; `update`/`u` in the Console.
+- **Importance** (read from each new commit's message by `markedGameplay`): a line `Update:
+  gameplay` (any case and spacing) makes an update **required**; `Update: minor`, or no line at
+  all, makes it optional (so nothing is required by accident). `UpdateInfo` counts the gameplay
+  ones among `HEAD..@{u}` (up to 200 read). Commits for this game carry the line from now on.
+  - **Required** (`updateRequired()`: a gameplay one, and this copy can fast-forward): the picker
+    shows "Gameplay update" with **update now** (or `u`) and won't open a profile (picking one says
+    why and redraws); `--profile` waits up to 8 s for the first check and shows the picker if one is
+    out. A game already open isn't interrupted: a red log line, and the footer says "u UPDATE
+    (needed)"; the next profile you open needs it. Never required: a copy with commits of its own,
+    offline, without `play.py`, or after a failed update (play.py restarts with `--no-update-check`).
+  - **Minor:** one muted line on the picker ("A small update is out... press u"), an Info line in
+    the log, `u` in the footer.
+  - `check` marks gameplay versions ("gameplay" before the title, "(gameplay update)" in `show`),
+    and its summary says how many are ("3 new versions (1 gameplay: needed to play)").
+- **Where it shows:** the profile picker (above); in the game a log line for each newer update,
+  the `u` key and a footer hint; `update`/`u` and `check` in the Console.
 - Started without `play.py`, or with `--no-update-check`, the game never runs git.
 
 ## Under the hood

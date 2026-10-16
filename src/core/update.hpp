@@ -15,8 +15,13 @@
 inline constexpr int UPDATE_EXIT_CODE = 42;   // play.py knows this one
 inline constexpr int UPDATE_RECHECK_MIN = 5 * 60, UPDATE_RECHECK_MAX = 10 * 60;   // seconds between checks
 
+// How much an update matters, from a line in its commit message: "Update: gameplay" (it changes how
+// the game plays: required, a profile won't open without it) or "Update: minor" (looks, wording,
+// tools: optional). A commit without the line counts as minor, so nothing is required by accident.
 struct UpdateInfo {
     int behind = 0;                    // new commits on GitHub
+    bool required = false;             // at least one of them is marked "Update: gameplay"
+    int gameplay = 0;                  // how many are
     std::vector<std::string> titles;   // the newest few, newest first
     bool diverged = false;             // this copy has commits of its own: a pull can't just move ahead
     bool edited = false;               // uncommitted changes to tracked files (the pull may refuse)
@@ -27,6 +32,7 @@ bool updatesEnabled();                         // started by play.py (and withou
 bool updateCheckDone();                        // the first check has finished
 std::optional<UpdateInfo> updateAvailable();   // from the latest check, if there's something new
 bool updateReady();                            // ...and play.py can pull it (this copy hasn't diverged)
+bool updateRequired();                         // ...and it's a gameplay update: profiles don't open until it's installed
 // Checks now, on the calling thread (a second or two of git), and returns what it found. False if
 // the check itself failed (offline, no git): `found` is then left alone.
 bool checkUpdateNow(std::optional<UpdateInfo>& found);
@@ -43,6 +49,7 @@ struct Commit {
     std::string author;
     std::string title;    // the first line
     std::string body;     // the rest of the message (may be empty)
+    bool gameplay = false;   // marked "Update: gameplay" (see UpdateInfo)
 };
 struct RepoStatus {
     std::string why;               // set when it couldn't look (no play.py, offline, no git)
@@ -50,6 +57,7 @@ struct RepoStatus {
     Commit current;                // what you're running (the checkout's HEAD)
     std::vector<Commit> incoming;  // new on GitHub, newest first (up to the limit asked for)
     int behind = 0;                // all of them, past the limit too
+    int gameplay = 0;              // ...and how many are marked "Update: gameplay"
     int ahead = 0;                 // commits of your own
     bool edited = false;           // uncommitted changes to tracked files
     std::vector<std::string> files;   // with `withFiles`: what the new versions change, "M src/core/game.cpp"

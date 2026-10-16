@@ -57,33 +57,27 @@ int count(const std::string& repo, const std::string& range) {
     try { return std::stoi(out); } catch (...) { return -1; }
 }
 
-// One check. False if it couldn't reach GitHub; then what an earlier check found still stands.
-bool runCheck(std::optional<UpdateInfo>& result) {
-    Check& c = check();
-    std::lock_guard g(c.gitM);
-    std::string out;
-    // Fetch what the current branch follows (main, for a plain clone). Offline, or no git: no news.
-    if (!git(c.repo, "fetch --quiet", out)) return false;
-    std::optional<UpdateInfo> found;
-    int behind = count(c.repo, "HEAD..@{u}");
-    if (behind > 0) {
-        UpdateInfo u;
-        u.behind = behind;
-        u.diverged = count(c.repo, "@{u}..HEAD") > 0;
-        if (git(c.repo, "log -n 3 --format=%s HEAD..@{u}", out)) {
-            std::istringstream lines(out);
-            for (std::string line; std::getline(lines, line);)
-                if (!line.empty()) u.titles.push_back(line);
-        }
-        if (git(c.repo, "status --porcelain --untracked-files=no", out)) u.edited = !out.empty();
-        found = u;
+// "Update: gameplay" on a line of its own (any case, spaces allowed).
+bool markedGameplay(const std::string& body) {
+    std::istringstream lines(body);
+    for (std::string l; std::getline(lines, l);) {
+        std::string t;
+        for (char ch : l) if (ch != ' ' && ch != '\t' && ch != '\r') t += (char)std::tolower((unsigned char)ch);
+        if (t == "update:gameplay") return true;
     }
-    {
-        std::lock_guard lk(c.m);
-        c.found = found;
+    return false;
+}
+
+// The summary of what's new, from the new commits (newest first).
+UpdateInfo summarize(const std::vector<Commit>& incoming, int behind) {
+    UpdateInfo u;
+    u.behind = behind;
+    for (const Commit& c : incoming) {
+        if (u.titles.size() < 3) u.titles.push_back(c.title);
+        if (c.gameplay) ++u.gameplay;
     }
-    result = found;
-    return true;
+    u.required = u.gameplay > 0;
+    return u;
 }
 
 // git log lines: fields split by \x1f, commits by \x1e.
@@ -113,9 +107,33 @@ std::vector<Commit> readLog(const std::string& repo, const std::string& args) {
             c.body = f[4];
             while (!c.body.empty() && (c.body.back() == '\n' || c.body.back() == '\r' || c.body.back() == ' ')) c.body.pop_back();
         }
+        c.gameplay = markedGameplay(c.body);
         out.push_back(c);
     }
     return out;
+}
+
+// One check. False if it couldn't reach GitHub; then what an earlier check found still stands.
+bool runCheck(std::optional<UpdateInfo>& result) {
+    Check& c = check();
+    std::lock_guard g(c.gitM);
+    std::string out;
+    // Fetch what the current branch follows (main, for a plain clone). Offline, or no git: no news.
+    if (!git(c.repo, "fetch --quiet", out)) return false;
+    std::optional<UpdateInfo> found;
+    int behind = count(c.repo, "HEAD..@{u}");
+    if (behind > 0) {
+        UpdateInfo u = summarize(readLog(c.repo, "-n 200 HEAD..@{u}"), behind);
+        u.diverged = count(c.repo, "@{u}..HEAD") > 0;
+        if (git(c.repo, "status --porcelain --untracked-files=no", out)) u.edited = !out.empty();
+        found = u;
+    }
+    {
+        std::lock_guard lk(c.m);
+        c.found = found;
+    }
+    result = found;
+    return true;
 }
 
 void loop() {
@@ -155,6 +173,11 @@ bool updateReady() {
     return u && !u->diverged;
 }
 
+bool updateRequired() {
+    std::optional<UpdateInfo> u = updateAvailable();
+    return u && !u->diverged && u->required;   // (a copy with commits of its own can't just move ahead: never required)
+}
+
 bool checkUpdateNow(std::optional<UpdateInfo>& found) {
     if (!updatesEnabled()) return false;
     bool ok = runCheck(found);
@@ -169,6 +192,8 @@ bool updateDismissed() { return check().dismissed; }
 
 std::string updateSummary(const UpdateInfo& u) {
     std::string s = u.behind == 1 ? "1 new version" : std::to_string(u.behind) + " new versions";
+    if (u.required) s += u.behind == 1 ? " (a gameplay change)" : u.gameplay == 1 ? " (one a gameplay change)"
+                                                               : " (" + std::to_string(u.gameplay) + " of them gameplay changes)";
     for (size_t i = 0; i < u.titles.size(); ++i) s += (i == 0 ? ": " : "; ") + u.titles[i];
     if ((int)u.titles.size() < u.behind) s += "; ...";
     return s;
@@ -201,7 +226,9 @@ bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles) {
     if (!head.empty()) out.current = head[0];
     out.behind = std::max(0, count(repo, "HEAD..@{u}"));
     out.ahead = std::max(0, count(repo, "@{u}..HEAD"));
-    if (out.behind > 0) out.incoming = readLog(repo, "-n " + std::to_string(std::max(1, maxCommits)) + " HEAD..@{u}");
+    std::vector<Commit> all = out.behind > 0 ? readLog(repo, "-n 200 HEAD..@{u}") : std::vector<Commit>{};
+    for (const Commit& k : all) out.gameplay += k.gameplay;
+    out.incoming.assign(all.begin(), all.begin() + std::min<size_t>(all.size(), (size_t)std::max(1, maxCommits)));
     out.edited = !line("status --porcelain --untracked-files=no").empty();
     if (withFiles && out.behind > 0) {
         std::istringstream lines(line("diff --name-status HEAD...@{u}"));
@@ -214,11 +241,9 @@ bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles) {
     // What the background check would have found, so the log and the u key agree with this.
     std::optional<UpdateInfo> found;
     if (out.behind > 0) {
-        UpdateInfo u;
-        u.behind = out.behind;
+        UpdateInfo u = summarize(all, out.behind);
         u.diverged = out.ahead > 0;
         u.edited = out.edited;
-        for (size_t i = 0; i < out.incoming.size() && i < 3; ++i) u.titles.push_back(out.incoming[i].title);
         found = u;
     }
     {

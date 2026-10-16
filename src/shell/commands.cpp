@@ -400,7 +400,7 @@ void doCheck(const std::string& args) {
             const Commit& c = list[i];
             std::string tag = i == 0 ? "now" : "~" + std::to_string(i);
             out() << padLeft(tag, 5) << "  " << paint(Style::Muted, c.hash) << "  " << padRight(committedText(c.when), 26)
-                  << (i == 0 ? paint(Style::Bold, c.title) : c.title) << "\n";
+                  << (c.gameplay ? paint(Style::Warn, "gameplay ") : "") << (i == 0 ? paint(Style::Bold, c.title) : c.title) << "\n";
         }
         out() << paint(Style::Muted, "'check show ~2' for the whole message of one; 'check history 30' goes further back.") << "\n";
         return;
@@ -416,7 +416,7 @@ void doCheck(const std::string& args) {
         for (size_t i = 0; i < list.size(); ++i) {
             const Commit& c = list[i];
             out() << "  " << (fresh[i] ? paint(Style::Event, "new ") : "    ") << paint(Style::Muted, c.hash) << "  "
-                  << padRight(committedText(c.when), 26) << c.title << "\n";
+                  << padRight(committedText(c.when), 26) << (c.gameplay ? paint(Style::Warn, "gameplay ") : "") << c.title << "\n";
         }
         out() << paint(Style::Muted, "'new' ones aren't installed yet. 'check show <hash>' for the whole message.") << "\n";
         return;
@@ -428,7 +428,12 @@ void doCheck(const std::string& args) {
         out() << paint(Style::Warn, "Couldn't check: " + st.why + ".") << "\n";
         return;
     }
-    auto versions = [](int n) { return n == 1 ? std::string("1 new version") : std::to_string(n) + " new versions"; };
+    auto versions = [&st](int n) {
+        std::string s = n == 1 ? std::string("1 new version") : std::to_string(n) + " new versions";
+        if (st.gameplay > 0) s += n == 1 ? " (a gameplay change: needed to play)" : " (" + std::to_string(st.gameplay) + " gameplay: needed to play)";
+        return s;
+    };
+    auto mark = [](const Commit& c) { return c.gameplay ? paint(Style::Warn, "gameplay ") : std::string(); };
     std::string where = st.upstream.empty() ? "GitHub" : st.upstream;
 
     if (sub == "current" || sub == "version" || sub == "me") {
@@ -460,7 +465,8 @@ void doCheck(const std::string& args) {
             if (!repoCommit(any, arg, why)) { out() << paint(Style::Warn, "Can't show it: " + why + ".") << "\n"; return; }
             c = &any;
         }
-        out() << paint(Style::Bold, c->hash) << paint(Style::Muted, "  by " + c->author + ", " + committedText(c->when)) << "\n"
+        out() << paint(Style::Bold, c->hash) << paint(Style::Muted, "  by " + c->author + ", " + committedText(c->when))
+              << (c->gameplay ? paint(Style::Warn, "  (gameplay update)") : "") << "\n"
               << "  " << paint(Style::Bold, c->title) << "\n";
         if (!c->body.empty()) {
             std::istringstream lines(c->body);
@@ -478,7 +484,7 @@ void doCheck(const std::string& args) {
     if (sub.empty()) {
         const Commit& c = st.incoming.front();
         out() << paint(Style::Event, versions(st.behind)) << " on " << where << ". The newest, " << committedText(c.when) << ":\n"
-              << "  " << paint(Style::Bold, c.title) << "\n";
+              << "  " << mark(c) << paint(Style::Bold, c.title) << "\n";
         if (st.ahead > 0) out() << paint(Style::Warn, "  This copy has commits of its own, so 'update' can't just move it ahead: pull it yourself.") << "\n";
         else out() << paint(Style::Muted, "  'update' installs it; 'check list' shows them all.") << "\n";
         return;
@@ -496,9 +502,9 @@ void doCheck(const std::string& args) {
     for (size_t i = 0; i < st.incoming.size(); ++i) {
         const Commit& c = st.incoming[i];
         out() << padLeft(std::to_string(i + 1), 4) << ") " << paint(Style::Muted, c.hash) << "  ";
-        if (sub == "titles" || sub == "messages" || sub == "names") out() << c.title;
-        else if (sub == "dates" || sub == "when") out() << committedText(c.when);
-        else out() << padRight(committedText(c.when), 26) << c.title;
+        if (sub == "titles" || sub == "messages" || sub == "names") out() << mark(c) << c.title;
+        else if (sub == "dates" || sub == "when") out() << committedText(c.when) << (c.gameplay ? "  " + mark(c) : "");
+        else out() << padRight(committedText(c.when), 26) << mark(c) << c.title;
         out() << "\n";
     }
     if (sub == "list" || sub == "log" || sub == "new") out() << paint(Style::Muted, "'check show <n>' for the whole message; 'update' installs them.") << "\n";
