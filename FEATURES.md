@@ -840,10 +840,13 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - `build.ps1` is the older PowerShell version of the same thing.
   - `make` on Linux/macOS.
   - Build times go to `target/debug/build-times.log`.
-- **Simulator:** `tools/sim.cpp` (`sim <hours> <seeds> normal|trader|idle|noecon|tasks-light|tasks-heavy|tasks-greedy`)
+- **Simulator:** `tools/sim.cpp` (`sim <hours> <seeds> normal|trader|idle|noecon|tasks-light|tasks-heavy|tasks-greedy|speedrun`)
   plays the core headlessly to check balance after changing numbers. The `tasks-*` players save
   up for the license (and slots) once Tasks open, hand chores to a set of tasks, and report what
-  share of their income went to fees.
+  share of their income went to fees. `speedrun` races to the end: it mines at the button's
+  top speed (4/s, `SIM_MINES=` to change), buys the upgrade with the most income per token
+  (`upgradeGain`), and pays any price for Orrery shards. `SIM_GIFT=<tokens>` starts with a gift
+  (what `pay` could send), `SIM_GOALS=1` lists the goals done.
 - **`.trash/`** in the project root is for old or temporary files instead of deleting them.
 
 ## Design decisions to respect

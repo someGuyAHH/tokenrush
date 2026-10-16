@@ -11,6 +11,11 @@
 //   idle     never mines and takes no contracts; starts with 5,000 tokens and relies on
 //            upgrades, crew and the market
 //   noecon   the old game: mining and upgrades only, as a baseline
+//   speedrun a player racing to the end: mines at the button's top speed (4/s), buys the upgrade
+//            that adds the most income per token, and pays any price for shards
+//            (SIM_MINES=<per second> changes the pace)
+//
+// SIM_GIFT=<tokens>: start with that many tokens (what 'pay' from a richer profile could send).
 
 #include <algorithm>
 #include <bit>
@@ -27,13 +32,14 @@
 #include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/market.hpp"
+#include "core/projection.hpp"
 #include "core/tasks.hpp"
 #include "core/ticks.hpp"
 #include "core/util.hpp"
 
 namespace {
 
-enum class Strategy { Normal, Trader, Idle, NoEcon, TasksLight, TasksHeavy, TasksGreedy };
+enum class Strategy { Normal, Trader, Idle, NoEcon, TasksLight, TasksHeavy, TasksGreedy, Speedrun };
 bool usesTasks(Strategy s) { return s == Strategy::TasksLight || s == Strategy::TasksHeavy || s == Strategy::TasksGreedy; }
 
 struct Tally {
@@ -61,6 +67,7 @@ struct Sim {
         if (s == Strategy::Idle) g.tokens = 5'000;
         // trader and idle test the economy itself, so they skip the title unlocks
         if (s == Strategy::Trader || s == Strategy::Idle) g.unlocked = (1u << FEATURE_COUNT) - 1;
+        if (const char* gift = std::getenv("SIM_GIFT")) g.tokens += std::atoll(gift);
     }
 
     void buy(long long n) {
@@ -75,6 +82,7 @@ struct Sim {
     }
 
     void player() {
+        if (strat == Strategy::Speedrun) { speedrunner(); return; }
         std::uniform_real_distribution<double> uni(0.0, 1.0);
         bool normal = strat == Strategy::Normal || usesTasks(strat);
         bool econ = normal || strat == Strategy::Idle;
@@ -187,6 +195,68 @@ struct Sim {
             long long n = std::min(need, maxAffordable(g) / 2);
             if (n > 0) buy(n);
         }
+    }
+
+
+    // ----- The speedrunner -----
+    long long goalsAt = -1;   // play seconds when every goal was done
+
+    // Income per token for one more level of each upgrade; buys the best while it can.
+    void bestUpgrades(long long keep) {
+        for (int n = 0; n < 200; ++n) {
+            auto ups = upgrades(g);
+            size_t best = 4;
+            double bestRoi = 0;
+            for (size_t i = 0; i < ups.size(); ++i) {
+                double roi = upgradeGain(g, i) / (double)ups[i].cost;
+                if (roi > bestRoi) { bestRoi = roi; best = i; }
+            }
+            if (best > 3 || g.tokens - ups[best].cost < keep) return;
+            buyUpgrade(g, best);
+        }
+    }
+
+    void speedrunner() {
+        bool chasing = disasterPending(g) && g.disaster.chasing;
+        static const double pace = std::getenv("SIM_MINES") ? std::atof(std::getenv("SIM_MINES")) : 4.0;   // mines a second
+        std::uniform_real_distribution<double> uni(0.0, 1.0);
+        int mines = (int)pace + (uni(rng) < pace - (int)pace ? 1 : 0);
+        for (int k = 0; k < (chasing ? std::max(mines, 6) : mines); ++k) mine(g, t, rng);
+        disasterPlan();
+        if (t % 30 == 0) gadgetPlan();
+
+        bool monoOpen = isUnlocked(g, Feature::Monolith), monoDone = g.monolithStage >= MONO_STAGE_COUNT;
+        bool orreryOpen = isUnlocked(g, Feature::Orrery), orreryDone = g.orreryStage >= ORRERY_STAGE_COUNT;
+        long long keep = 0;
+        if (isUnlocked(g, Feature::Market)) keep = (long long)(g.shardPrice * 20);
+        bestUpgrades(keep);
+
+        if (t % 5 == 0) {
+            if (monoOpen && !monoDone) {
+                long long left = MONO[g.monolithStage].cost - g.monolithProgress;
+                if (g.tokens > left * 2) buildMonolith(g, left);
+            }
+            // Curios are renown (Collector, Curator): buy each once it's a tenth of the wallet.
+            if (isUnlocked(g, Feature::Curios))
+                for (int i = 0; i < SHOP_CURIO_COUNT; ++i)
+                    if (!hasBit(g.curiosOwned, i) && CURIOS[i].cost * 10 <= g.tokens) {
+                        buyCurio(g, i);
+                        tally.curioTimes += " " + std::to_string(std::popcount(g.curiosOwned)) + "@" + std::to_string(g.playSeconds / 60) + "m";
+                    }
+            // Shard Baron: trade 5,000 shards (round trips cost the spread, which is cheap later).
+            if (isUnlocked(g, Feature::Market) && g.shardsTraded < 5000 && buyCost(g, 100) * 4 < g.tokens) { buy(100); sell(100); }
+        }
+        if (t % 10 == 0) crewPlan();
+        if (t % 10 == 0) contractPlan();
+        if (t % 10 == 0 && orreryOpen && !orreryDone) {
+            // Any price: a third of the wallet into shards, then everything above a payday into the Orrery.
+            long long budget = g.tokens / 3, lo = 0, hi = MARKET_MAX_ORDER;
+            while (lo < hi) { long long mid = (lo + hi + 1) / 2; if (buyCost(g, mid) <= budget) lo = mid; else hi = mid - 1; }
+            if (lo > 0) buy(lo);
+            long long reserve = totalWages(g) * 2 + 20 + held();
+            if (g.shards > reserve) buildOrrery(g, g.shards - reserve);
+        }
+        if (goalsAt < 0 && std::popcount(g.goalsDone) == GOAL_COUNT) goalsAt = g.playSeconds;
     }
 
     void crewPlan() {
@@ -322,6 +392,7 @@ const char* name(Strategy s) {
         case Strategy::TasksLight:  return "tasks-light";
         case Strategy::TasksHeavy:  return "tasks-heavy";
         case Strategy::TasksGreedy: return "tasks-greedy";
+        case Strategy::Speedrun:    return "speedrun";
     }
     return "?";
 }
@@ -335,7 +406,8 @@ int main(int argc, char** argv) {
     long long every = argc > 4 ? std::max(1, std::atoi(argv[4])) * 60LL : 1800;   // table row interval, in minutes
     Strategy strat = sarg == "trader" ? Strategy::Trader : sarg == "idle" ? Strategy::Idle
                    : sarg == "noecon" ? Strategy::NoEcon : sarg == "tasks-light" ? Strategy::TasksLight
-                   : sarg == "tasks-heavy" ? Strategy::TasksHeavy : sarg == "tasks-greedy" ? Strategy::TasksGreedy : Strategy::Normal;
+                   : sarg == "tasks-heavy" ? Strategy::TasksHeavy : sarg == "tasks-greedy" ? Strategy::TasksGreedy
+                   : sarg == "speedrun" ? Strategy::Speedrun : Strategy::Normal;
 
     long long total = (long long)(hours * 3600);
     std::printf("strategy %s, %.1f hours, %d seeds\n", name(strat), hours, seeds);
@@ -376,6 +448,12 @@ int main(int argc, char** argv) {
         for (const CrewMember& c : g.crew) crew += std::string(" ") + ROLES[(int)c.role].name + "L" + std::to_string(c.level) + starsText(c);
         std::printf("  unlocks:%s\n  renown %d (%s), goals %d/%d\n", unlockTimes.empty() ? " none" : unlockTimes.c_str(),
                     renownOf(g), TITLES[titleIndex(renownOf(g))].name, std::popcount(g.goalsDone), GOAL_COUNT);
+        if (std::getenv("SIM_GOALS")) {
+            std::string done;
+            for (int i = 0; i < GOAL_COUNT; ++i) if (hasBit(g.goalsDone, i)) done += std::string(" ") + GOALS[i].name;
+            std::printf("  goals:%s\n", done.c_str());
+        }
+        if (sim.goalsAt >= 0) std::printf("  every goal at %.1fh\n", sim.goalsAt / 3600.0);
         std::printf("  curios:%s\n", sim.tally.curioTimes.empty() ? " none" : sim.tally.curioTimes.c_str());
         std::printf("  monolith done: %s, orrery stages:%s\n", g.monolithStage >= MONO_STAGE_COUNT ? "yes" : "no",
                     stageTimes.empty() ? " none" : stageTimes.c_str());

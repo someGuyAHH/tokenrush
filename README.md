@@ -347,8 +347,10 @@ stopped/hit), when each feature unlocked and when each curio was bought.
 
     python build.py --sim                 # Windows; or `make sim` elsewhere
     .\target\debug\sim.exe 4 3 normal     # 4 hours, 3 seeds; strategies: normal, trader, idle, noecon,
-                                          # tasks-light, tasks-heavy, tasks-greedy (fees as a share of income)
+                                          # tasks-light, tasks-heavy, tasks-greedy (fees as a share of income),
+                                          # speedrun (the best upgrade per token, mining at 4/s)
     .\target\debug\sim.exe 4 3 normal 10  # the same, a table row every 10 minutes (default 30)
 
 Use it after changing numbers: `noecon` is the old game for comparison, and `trader` checks
-that playing the market alone can't beat actually playing.
+that playing the market alone can't beat actually playing. `speedrun` shows how fast the game can be
+finished.
