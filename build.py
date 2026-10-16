@@ -91,10 +91,12 @@ def last_time(name: str, /) -> float | None:
 
 
 class Builder:
-    def __init__(self, *, rebuild: bool = False):
+    def __init__(self, *, rebuild: bool = False, progress: bool = False):
         self.rebuild = rebuild
+        self.progress = progress   # also print "@progress <done> <total> <what>" lines (play.py draws a bar from them)
         self.file_hashes: dict[str, str] = {}   # a header shared by many files is read once per build
         self.compiled = 0
+        self.step = self.steps = 0
 
     def __repr__(self) -> str:
         mode = "rebuilding everything" if self.rebuild else "incremental"
@@ -111,17 +113,29 @@ class Builder:
         parts = [" ".join(FLAGS)] + [f"{f}={self.hash_file(f)}" for f in deps_of(dep_file)]
         return hash_text("\n".join(parts))
 
+    def needs_compile(self, source: Path, /) -> bool:
+        """False if the object is there and its saved hash still matches everything that went into it."""
+        obj = object_path(source)
+        dep, saved = obj.with_suffix(".d"), obj.with_suffix(".hash")
+        if self.rebuild or not (obj.exists() and dep.exists() and saved.exists()):
+            return True
+        return saved.read_text().strip() != self.object_hash(dep)
+
+    def report(self, what: str, /) -> None:
+        if self.progress:
+            print(f"@progress {self.step} {self.steps} {what}", flush=True)
+
     def compile(self, source: Path, /) -> Path:
         """Compiles `source` unless its saved hash still matches. Returns the object's path."""
         obj = object_path(source)
         dep, saved = obj.with_suffix(".d"), obj.with_suffix(".hash")
 
-        if not self.rebuild and obj.exists() and dep.exists() and saved.exists():
-            if saved.read_text().strip() == self.object_hash(dep):
-                return obj
+        if not self.needs_compile(source):
+            return obj
 
         obj.parent.mkdir(parents=True, exist_ok=True)
         saved.unlink(missing_ok=True)   # a failed compile must not look up to date
+        self.report(relative(source))
         print(f"  compiling {relative(source)}", flush=True)
         run(["g++", *FLAGS, "-MMD", "-MF", str(dep), "-c", str(source), "-o", str(obj)],
             failure=f"compile failed: {relative(source)}")
@@ -130,6 +144,7 @@ class Builder:
         self.file_hashes.clear()   # in case a file changed while we were compiling
         saved.write_text(self.object_hash(dep))
         self.compiled += 1
+        self.step += 1
         return obj
 
     def build(self, target: Target, /) -> None:
@@ -138,6 +153,9 @@ class Builder:
         print(f"Building {target.name} ...", flush=True)
         start = time.perf_counter()
         before = self.compiled
+        if self.progress:   # every file that needs compiling, plus the link
+            self.step, self.steps = 0, sum(self.needs_compile(s) for s in target.sources) + 1
+            self.report("starting")
 
         try:
             objects = [self.compile(source) for source in target.sources]
@@ -156,12 +174,16 @@ class Builder:
                 note = "up to date" if count == 0 else f"{count} compiled, same as the current exe"
             else:
                 link_hash_file.unlink(missing_ok=True)
+                self.step = self.steps - 1
+                self.report(f"linking {target.name}")
                 print(f"  linking {target.name}", flush=True)
                 run(["g++", *FLAGS, *map(str, objects), *map(str, target.link_extra), "-o", str(exe)],
                     failure=f"link failed: {target.name}")
                 link_hash_file.write_text(link_hash)
                 note = f"{count} of {len(objects)} files compiled"
             status = "ok"
+            self.step = self.steps
+            self.report("done")
         except BuildError as error:
             status, note = "failed", str(error)
 
@@ -193,12 +215,13 @@ def main() -> None:
     parser.add_argument("--tui", action="store_true", help="build tokenrush-tui.exe")
     parser.add_argument("--sim", action="store_true", help="build the balance simulator, sim.exe")
     parser.add_argument("--rebuild", action="store_true", help="ignore the saved hashes and compile everything")
+    parser.add_argument("--progress", action="store_true", help="also print @progress lines (for play.py's progress bar)")
     args = parser.parse_args()
     if not (args.tui or args.sim):
         args.tui = True
 
     OBJ_DIR.mkdir(parents=True, exist_ok=True)
-    builder = Builder(rebuild=args.rebuild)
+    builder = Builder(rebuild=args.rebuild, progress=args.progress)
     start = time.perf_counter()
     core = sources("core")
     shell = sources("shell")   # the typed commands, run by the TUI's Console tab

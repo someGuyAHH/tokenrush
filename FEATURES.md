@@ -703,9 +703,17 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 ## Updates (`play.py`, `core/update.*`)
 - **`play.py`** (the recommended way to start): builds if needed, starts the game with
   `TOKENRUSH_REPO` set to its git checkout (and git told never to ask for a password), and passes
-  every option through. Exit code 42 means "update me": it runs `git pull --ff-only`, then
-  `build.py`, then starts the game again. If either fails it shows why, waits for Enter, and starts
-  the version you had with `--no-update-check`.
+  every option through. Exit code 42 means "update me":
+  - It clears the screen (`cls`/`clear`) and lists what's new (the titles of `HEAD..@{u}`, up to 10).
+  - `git pull --ff-only` and `build.py --progress` run with their output captured (so nothing
+    lands scattered on a console the game left in its own mode). The build draws one line, redrawn
+    with `\r`: `Building [#####-----] 45% 12/26 src/shell/predict.cpp`. build.py's `--progress`
+    works out first which files need compiling, then prints `@progress <done> <total> <what>`.
+  - Done: it starts the `play.py` it just downloaded (exec on Linux/macOS, a child process on
+    Windows), so the launcher is never an old one, and that starts the game.
+  - Failed: the captured output (its last 60 lines), Enter, and the version you had, with
+    `--no-update-check`.
+  - The console's own modes are saved before the game and put back after it.
 - **The check** runs on its own detached thread: `git fetch`, then how many commits `HEAD` is
   behind its upstream, whether it has commits of its own (diverged: play.py can't fast-forward,
   so it says "pull it yourself"), the newest three commit titles, and whether tracked files are
