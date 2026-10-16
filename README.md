@@ -3,6 +3,22 @@
 A token-mining idle game with background automation, full screen in the terminal: a pinned log,
 tabs, a clickable MINE button, and a **Console** tab where every command can be typed.
 
+![Mining by hand, with a streak going and jackpots in the log](docs/screenshots/mine.png)
+
+Start by mining by hand, then buy Drones and a Mining Bot that earn while you're away. Titles
+open the rest: a shard market, timed contracts from clients who remember you, a crew to hire
+and send on expeditions, gadgets, disasters to fend off, constellations to light, and a small
+automation language for the late game. Six color themes, or your own.
+
+| | |
+|---|---|
+| ![Contracts and client standing on the Jobs tab](docs/screenshots/jobs.png) | ![Records and income by source on the Stats tab](docs/screenshots/stats.png) |
+| **Jobs:** timed contracts, with a tip on how hard each looks at your pace | **Stats:** records, where your income comes from, and what you're earning now |
+| ![Tasks: rules that run errands on their own](docs/screenshots/tasks.png) | ![The Console: predicting what's coming](docs/screenshots/console.png) |
+| **Tasks:** one-line rules (`when shards >= 5k do send anyone deep`) | **Console:** every command typed, plus `predict` and `eval` |
+| ![The Constellations: a sky map of feats](docs/screenshots/stars.png) | ![The Themes tab, previewing Glacier](docs/screenshots/themes.png) |
+| **Stars:** feats that light up a sky map | **Themes:** hover one and the whole screen previews it |
+
 C++20, with [FTXUI](https://github.com/ArthurSonzogni/FTXUI) 7.0.3. (There used to be a separate
 command-line edition, `tokenrush-cli`. It's gone: its commands live on in the Console tab.)
 
