@@ -91,7 +91,13 @@ std::string incomeSplit(const GameState& g);   // "mining 61%, drones 27%, bot 1
 void updatePassive(GameState& g, std::time_t t);
 void applyOfflineEarnings(GameState& g, std::time_t tNow);
 void normalizeStreak(GameState& g, std::time_t t);
-void resetGame(GameState& g, std::time_t t);   // 'wipe': everything back to the start, except the infection
+void resetGame(GameState& g, std::time_t t);   // 'wipe': everything back to the start, except the infection and aliases
+
+// Console aliases (the commands live in shell/aliases.cpp; the save checks names with this too)
+inline constexpr int ALIAS_MAX = 50;          // per profile
+inline constexpr size_t ALIAS_NAME_MAX = 16;
+inline constexpr size_t ALIAS_TEXT_MAX = 120; // what it runs
+bool aliasNameOk(const std::string& name);   // 1-16 of a-z 0-9 - _ (lowercase)
 
 // ----- Goals, renown, titles -----
 long long statValue(const GameState& g, Stat st);

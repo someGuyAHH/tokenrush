@@ -33,8 +33,10 @@ Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
     tokenrush-tui [--profile <name>] [--data-dir <folder>] [--save-dir <folder>] [--no-color] [--no-update-check]
 
 **Updates.** Started through `play.py` (from a git clone), the game checks GitHub for new
-commits in the background. If there are any, the profile screen says what's new and offers
-**update now** / **not now**, and in the game the log says so and `u` updates. On a yes the
+commits in the background, when it starts and again every 5 to 10 minutes while you play. If
+there are any, the profile screen says what's new and offers **update now** / **not now**, and in
+the game the log says so (once per new update) and `u` updates. In the Console, `update` (or `u`)
+checks right away and updates if there's something new. On a yes the
 game saves and quits, and `play.py` runs `git pull --ff-only`, then `build.py`, then starts the
 game again. If the pull or the build fails (say, your own edits clash with the update), it
 shows git's or g++'s reason and starts the version you had. Started any other way, or with
@@ -76,6 +78,12 @@ command, with examples. `logout` goes back to the profile list, `cls`/`clear` cl
 screen, and Enter on an empty line does nothing. `shop 1 10` buys 10 Pickaxe levels without the
 menu, `curios 3` buys curio 3, `buy`/`sell` take amounts like `2k`, and `log 50 bad` shows the
 last 50 bad-news messages.
+
+**Your own aliases:** `alias <command...> <name>` gives a command a short name: `alias predict
+tokens 1h pt` makes `pt` run `predict tokens 1h`, and anything typed after an alias goes on the end
+(with `alias predict tokens pt`, `pt 2h` runs `predict tokens 2h`). `alias` lists yours, `rmalias
+<name>` removes one, and `help <alias>` says what it runs. They're saved with the profile (up to 50)
+and survive a wipe; a command's own name always wins, and an alias can't run another alias.
 
 **Predictions:** `predict <what> <time|count>` multiplies your current rates out: `predict tokens 1h`
 (your income over an hour, by source), `predict jackpots 1000` (how many in 1000 mines, give or
@@ -247,10 +255,12 @@ open. Idle earnings from Drones are capped at 12 hours.
 | `core/platform`, `core/util` | Executable path; formatting and parsing helpers |
 | `core/session.hpp/.cpp` | Options, loading, the worker threads, the shutdown order |
 | `core/profiles.hpp/.cpp` | Where profiles live; list, create, rename, delete, import an old save |
+| `core/update.hpp/.cpp` | Checking the git checkout against GitHub (under `play.py`), every 5-10 minutes or on `update` |
 | `src/shell/` | The typed commands, run by the Console tab |
 | `shell/dispatch.hpp/.cpp` | One typed line -> the right command |
 | `shell/help.cpp` | The command table: names, aliases, `help` and `help <command>` |
 | `shell/commands.cpp`, `spending.cpp`, `economy.cpp`, `workshop.cpp` | The screens |
+| `shell/aliases.cpp` | `alias` / `rmalias`, and turning a typed alias into what it runs |
 | `shell/term.hpp/.cpp` | Colors (`NO_COLOR` aware), charts, padding; `out()`/`in()`, which the Console redirects |
 | `src/tui/` | The game's UI (FTXUI) |
 | `tui/main.cpp` | Startup, the frame layout (log, status bar, tabs), global keys, shutdown |

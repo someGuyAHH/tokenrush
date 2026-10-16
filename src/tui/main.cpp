@@ -35,7 +35,7 @@
 #include "core/util.hpp"
 #include "shell/term.hpp"
 #include "ui.hpp"
-#include "update.hpp"
+#include "core/update.hpp"
 
 using namespace ftxui;
 using namespace std::chrono_literals;
@@ -254,12 +254,16 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (ui.page != SHOP_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Shop tab
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
-        static bool announced = false;   // once per run, not once per profile
-        if (auto u = tui::updateAvailable(); u && !announced && !tui::updateDismissed()) {
-            announced = true;
-            s.log.push(Sev::Event, "UPDATE: " + tui::updateSummary(*u) +
-                                       (u->diverged ? ". This copy has commits of its own, so pull it yourself (git pull)."
-                                                    : ". Press u to save, quit and update."));
+        // Each update once per run (not once per profile): the check runs again every 5-10 minutes, and
+        // only something newer than what was last announced (or turned down on the picker) is news.
+        static int announced = 0;
+        if (auto u = updateAvailable(); u && u->behind > announced) {
+            bool news = !(announced == 0 && updateDismissed());
+            announced = u->behind;
+            if (news)
+                s.log.push(Sev::Event, "UPDATE: " + updateSummary(*u) +
+                                           (u->diverged ? ". This copy has commits of its own, so pull it yourself (git pull)."
+                                                        : ". Press u (or type 'update') to save, quit and update."));
         }
         // On the Console, the typing line always has the keyboard.
         if (ui.page == CONSOLE_PAGE && !ui.typing()) pageList[CONSOLE_PAGE]->TakeFocus();
@@ -290,7 +294,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
                      : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
                            (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
-                           (tui::updateReady() ? "u update   " : "") + "q quit") | tui::muted(),
+                           (updateReady() ? "u update   " : "") + "q quit") | tui::muted(),
         }));
     });
 
@@ -312,7 +316,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         if (e == Event::Character('n') && hasChoice(ui.snap)) { answer(false); return true; }
         if (e == Event::Character(':')) { showPage(CONSOLE_PAGE); return true; }
         if (e == Event::Character('p') && !profile.empty()) { end = SessionEnd::Logout; screen.Exit(); return true; }
-        if (e == Event::Character('u') && tui::updateReady()) { tui::requestUpdate(); screen.Exit(); return true; }   // saved on the way out
+        if (e == Event::Character('u') && updateReady()) { requestUpdate(); screen.Exit(); return true; }   // saved on the way out
         if (e.is_character() && e.character().size() == 1) {
             char c = e.character()[0];
             int idx = c == '0' ? 9 : c - '1';
@@ -339,7 +343,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     bool saved = saveNow(s);
     tui::useTheme(0);   // the profile picker is nobody's: back to Classic
     setTheme(0);
-    if (end == SessionEnd::Quit) std::cout << (!saved ? "Save failed. Bye.\n" : tui::updateRequested() ? "Saved.\n" : "Saved. Bye.\n");
+    if (end == SessionEnd::Quit) std::cout << (!saved ? "Save failed. Bye.\n" : updateRequested() ? "Saved.\n" : "Saved. Bye.\n");
     else if (!saved)             std::cout << "Save failed!\n";
     return end;
 }
@@ -360,8 +364,8 @@ int main(int argc, char** argv) {
 #endif
     }
 
-    if (!opt.noUpdateCheck) tui::startUpdateCheck();   // in the background; only does anything under play.py
-    auto exitCode = [] { return tui::updateRequested() ? tui::UPDATE_EXIT_CODE : 0; };
+    if (!opt.noUpdateCheck) startUpdateCheck();   // in the background; only does anything under play.py
+    auto exitCode = [] { return updateRequested() ? UPDATE_EXIT_CODE : 0; };
 
     if (!opt.saveDir.empty()) {   // --save-dir: no profiles at all
         runGame(opt.saveDir, "");

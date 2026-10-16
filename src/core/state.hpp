@@ -318,6 +318,9 @@ struct GameState {
     std::vector<LoanAsk> asksIn;     // asking you
     std::vector<LoanAsk> asksOut;    // you, asking them
 
+    // The Console's own shortcuts ('alias predict tokens 1h pt'): name -> what it runs, in the order made
+    std::vector<std::pair<std::string, std::string>> aliases;
+
     std::time_t lastUpdate = 0;  // for passive
     std::time_t lastMine = 0;    // for streak timeout
 };

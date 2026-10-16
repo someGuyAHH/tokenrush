@@ -698,6 +698,26 @@ const std::vector<Field>& saveFields() {
                 return true;
             },
             [](const GameState& g) { return !g.balances.empty(); }});
+        // Console aliases: "pt: predict tokens 1h ; ps: predict shards 1h"
+        f.push_back(Field{
+            "console", "aliases",
+            [](const GameState& g) {
+                std::string out;
+                for (const auto& [name, cmd] : g.aliases) out += (out.empty() ? "" : " ; ") + name + ": " + cmd;
+                return out;
+            },
+            [](GameState& g, const std::string& text) {
+                g.aliases.clear();
+                for (const std::string& part : splitFields(text)) {
+                    size_t colon = part.find(':');
+                    if (colon == std::string::npos) continue;   // a broken alias is dropped, not the save
+                    std::string name = lower(trim(part.substr(0, colon))), cmd = trim(part.substr(colon + 1));
+                    if (!aliasNameOk(name) || cmd.empty() || cmd.size() > ALIAS_TEXT_MAX) continue;
+                    if ((int)g.aliases.size() < ALIAS_MAX) g.aliases.push_back({name, cmd});
+                }
+                return true;
+            },
+            [](const GameState& g) { return !g.aliases.empty(); }});
         addTaskFields(f);
         addCrewFields(f);
         addContractFields(f);

@@ -223,9 +223,18 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
 
 void resetGame(GameState& g, std::time_t t) {
     Strain strain = g.strain;   // the infection belongs to the profile, not the run
+    auto aliases = std::move(g.aliases);   // and Console aliases are settings, not progress
     g = GameState{};
     g.strain = strain;
+    g.aliases = std::move(aliases);
     g.lastUpdate = t;
+}
+
+bool aliasNameOk(const std::string& name) {
+    if (name.empty() || name.size() > ALIAS_NAME_MAX) return false;
+    for (char c : name)
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_')) return false;
+    return true;
 }
 
 void normalizeStreak(GameState& g, std::time_t t) {

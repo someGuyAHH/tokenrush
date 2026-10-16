@@ -89,6 +89,19 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     shards (Scouts at their odds once home, expedition loot on return, the Lucky Penny, minus each
     payday's wages), heat's cooling schedule, the payday clock, crew coming home, mines and
     jackpots at your pace. Nothing gets bought; no events, contracts or disasters.
+- **Aliases** (`shell/aliases.cpp`): `alias <command...> <name>`: the last word is the name,
+  everything before it is what it runs (case kept); `runCommand` swaps a typed alias for its
+  command and puts whatever followed on the end, and shows the line it ran. `alias` lists them,
+  `alias <name>` says what one runs, `rmalias`/`unalias <name>` removes one, `help <alias>` names it
+  and shows its command's page, and `help` lists your aliases at the end. Rules: names are 1-16 of
+  a-z 0-9 - _ (lowercased), never a command's name (commands always win, even one added later), an
+  alias starts with a real command (no alias of an alias), one command (no `;`), 120 characters,
+  50 per profile. Reusing a name replaces it. Saved as `[console] aliases = "pt: predict tokens 1h ;
+  ..."` (a broken entry is dropped, not the save) and kept by `wipe`.
+- **Updates in the Console:** `update`/`u` checks GitHub right away (on the Console's thread, a
+  second or two of git) and says "Up to date", "pull it yourself" (your copy has commits of its
+  own) or what's new, then saves and quits with exit code 42 for `play.py` to pull, build and
+  restart. Not under `play.py` (or with `--no-update-check`) it says how to get updates.
 - **One-line shortcuts:**
   - `shop 1 10`: 10 Pickaxe levels.
   - `curios 3`: buy curio 3.
@@ -639,6 +652,22 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   file is gone). Received tokens aren't income (no goals, no income rate).
 
 ---
+
+## Updates (`play.py`, `core/update.*`)
+- **`play.py`** (the recommended way to start): builds if needed, starts the game with
+  `TOKENRUSH_REPO` set to its git checkout (and git told never to ask for a password), and passes
+  every option through. Exit code 42 means "update me": it runs `git pull --ff-only`, then
+  `build.py`, then starts the game again. If either fails it shows why, waits for Enter, and starts
+  the version you had with `--no-update-check`.
+- **The check** runs on its own detached thread: `git fetch`, then how many commits `HEAD` is
+  behind its upstream, whether it has commits of its own (diverged: play.py can't fast-forward,
+  so it says "pull it yourself"), the newest three commit titles, and whether tracked files are
+  edited. It runs at start and again every 5 to 10 minutes (random); offline, the last answer
+  stands. The Console's `update` runs one right away (one check at a time, behind a mutex).
+- **Where it shows:** the profile picker's update row (**update now** / **not now**, or `u`); in the
+  game a log line for each newer update (one turned down on the picker isn't repeated), the `u`
+  key and a footer hint; `update`/`u` in the Console.
+- Started without `play.py`, or with `--no-update-check`, the game never runs git.
 
 ## Under the hood
 - **`src/core/`:** the game. It never prints or reads input; actions return `Notes`.

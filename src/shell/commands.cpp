@@ -17,6 +17,7 @@
 #include "core/game.hpp"
 #include "core/market.hpp"
 #include "core/save.hpp"
+#include "core/update.hpp"
 #include "core/util.hpp"
 #include "term.hpp"
 
@@ -289,6 +290,31 @@ void doWipe(Shared& s) {
     deleteSaveFiles();
     resetGame(s.g, nowSec());
     out() << "Progress wiped.\n";
+}
+
+bool doUpdate() {
+    if (!updatesEnabled()) {
+        out() << "This run doesn't check for updates. Start the game with " << paint(Style::Bold, "python play.py")
+              << " and it can (after an update that failed, play.py starts it once without checking).\n";
+        return false;
+    }
+    std::optional<UpdateInfo> u;
+    if (!checkUpdateNow(u)) {
+        u = updateAvailable();   // what the last check in the background found, if anything
+        out() << paint(Style::Warn, "Couldn't reach GitHub (offline, or git isn't working).") << "\n";
+        if (!u) return false;
+        out() << "The last check found an update, though.\n";
+    }
+    if (!u) { out() << paint(Style::Good, "Up to date.") << "\n"; return false; }
+    out() << paint(Style::Event, "Update: " + updateSummary(*u)) << "\n";
+    if (u->diverged) {
+        out() << "This copy has commits of its own, so it can't just move ahead: pull it yourself (git pull), then build.\n";
+        return false;
+    }
+    if (u->edited) out() << paint(Style::Muted, "You've changed some of the code; if the update touches the same files, play.py stops and says so.") << "\n";
+    out() << "Saving and quitting: play.py pulls it, builds it and starts the game again.\n";
+    requestUpdate();
+    return true;
 }
 
 // ----- Disasters -----

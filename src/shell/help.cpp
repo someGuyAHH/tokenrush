@@ -435,6 +435,29 @@ const std::vector<CommandInfo>& commands() {
          {"Starts this profile over from nothing. It asks you to type WIPE (in capitals) to confirm. An Infected "
           "profile stays infected: the strain belongs to the profile."},
          {}, {"logout"}, -1, PROGRESS},
+        {Cmd::Alias, {"alias"}, "alias [command...] <name>", "Your own short names for commands ('alias predict tokens 1h pt')",
+         {"The last word is the new name; everything before it is what it runs. 'alias predict tokens 1h pt' makes 'pt' "
+          "run 'predict tokens 1h'. Anything typed after an alias goes on the end, so with 'alias predict tokens pt', "
+          "'pt 2h' runs 'predict tokens 2h'. The Console shows what an alias ran.",
+          "An alias starts with a real command (not another alias) and runs one command. Its name is one word of up to "
+          "16 letters, digits, - or _, and can't be a command's name (those always win). Making one with a name you "
+          "already use replaces it. With no arguments, 'alias' lists yours.",
+          "Aliases are saved with the profile (up to 50), and a wipe keeps them."},
+         {{"alias", "list your aliases"}, {"alias predict tokens 1h pt", "pt = predict tokens 1h"},
+          {"alias expedition 1 deep deep1", "send crew 1 on a deep trip"}, {"alias pt", "what pt runs"}},
+         {"rmalias", "help"}, -1, PROGRESS},
+        {Cmd::RmAlias, {"rmalias", "unalias"}, "rmalias <name>", "Remove one of your aliases",
+         {"Removes the alias with that name. 'alias' lists them."},
+         {{"rmalias pt", "pt is gone"}},
+         {"alias"}, -1, PROGRESS},
+        {Cmd::Update, {"update", "u"}, "update", "Check GitHub for a new version now, and install it",
+         {"When the game is started with 'python play.py', it checks GitHub for a new version when it starts and again "
+          "every 5 to 10 minutes, and says so in the log. 'update' checks right away. If there's one, it saves and "
+          "quits, and play.py pulls it, builds it and starts the game again (on the same profile picker).",
+          "If your copy has commits of its own, it can't just move ahead: pull it yourself. Started any other way (or "
+          "with --no-update-check), the game doesn't check at all."},
+         {{"update", "check now, and update if there's something new"}, {"u", "the same"}},
+         {"quit"}, -1, PROGRESS},
         {Cmd::Quit, {"quit", "q", "exit"}, "quit", "Save and quit (Ctrl+C works too)",
          {"Saves and closes the game. Drones keep earning while it's closed (up to 12 hours); everything else waits."},
          {}, {"logout"}, -1, PROGRESS},
@@ -517,6 +540,12 @@ void printHelp(Shared& s, const std::string& topic) {
     if (!topic.empty()) {
         std::string word = lower(trim(topic));
         word = word.substr(0, word.find(' '));
+        if (parseCmd(word) == Cmd::Unknown) {
+            if (std::string cmd = aliasHelp(s, word); !cmd.empty()) {   // your alias: what it runs, then that command's page
+                out() << paint(Style::Muted, "'" + word + "' is your alias for '" + cmd + "'.") << "\n";
+                word = lower(cmd.substr(0, cmd.find(' ')));
+            }
+        }
         const CommandInfo* info = findCommand(parseCmd(word));
         if (!info) { out() << paint(Style::Warn, "No command called '" + word + "'. Type 'help' for the list.") << "\n"; return; }
         printPage(*info, info->feature < 0 || isUnlocked(g, (Feature)info->feature), g);
@@ -538,6 +567,11 @@ void printHelp(Shared& s, const std::string& topic) {
     if (int next = nextUnlock(g); next >= 0) {
         out() << paint(Style::Muted, std::string("More opens up as you earn titles. Next: ") + FEATURES[next].name +
                                          " at " + TITLES[FEATURES[next].title].name + " (see 'goals').") << "\n";
+    }
+    if (!g.aliases.empty()) {
+        std::string names;
+        for (const auto& a : g.aliases) names += (names.empty() ? "" : ", ") + a.first;
+        out() << paint(Style::Header, "Your aliases:") << " " << names << paint(Style::Muted, "  ('alias' shows what they run)") << "\n";
     }
     out() << paint(Style::Muted, "Type 'help <command>' for a full page on one (aliases work too: 'help ct').") << "\n";
 }

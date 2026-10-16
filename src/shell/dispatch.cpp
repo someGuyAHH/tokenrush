@@ -11,7 +11,14 @@
 #include "core/util.hpp"
 #include "term.hpp"
 
-Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool profiles) {
+Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool profiles) {
+    std::string line = typed;
+    bool aliased;
+    {
+        std::lock_guard lk(s.m);
+        aliased = expandAlias(s.g, line);
+    }
+    if (aliased) out() << paint(Style::Muted, "> " + line) << "\n";   // what the alias ran
     std::stringstream ss(line);
     std::string cmd, arg;
     ss >> cmd >> arg;
@@ -70,6 +77,9 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& line, bool p
         case Cmd::Borrow:    doBorrow(s, rest); break;
         case Cmd::Yes:       doAnswer(s, rng, true); break;
         case Cmd::No:        doAnswer(s, rng, false); break;
+        case Cmd::Alias:     doAlias(s, rest); break;
+        case Cmd::RmAlias:   doRmAlias(s, rest); break;
+        case Cmd::Update:    if (doUpdate()) result = Outcome::Quit; break;   // main() hands over to play.py after the save
         case Cmd::Quit:      result = Outcome::Quit; break;
         case Cmd::Logout:
             if (!profiles) { out() << "No profiles in this session (started with --save-dir).\n"; break; }

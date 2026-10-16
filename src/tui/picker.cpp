@@ -9,7 +9,7 @@
 #include "core/profiles.hpp"
 #include "core/util.hpp"
 #include "ui.hpp"
-#include "update.hpp"
+#include "core/update.hpp"
 
 using namespace ftxui;
 
@@ -116,7 +116,7 @@ std::string pickProfile(Profiles& profiles) {
 
         // An update found by play.py's check: update now (quit, and play.py pulls, builds and
         // starts the game again), or not now (not asked again this run).
-        auto updateShown = [] { return tui::updateReady() && !tui::updateDismissed(); };
+        auto updateShown = [] { return updateReady() && !updateDismissed(); };
         Component updateBtn = FlatBtn([] { return std::string("update now"); }, [&] { requestUpdate(); screen.Exit(); });
         Component laterBtn = FlatBtn([] { return std::string("not now"); }, [] { dismissUpdate(); });
         Component updateRow = Maybe(Container::Horizontal({updateBtn, laterBtn}), updateShown);
