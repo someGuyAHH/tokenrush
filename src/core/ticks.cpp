@@ -44,7 +44,7 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
             extra = " Payday is in " + duration(g.paydayClock) + ": have " + count(totalWages(g), "shard") + " ready.";
         }
         log.push(Sev::Event, std::string("EVENT: ") + EVENTS[e].name + " for " +
-                             std::to_string(lasts) + "s! (" + EVENTS[e].desc + ")" + extra);
+                             std::to_string(lasts) + "s! (" + EVENTS[e].desc + ")" + extra, LogKind::Events);
     }
 
     if (infected(g, Strain::Leech) && g.playSeconds % 300 == 150 && g.tokens >= 100) {
@@ -100,7 +100,7 @@ static void autoBuy(GameState& g, MessageLog& log) {
     int level = 0;
     for (const UpgradeRef& u : upgrades(g))
         if (u.name == std::string(name)) level = *u.lvl;
-    log.push(Sev::Info, std::string("Auto-Buyer bought ") + name + " -> lvl " + std::to_string(level) + " (cost " + compact(cost) + ")");
+    log.push(Sev::Info, std::string("Auto-Buyer bought ") + name + " -> lvl " + std::to_string(level) + " (cost " + compact(cost) + ")", LogKind::AutoBuyer);
 }
 
 void automationTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng, AutomationClocks& c) {
@@ -116,7 +116,7 @@ void automationTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& 
         c.report = 0;
         if (c.minedSinceReport > 0) {
             log.push(Sev::Info, "Mining Bot mined +" + compact(c.minedSinceReport) +
-                                " tokens in the last " + std::to_string(BOT_REPORT_SECONDS) + "s.");
+                                " tokens in the last " + std::to_string(BOT_REPORT_SECONDS) + "s.", LogKind::Bot);
             c.minedSinceReport = 0;
         }
     }

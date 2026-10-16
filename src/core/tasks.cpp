@@ -1125,7 +1125,7 @@ void tasksTick(GameState& g, MessageLog& log) {
                 if (!line.empty() && line.back() == '.') line.pop_back();
                 line += " (fee " + compact(fee) + ").";
             }
-            log.push(notes[k].sev, line);
+            log.push(notes[k].sev, line, LogKind::Tasks);
         }
     }
 }

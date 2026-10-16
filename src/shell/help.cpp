@@ -446,6 +446,20 @@ const std::vector<CommandInfo>& commands() {
          {{"log", "the last 20"}, {"log 50", "the last 50"}, {"log bad", "only bad news"},
           {"log 100 events", "the last 100 events"}},
          {"status"}, -1, PROGRESS},
+        {Cmd::Silence, {"silence", "mute"}, "silence [kind...|all]", "Keep routine messages out of the log pane (market, bot, tasks...)",
+         {"Silences kinds of routine message: market (the shard price moving), bot and crew (their mining reports), "
+          "scouts (shards found), autobuyer, tasks, jackpots, heat (cooling down), offers (new contracts on the board) and "
+          "events. Silenced messages stay out of the pinned log pane, but 'log' still shows them, so nothing is lost. "
+          "With no kind, it lists them all and which are silenced.",
+          "Disasters, offers to answer, audits, jobs done or failed, goals and updates always show. 'unsilence' brings a "
+          "kind back. It's saved with the profile."},
+         {{"silence market", "no more price news"}, {"silence bot crew autobuyer", "several at once"},
+          {"silence all", "only what matters"}, {"silence", "what's silenced"}},
+         {"unsilence", "log"}, -1, PROGRESS},
+        {Cmd::Unsilence, {"unsilence", "unmute"}, "unsilence [kind...|all]", "Bring silenced kinds of message back into the log pane",
+         {"The other way round from 'silence': 'unsilence market', or 'unsilence all'."},
+         {{"unsilence market", "price news again"}, {"unsilence all", "everything again"}},
+         {"silence", "log"}, -1, PROGRESS},
         {Cmd::Help, {"help", "?"}, "help [command]", "This list, or a full page about one command ('help shop')",
          {"With no command it lists everything you can do right now. With a command (or any of its aliases) it "
           "explains that command in detail, with examples."},

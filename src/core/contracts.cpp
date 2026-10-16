@@ -608,7 +608,7 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     } else if (--g.heatClock <= 0) {
         g.heat -= 1;
         g.heatClock = heatCoolSeconds(g);
-        log.push(Sev::Info, "Things are quieter. Heat cooled to " + std::to_string(g.heat) + ".");
+        log.push(Sev::Info, "Things are quieter. Heat cooled to " + std::to_string(g.heat) + ".", LogKind::Heat);
     }
 
     // Audits
@@ -652,10 +652,10 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
             const Contract& o = g.offers.back();
             if (o.amends)
                 log.push(Sev::Event, "A MAKE-AMENDS job from " + std::string(CLIENTS[o.client].name) +
-                                         " is on the board: no pay, but deliver it and they'll work with you again. (contracts)");
+                                         " is on the board: no pay, but deliver it and they'll work with you again. (contracts)", LogKind::Offers);
             else
                 log.push(Sev::Info, std::string(o.signature ? "A SIGNATURE job from " : "A new contract offer from ") +
-                                    CLIENTS[o.client].name + " is on the board. (contracts)");
+                                    CLIENTS[o.client].name + " is on the board. (contracts)", LogKind::Offers);
         }
     }
 }

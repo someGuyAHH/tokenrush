@@ -141,13 +141,13 @@ void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
         g.shardPrice = std::clamp(std::exp(lp), MIN_PRICE, MAX_PRICE);
         g.lastReportedPrice = g.shardPrice;
         if (news) log.push(Sev::Event, std::string(up ? "MARKET: Shard rush! Price jumps to " : "MARKET: Crash! Price drops to ") +
-                             priceText(g.shardPrice) + ".");
+                             priceText(g.shardPrice) + ".", LogKind::Market);
     } else {
         g.shardPrice = std::clamp(std::exp(lp), MIN_PRICE, MAX_PRICE);
         double move = g.shardPrice / g.lastReportedPrice - 1.0;
         if (std::abs(move) >= REPORT_MOVE) {
             if (news) log.push(Sev::Info, std::string("Market: shard price ") + (move > 0 ? "rose" : "fell") +
-                                " to " + priceText(g.shardPrice) + ".");
+                                " to " + priceText(g.shardPrice) + ".", LogKind::Market);
             g.lastReportedPrice = g.shardPrice;
         }
     }

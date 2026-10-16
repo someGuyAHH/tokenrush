@@ -290,6 +290,37 @@ void doAuto(Shared& s, const std::string& arg) {
     printNotes(out);
 }
 
+void doSilence(Shared& s, const std::string& args, bool silence) {
+    std::lock_guard lk(s.m);   // it only prints and flips bits: holding the lock is fine
+    GameState& g = s.g;
+    std::stringstream ss(lower(args));
+    std::vector<std::string> asked;
+    for (std::string w; ss >> w;) asked.push_back(w);
+    std::string unknown;
+    for (const std::string& w : asked) {
+        if (w == "all") {
+            g.silenced = silence ? ((1u << LOG_KIND_COUNT) - 1) & ~1u : 0u;
+            continue;
+        }
+        int found = -1;
+        for (int i = 1; i < LOG_KIND_COUNT; ++i)
+            if (w == LOG_KINDS[i].id || w + "s" == LOG_KINDS[i].id || w == std::string(LOG_KINDS[i].id) + "s") found = i;
+        if (found < 0) { unknown += (unknown.empty() ? "" : ", ") + w; continue; }
+        if (silence) g.silenced |= 1u << found;
+        else g.silenced &= ~(1u << found);
+    }
+    if (!unknown.empty()) out() << paint(Style::Warn, "No kind of message called " + unknown + ".") << "\n";
+    if (!asked.empty() && unknown.empty()) out() << paint(Style::Good, silence ? "Silenced." : "Back in the log.") << "\n";
+    out() << paint(Style::Header, "=== LOG ===") << paint(Style::Muted, "   silenced kinds stay out of the log pane, but 'log' still has them") << "\n";
+    for (int i = 1; i < LOG_KIND_COUNT; ++i) {
+        bool off = g.silenced >> i & 1u;
+        out() << "  " << padRight(LOG_KINDS[i].id, 11) << (off ? paint(Style::Muted, padRight("silenced", 10)) : paint(Style::Good, padRight("shown", 10)))
+              << paint(Style::Muted, LOG_KINDS[i].what) << "\n";
+    }
+    out() << paint(Style::Muted, "'silence market bot' or 'silence all'; 'unsilence market' or 'unsilence all'. Disasters, offers, audits and "
+                                 "jobs done or failed always show.") << "\n";
+}
+
 void doWipe(Shared& s) {
     out() << paint(Style::Warn, "Type WIPE to confirm (anything else cancels): ") << std::flush;
     std::string line;

@@ -325,6 +325,8 @@ struct GameState {
     std::vector<LoanAsk> asksIn;     // asking you
     std::vector<LoanAsk> asksOut;    // you, asking them
 
+    std::uint32_t silenced = 0;      // bit i = LOG_KINDS[i] kept out of the log pane ('silence')
+
     // The Console's own shortcuts ('alias predict tokens 1h pt'): name -> what it runs, in the order made
     std::vector<std::pair<std::string, std::string>> aliases;
 
@@ -335,15 +337,36 @@ struct GameState {
 // ----- The message log -----
 // Background threads never print; they push here. The TUI draws recent() in its pinned log pane,
 // and the Console's 'log' command shows more of it.
+// The routine kinds of log message, which 'silence' can keep out of the log pane (they stay in
+// 'log'). Everything else (disasters, offers, audits, jobs done or failed, goals...) is Other and
+// always shows.
+enum class LogKind : int { Other, Market, Bot, Crew, Scouts, AutoBuyer, Tasks, Jackpots, Heat, Offers, Events, Count };
+inline constexpr int LOG_KIND_COUNT = (int)LogKind::Count;
+struct LogKindInfo { const char* id; const char* what; };
+inline constexpr LogKindInfo LOG_KINDS[LOG_KIND_COUNT] = {
+    {"other",     "everything else (can't be silenced)"},
+    {"market",    "the shard price moving, rushes and crashes"},
+    {"bot",       "the Mining Bot's reports"},
+    {"crew",      "the crew's mining reports"},
+    {"scouts",    "Scouts finding shards"},
+    {"autobuyer", "what the Auto-Buyer buys"},
+    {"tasks",     "what your tasks do"},
+    {"jackpots",  "your jackpots"},
+    {"heat",      "heat cooling down"},
+    {"offers",    "new contract offers on the board"},
+    {"events",    "random events starting"},
+};
+
 struct LogEntry {
     std::string stamp;   // "14:03:22"
     Sev sev;
     std::string text;
+    LogKind kind = LogKind::Other;
 };
 
 class MessageLog {
 public:
-    void push(Sev sev, const std::string& text);
+    void push(Sev sev, const std::string& text, LogKind kind = LogKind::Other);
     void push(const Note& n) { push(n.sev, n.text); }
 
     std::vector<LogEntry> recent(size_t n);      // the last n (the log keeps HISTORY_MAX)

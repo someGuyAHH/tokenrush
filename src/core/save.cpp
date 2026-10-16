@@ -734,6 +734,24 @@ const std::vector<Field>& saveFields() {
                 return true;
             },
             [](const GameState& g) { return !g.balances.empty(); }});
+        // 'silence': "market, bot"
+        f.push_back(Field{
+            "console", "silenced",
+            [](const GameState& g) {
+                std::string out;
+                for (int i = 1; i < LOG_KIND_COUNT; ++i)
+                    if (g.silenced >> i & 1u) out += (out.empty() ? "" : ", ") + std::string(LOG_KINDS[i].id);
+                return out;
+            },
+            [](GameState& g, const std::string& text) {
+                g.silenced = 0;
+                std::stringstream ss(text);
+                for (std::string item; std::getline(ss, item, ',');)
+                    for (int i = 1; i < LOG_KIND_COUNT; ++i)
+                        if (lower(trim(item)) == LOG_KINDS[i].id) g.silenced |= 1u << i;
+                return true;   // a kind this build doesn't know is just dropped
+            },
+            [](const GameState& g) { return g.silenced != 0; }});
         // Console aliases: "pt: predict tokens 1h ; ps: predict shards 1h"
         f.push_back(Field{
             "console", "aliases",

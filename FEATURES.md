@@ -108,6 +108,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   `core/tasks.cpp`): any expression in the Tasks language with predict's extra values, worked out
   now. A comparison or and/or/not prints true/false, a time prints as a time (`8m 17s (497s)`),
   anything else as a number with separators (and short form from 10,000). Mistakes get the caret.
+- **Silence** (`silence`/`mute [kind...|all]`, `unsilence`/`unmute`): routine messages carry a
+  `LogKind` (market, bot, crew, scouts, autobuyer, tasks, jackpots, heat, offers, events; the rest
+  are Other and can't be silenced). Silenced kinds are left out of the log pane only: the history
+  keeps them, so `log` shows everything. Saved as `[console] silenced = market, bot` and kept by
+  `wipe`. With no kind it lists each one, shown or silenced.
 - **Completion** (`shell/complete.cpp: completion`, drawn by `TextBox`'s ghost): the rest of the
   line, greyed out after the caret (the text color 45% of the way into the background, the caret
   on its first letter), from the TUI's snapshot so it never locks. First the newest earlier line

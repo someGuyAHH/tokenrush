@@ -253,10 +253,12 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
 
 void resetGame(GameState& g, std::time_t t) {
     Strain strain = g.strain;   // the infection belongs to the profile, not the run
-    auto aliases = std::move(g.aliases);   // and Console aliases are settings, not progress
+    auto aliases = std::move(g.aliases);   // and Console aliases (and what's silenced) are settings, not progress
+    std::uint32_t silenced = g.silenced;
     g = GameState{};
     g.strain = strain;
     g.aliases = std::move(aliases);
+    g.silenced = silenced;
     g.lastUpdate = t;
 }
 

@@ -59,6 +59,8 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         case Cmd::Respond:  doRespond(s); break;
         case Cmd::Repair:   doRepair(s, arg); break;
         case Cmd::Log:      doLog(s, rest); break;
+        case Cmd::Silence:  doSilence(s, rest, true); break;
+        case Cmd::Unsilence: doSilence(s, rest, false); break;
         case Cmd::Save:     out() << (saveNow(s) ? paint(Style::Good, "Saved.") : paint(Style::Bad, "Save failed.")) << "\n"; break;
         case Cmd::Wipe:     doWipe(s); setTheme(0); break;
         case Cmd::Goals:    doGoals(s); break;

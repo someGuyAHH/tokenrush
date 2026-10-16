@@ -56,7 +56,7 @@ void Ui::mineNow() {
         checkGoals(s.g, s.log);
     }
     hasMined = true;
-    if (lastMine.jackpot) s.log.push(Sev::Event, "JACKPOT! +" + num(lastMine.gain) + " tokens.");
+    if (lastMine.jackpot) s.log.push(Sev::Event, "JACKPOT! +" + compact(lastMine.gain) + " tokens.", LogKind::Jackpots);
 }
 
 void Ui::saveNow() {

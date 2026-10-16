@@ -125,7 +125,7 @@ Element statusBar(const tui::Ui& ui) {
     return vbox({hbox(top), hbox(second)});
 }
 
-Element logPane(Shared& s) {
+Element logPane(Shared& s, std::uint32_t silenced) {
     // 6 lines on a 30-row terminal, fewer on smaller ones so the tabs keep their room.
     int n = std::clamp(Terminal::Size().dimy - 24, tui::LOG_ROWS_MIN, tui::LOG_ROWS_MAX);
     // Newest at the bottom; walk back until the box is full. Long messages wrap, so an old one
@@ -133,7 +133,8 @@ Element logPane(Shared& s) {
     int width = Terminal::Size().dimx - 2;   // inside the frame
     std::vector<Elements> blocks;
     int used = 0;
-    std::vector<LogEntry> recent = s.log.recent((size_t)n);
+    std::vector<LogEntry> recent = s.log.recent(silenced ? 400 : (size_t)n);   // 'silence': some kinds stay out of the pane
+    std::erase_if(recent, [silenced](const LogEntry& e) { return e.kind != LogKind::Other && (silenced >> (int)e.kind & 1u); });
     for (auto it = recent.rbegin(); it != recent.rend() && used < n; ++it) {
         Elements lines = tui::logLines(*it, width, n - used);
         used += (int)lines.size();
@@ -293,7 +294,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
                            respondBtn->Render()});
         }
         return tui::themed(vbox({
-            logPane(s),
+            logPane(s, ui.snap.silenced),
             statusBar(ui),
             danger,
             hasChoice(ui.snap) ? offer : text("") | size(HEIGHT, EQUAL, 0),

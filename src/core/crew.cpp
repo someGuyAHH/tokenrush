@@ -384,7 +384,7 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
                     std::uniform_int_distribution<int> found(scoutMinFind(g, c), scoutMaxFind(g, c));
                     int n = found(rng);
                     g.shards += n;
-                    log.push(Sev::Good, who(c) + " found " + count(n, "shard") + ".");
+                    log.push(Sev::Good, who(c) + " found " + count(n, "shard") + ".", LogKind::Scouts);
                 }
                 break;
             case Role::Broker:   // passive: see market.cpp
@@ -395,7 +395,7 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
     }
 
     if (g.crewClock % CREW_REPORT_EVERY == 0 && g.crewMinedSinceReport > 0) {
-        log.push(Sev::Info, "Your crew mined +" + compact(g.crewMinedSinceReport) + " tokens in the last minute.");
+        log.push(Sev::Info, "Your crew mined +" + compact(g.crewMinedSinceReport) + " tokens in the last minute.", LogKind::Crew);
         g.crewMinedSinceReport = 0;
     }
 

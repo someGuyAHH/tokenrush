@@ -3,13 +3,13 @@
 #include <iomanip>
 #include <sstream>
 
-void MessageLog::push(Sev sev, const std::string& text) {
+void MessageLog::push(Sev sev, const std::string& text, LogKind kind) {
     std::lock_guard lk(m_);
     std::time_t t = std::time(nullptr);
     std::ostringstream os;
     os << std::put_time(std::localtime(&t), "%H:%M:%S");   // localtime is only ever called under m_
 
-    history_.push_back(LogEntry{os.str(), sev, text});
+    history_.push_back(LogEntry{os.str(), sev, text, kind});
     if (history_.size() > HISTORY_MAX) history_.pop_front();
 }
 

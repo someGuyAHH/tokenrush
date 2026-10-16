@@ -101,6 +101,10 @@ through its output (End, or just typing, comes back down). A few things only exi
 prompt styles (and `prompt color #ff8800`: your prompt in a color of yours, 12,000 shards once),
 `wipe`, `log` with filters, `predict`, and the `help` pages.
 
+**Quieter log:** `silence market` (or bot, crew, scouts, autobuyer, tasks, jackpots, heat,
+offers, events, or `all`) keeps that kind of routine message out of the log pane; `log` still
+has them, and `unsilence` brings them back. Disasters, offers, audits and job results always show.
+
 **Typing:** the Console suggests the rest of what you're typing, greyed out: an earlier line
 that starts the same way, or else the command, subcommand, gadget, client or task-language
 word you're in the middle of. Tab (or Right at the end of the line) takes it. Up/Down walk back

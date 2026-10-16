@@ -72,6 +72,13 @@ std::vector<std::string> argumentsOf(const GameState& g, Cmd c, const std::vecto
         case Cmd::Sell:      return at == 1 ? std::vector<std::string>{"all"} : std::vector<std::string>{};
         case Cmd::Repair:    return at == 1 ? std::vector<std::string>{"all"} : std::vector<std::string>{};
         case Cmd::Log:       return {"good", "bad", "warn", "event", "info"};
+        case Cmd::Silence:
+        case Cmd::Unsilence: {
+            std::vector<std::string> out;
+            for (int i = 1; i < LOG_KIND_COUNT; ++i) out.push_back(LOG_KINDS[i].id);
+            out.push_back("all");
+            return out;
+        }
         case Cmd::Expedition: return at == 2 ? std::vector<std::string>{"short", "long", "deep"} : std::vector<std::string>{};
         case Cmd::Help:      return at == 1 ? commandWords(g) : std::vector<std::string>{};
         case Cmd::Alias:     return at == 1 ? commandWords(g) : std::vector<std::string>{};
