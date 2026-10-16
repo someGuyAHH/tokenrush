@@ -178,8 +178,15 @@ long long promptColorCost() { return std::llround(4.0 * (double)customPromptCost
 
 Notes setPromptColor(GameState& g, const std::string& text) {
     std::string t = lower(trim(text));
+    if (t == "reset") {   // back to the theme's color, and forget the one picked (bought stays bought)
+        if (!g.promptColorOwned) return {{Sev::Info, "Your prompt already has the theme's color."}};
+        g.promptColorOn = false;
+        g.promptColorSet = false;
+        g.promptColor = Rgb{255, 255, 255};
+        return {{Sev::Info, "The prompt is back to the theme's color. 'prompt color #ff8800' picks one again, free."}};
+    }
     if (t == "off" || t == "on") {
-        if (!g.promptColorOwned) return {{Sev::Warn, "Pick a color first: 'prompt color #ff8800'."}};
+        if (!g.promptColorOwned || (t == "on" && !g.promptColorSet)) return {{Sev::Warn, "Pick a color first: 'prompt color #ff8800'."}};
         g.promptColorOn = t == "on";
         return {{Sev::Info, g.promptColorOn ? "The prompt has its color again." : "The prompt is back to the theme's color (yours is kept)."}};
     }
@@ -195,6 +202,7 @@ Notes setPromptColor(GameState& g, const std::string& text) {
         out.push_back({Sev::Good, "Bought the prompt color for " + num(cost) + " shards. Changing it is free from now on."});
     }
     g.promptColor = rgb;
+    g.promptColorSet = true;
     g.promptColorOn = true;
     out.push_back({Sev::Info, "Prompt color set to " + hexColor(rgb) + "."});
     return out;

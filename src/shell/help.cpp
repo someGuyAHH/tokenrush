@@ -249,16 +249,18 @@ const std::vector<CommandInfo>& commands() {
           "earn their third star."},
          {{"curios", "open the shelf"}, {"curios 3", "buy curio 3"}},
          {"goals"}, CURIOS, SPENDING},
-        {Cmd::Prompt, {"prompt"}, "prompt [n] | prompt custom <text> | prompt color <#rrggbb|off|on>", "Buy or switch prompt styles, make your own, or color it",
+        {Cmd::Prompt, {"prompt"}, "prompt [n] | prompt custom <text> | prompt color <#rrggbb|off|on|reset>", "Buy or switch prompt styles, make your own, or color it",
          {"Changes the prompt in front of your cursor. Styles are bought once with tokens and are yours to switch "
           "between after that.",
           "A custom prompt is any 1 to 5 plain keyboard characters (no spaces at the ends). It costs 30x the dearest "
           "style once; after that you can change its text for free.",
           "'prompt color #ff8800' draws whichever prompt you use in that color (#f80 works too); only the prompt, so "
           "what you type keeps the normal color. It's bought once with shards (4x the custom prompt's price, in shards), "
-          "then changing it is free. 'prompt color off' goes back to the theme's color, 'prompt color on' brings yours back."},
+          "then changing it is free. 'prompt color off' goes back to the theme's color, 'prompt color on' brings yours back, "
+          "and 'prompt color reset' goes back to the theme's color and forgets yours (picking one again stays free)."},
          {{"prompt", "list the styles"}, {"prompt 3", "buy or switch to style 3"}, {"prompt custom >_<", "your own prompt"},
-          {"prompt color #ff8800", "an orange prompt"}, {"prompt color off", "the theme's color again"}},
+          {"prompt color #ff8800", "an orange prompt"}, {"prompt color off", "the theme's color again"},
+          {"prompt color reset", "the theme's color, and forget yours"}},
          {}, -1, SPENDING},
         {Cmd::Theme, {"theme", "themes"}, "theme [n|name] | theme custom [<color> <#hex> | from <theme>]", "Change how the game looks: color themes, with previews",
          {"A theme recolors everything: headings, tokens, shards, good and bad news, and in the full-screen edition the "

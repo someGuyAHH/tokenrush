@@ -65,7 +65,7 @@ std::vector<std::string> argumentsOf(const GameState& g, Cmd c, const std::vecto
             return {};
         case Cmd::Prompt:
             if (at == 1) return {"custom", "color"};
-            if (first == "color" && at == 2) return {"off", "on"};
+            if (first == "color" && at == 2) return {"off", "on", "reset"};
             return {};
         case Cmd::Auto:      return at == 1 ? std::vector<std::string>{"on", "off"} : std::vector<std::string>{};
         case Cmd::Buy:       return at == 1 ? std::vector<std::string>{"max"} : std::vector<std::string>{};

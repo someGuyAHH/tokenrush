@@ -303,6 +303,7 @@ struct GameState {
     bool promptColorOwned = false;   // 'prompt color': the prompt in a color of your own (shards, once)
     bool promptColorOn = false;
     Rgb promptColor{255, 255, 255};
+    bool promptColorSet = false;     // a color is picked ('prompt color reset' forgets it; still owned)
     int themeSel = 0;                // index into THEMES
     std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
     std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)

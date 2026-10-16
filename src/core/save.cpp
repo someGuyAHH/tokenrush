@@ -593,10 +593,12 @@ const std::vector<Field>& saveFields() {
               [](const GameState& g) { return g.customPromptOwned && !g.customPrompt.empty(); }},
 
         boolField("cosmetics", "promptColorOwned", &GameState::promptColorOwned),
-        Field{"cosmetics", "promptColor",   // "#ff8800", or "off #ff8800" when it's turned off
-              [](const GameState& g) { return (g.promptColorOn ? "" : "off ") + hexColor(g.promptColor); },
+        Field{"cosmetics", "promptColor",   // "#ff8800", "off #ff8800" when it's turned off, "none" after a reset
+              [](const GameState& g) { return !g.promptColorSet ? std::string("none") : (g.promptColorOn ? "" : "off ") + hexColor(g.promptColor); },
               [](GameState& g, const std::string& text) {
                   std::string t = lower(trim(text));
+                  g.promptColorSet = t != "none";
+                  if (!g.promptColorSet) { g.promptColorOn = false; return true; }
                   g.promptColorOn = t.rfind("off", 0) != 0;
                   if (!g.promptColorOn) t = trim(t.substr(3));
                   return parseHexColor(t, g.promptColor);

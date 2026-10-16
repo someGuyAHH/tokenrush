@@ -171,6 +171,7 @@ void doPrompt(Shared& s, const std::string& arg) {
         }
         out() << "  Color: ";
         if (!g.promptColorOwned) out() << num(promptColorCost()) << " shards" << paint(Style::Muted, "   draws any prompt in a color of yours") << "\n";
+        else if (!g.promptColorSet) out() << "the theme's" << paint(Style::Muted, "   'prompt color #ff8800' picks one, free") << "\n";
         else out() << paintRgb(g.promptColor, hexColor(g.promptColor)) << (g.promptColorOn ? "" : paint(Style::Muted, " (off)"))
                    << paint(Style::Muted, "   change it any time, free") << "\n";
         out() << "Use 'prompt <n>' to buy or switch, 'prompt custom <text>' to make your own, 'prompt color #ff8800' to color it.\n";
@@ -184,6 +185,7 @@ void doPrompt(Shared& s, const std::string& arg) {
             std::lock_guard lk(s.m);
             const GameState& g = s.g;
             if (!g.promptColorOwned) out() << "'prompt color #ff8800' draws your prompt in that color (" << num(promptColorCost()) << " shards, once; then free to change).\n";
+            else if (!g.promptColorSet) out() << "Your prompt has the theme's color. 'prompt color #ff8800' picks one (free: you own it).\n";
             else out() << "Your prompt's color: " << paintRgb(g.promptColor, hexColor(g.promptColor)) << (g.promptColorOn ? "" : " (off: 'prompt color on')") << ".\n";
             return;
         }
@@ -210,7 +212,7 @@ void doPrompt(Shared& s, const std::string& arg) {
 
     long long n;
     if (!parseLongLong(arg, n) || n < 1 || n > PROMPT_COUNT + 1) {
-        out() << "Usage: prompt [1-" << (PROMPT_COUNT + 1) << "], prompt custom <text>, or prompt color <#rrggbb|off|on>\n";
+        out() << "Usage: prompt [1-" << (PROMPT_COUNT + 1) << "], prompt custom <text>, or prompt color <#rrggbb|off|on|reset>\n";
         return;
     }
     Notes out;

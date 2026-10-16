@@ -323,7 +323,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The **prompt color** (`prompt color <#rrggbb|#rgb|off|on>`): 12,000 shards once (4× the custom
     prompt's 450,000 tokens, in shards at the fair price of 150), then free to change. Whatever
     prompt you use is drawn in that 24-bit color and reset right after it, so the space and what
-    you type keep the normal color. `off` keeps the color for later. Saved as `[cosmetics]
+    you type keep the normal color. `off` keeps the color for later; `reset` goes back to the
+    theme's color and forgets yours (still bought: picking one again is free; saved as `none`). Saved as `[cosmetics]
     promptColor = #ff8800` (or `off #ff8800`). Shards, so it needs the Market.
 - **Themes (`THEMES`; `theme` in the Console, or the Themes tab; both open with the Market):** kept per profile
   (`[cosmetics] theme`, `themesOwned`). Each is a palette of 17 roles (`Hue`: Text, Muted, Accent,
