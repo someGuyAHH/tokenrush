@@ -714,6 +714,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Never runs what can't happen, never pays for it:** every action is checked first (away,
   at the cap, can't afford, nothing broken, already on...). The task waits and its status says
   why. A crew member who left stays named in the task; it just waits.
+- **Market values** (tasks, `predict when`, `eval`): `price.buy` / `price.sell` (one shard right
+  now: price × (1 ± spread/2), × the Golden Ledger), `spread` (their gap in % of the price: 5 base,
+  +2 per heat, −0.6 per Broker level, at least 1, ×2 with Static), `impact` (how far each shard you
+  trade moves the price, in %: 0.25 base, less with Brokers, ×¼ with the Moon Anchor).
 - **Fees (tuned with the simulator):** each run costs instructions × 0.3 s of income (the
   5-minute average), at least 10 tokens. Every value, number, operator and the action count as
   one instruction. Fees never take more than a fifth of a minute's income: past that, tasks

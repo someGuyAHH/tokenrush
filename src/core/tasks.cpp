@@ -34,6 +34,14 @@ const ValueDef VALUES[] = {
     {"shards",        Unit::Amount, [](GameState& g) { return (double)g.shards; }},
     {"income",        Unit::Amount, [](GameState& g) { return g.incomeRate; }},
     {"price",         Unit::Amount, [](GameState& g) { return g.shardPrice; }},
+    {"price.buy",     Unit::Amount, [](GameState& g) { return buyPrice(g); }},    // what one shard costs you right now
+    {"price.sell",    Unit::Amount, [](GameState& g) { return sellPrice(g); }},   // ...and what one sells for
+    {"spread",        Unit::Amount, [](GameState& g) { return 100.0 * marketSpread(g); }},   // in percent of the price
+    {"impact",        Unit::Amount, [](GameState& g) { return 100.0 * marketImpact(g); }},   // in percent, per shard traded
+    {"price.buy",     Unit::Amount, [](GameState& g) { return buyPrice(g); }},    // what one shard costs you right now
+    {"price.sell",    Unit::Amount, [](GameState& g) { return sellPrice(g); }},   // ...and what one sells for
+    {"spread",        Unit::Amount, [](GameState& g) { return 100.0 * marketSpread(g); }},   // in percent of the price
+    {"impact",        Unit::Amount, [](GameState& g) { return 100.0 * marketImpact(g); }},   // in percent, per shard traded
     {"heat",          Unit::Amount, [](GameState& g) { return (double)g.heat; }},
     {"level.pickaxe", Unit::Amount, [](GameState& g) { return (double)g.pickaxe; }},
     {"level.magnet",  Unit::Amount, [](GameState& g) { return (double)g.magnet; }},
@@ -68,6 +76,12 @@ const TaskValueInfo TASK_VALUES[] = {
     {"tokens, shards",        "what you have"},
     {"income",                "tokens per second (the 5-minute average)"},
     {"price",                 "the shard price on the market"},
+    {"price.buy, price.sell", "what one shard costs you, and pays you, right now"},
+    {"spread",                "the gap between them, in % of the price (5 = 5%)"},
+    {"impact",                "how far each shard you trade moves the price, in %"},
+    {"price.buy, price.sell", "what one shard costs you, and pays you, right now"},
+    {"spread",                "the gap between them, in % of the price (5 = 5%)"},
+    {"impact",                "how far each shard you trade moves the price, in %"},
     {"heat",                  "0 to 10"},
     {"level.<upgrade>",       "pickaxe, magnet, drone or bot: its level"},
     {"cost.<upgrade>",        "what its next level costs"},
