@@ -429,11 +429,31 @@ Component JobsPage(Ui& ui) {
                                             ui.snap.shards >= ui.snap.offers[(size_t)i].stake; });
         accepts.push_back(Maybe(b, [&ui, i] { return i < (int)ui.snap.offers.size(); }));
     }
+    // A Bribe button for every client, shown only while they're Burned. Two clicks: it's not cheap.
+    Components bribes;
+    for (int k = 0; k < CLIENT_COUNT; ++k) {
+        Component b = Btn(
+            [&ui, k] { return armed(k, ui.bribeArmed, ui.bribeArmedUntil) ? "Really pay " + compact(bribeCost(ui.snap, k)) + "?"
+                                                                           : "Bribe " + compact(bribeCost(ui.snap, k)) + " sh"; },
+            [&ui, k] {
+                if (armed(k, ui.bribeArmed, ui.bribeArmedUntil)) {
+                    ui.bribeArmed = -1;
+                    ui.run([k](GameState& g) { return bribeClient(g, k); });
+                } else {
+                    ui.bribeArmed = k;
+                    ui.bribeArmedUntil = Clock::now() + CONFIRM_WINDOW;
+                }
+            },
+            [&ui, k] { return ui.snap.shards >= bribeCost(ui.snap, k); });
+        bribes.push_back(Maybe(b, [&ui, k] { return clientTier(ui.snap, k) == Tier::Burned; }));
+    }
+
     Components all = abandons;
     for (auto& a : accepts) all.push_back(a);
+    all.push_back(Container::Vertical(bribes));   // drawn two to a row; the arrows go through them in reading order
     Component box = Container::Vertical(all);
 
-    return Renderer(box, [&ui, abandons, accepts] {
+    return Renderer(box, [&ui, abandons, accepts, bribes] {
         const GameState& g = ui.snap;
         int slots = contractSlots(g);
         Elements rows;
@@ -444,9 +464,11 @@ Component JobsPage(Ui& ui) {
         for (size_t j = 0; j < g.contracts.size() && j < abandons.size(); ++j) {
             const Contract& c = g.contracts[j];
             Elements pays = {text("pays "), text(compact(c.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(c.rewardShards), text(" sh")};
+            if (c.amends) pays = {text("no pay: wins them back") | color(hue(Hue::Good))};
             if (c.stake > 0) pays.push_back(text(" + stake") | muted());
             rows.push_back(hbox({text(slots > 1 ? "Job " + std::to_string(j + 1) + ": " : "Job: ") | bold, text(contractText(c)) | bold,
-                                 c.signature ? text("  SIG") | color(hue(Hue::Event)) | bold : text(""),
+                                 c.signature ? text("  SIG") | color(hue(Hue::Event)) | bold
+                                 : c.amends  ? text("  AMENDS") | color(hue(Hue::Good)) | bold : text(""),
                                  text("  for "), clientName(g, c.client), filler()}));
             if (isEndurance(c))
                 rows.push_back(text(std::string("    Won by lasting until the end; fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") |
@@ -464,15 +486,18 @@ Component JobsPage(Ui& ui) {
             if (i >= (int)g.offers.size()) continue;
             const Contract& o = g.offers[(size_t)i];
             // The job's name at the margin, its details indented under it.
-            Element tag = o.signature ? text("  SIG") | color(hue(Hue::Event)) | bold
+            Element tag = o.amends    ? text("  AMENDS") | color(hue(Hue::Good)) | bold
+                        : o.signature ? text("  SIG") | color(hue(Hue::Event)) | bold
                         : o.big       ? text("  BIG") | color(hue(Hue::Warn)) | bold : text("");
-            Element terms = hbox({text(compact(o.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(o.rewardShards), text(" sh"),
+            Element terms = hbox({o.amends ? text("no pay") | color(hue(Hue::Good))
+                                           : hbox({text(compact(o.rewardTokens)) | color(hue(Hue::Tokens)), text(" + "), shards(o.rewardShards), text(" sh")}),
                                   o.stake > 0 ? text("  stake " + num(o.stake)) | color(hue(Hue::Shards)) : text("")});
             rows.push_back(hbox({hbox({text(contractText(o)) | bold, tag}) | flex, text("  "), cell((isEndurance(o) ? "for " : "in ") + duration(o.duration), 11),
                                  terms | size(WIDTH, EQUAL, 24), accepts[(size_t)i]->Render()}));
             rows.push_back(hbox({text("    from ") | muted(), clientName(g, o.client),
                                  text(std::string(", ") + CLIENT_STYLES[(int)CLIENTS[o.client].style].name + ", leaves in " + duration(o.expiresIn) +
                                       (isEndurance(o) ? std::string("   endurance: no ") + CONTRACT_KINDS[(int)o.kind].rule : "")) | muted()}));
+            if (o.amends) rows.push_back(text("    no pay: deliver it and they're Wary of you instead of Burned") | color(hue(Hue::Good)));
             rows.push_back(tipLine(o, "    "));
         }
         if (g.offers.empty()) rows.push_back(text("  (the board is empty; check back soon)") | muted());
@@ -489,6 +514,21 @@ Component JobsPage(Ui& ui) {
                                      text(TIERS[(int)clientTier(g, k)].name) | size(WIDTH, EQUAL, 10) | color(tierColor(clientTier(g, k)))}));
             }
             rows.push_back(hbox(line));
+        }
+        // Burned clients: a bribe brings them back to Wary; so does a make-amends job, when they post one.
+        std::vector<int> burned;
+        for (int k = 0; k < CLIENT_COUNT; ++k)
+            if (clientTier(g, k) == Tier::Burned) burned.push_back(k);
+        if (!burned.empty()) {
+            rows.push_back(hbox({text("Burned clients come back with a bribe, or by delivering a make-amends job when they post one.") | muted()}));
+            for (size_t r = 0; r < burned.size(); r += 2) {
+                Elements line;
+                for (size_t q = r; q < r + 2 && q < burned.size(); ++q) {
+                    int k = burned[q];
+                    line.push_back(hbox({text("  "), clientName(g, k, false) | size(WIDTH, EQUAL, 22), bribes[(size_t)k]->Render(), text("   ")}));
+                }
+                rows.push_back(hbox(line));
+            }
         }
         rows.push_back(filler());
         rows.push_back(note("Failing costs the stake and adds heat (big jobs +2). Heat " + std::to_string(auditMinHeat(g)) +

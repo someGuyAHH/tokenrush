@@ -118,6 +118,7 @@ struct Contract {
     int client = 0;              // index into CLIENTS
     bool big = false;            // big jobs take a shard stake and pay more
     bool signature = false;      // a Trusted client's special job: longer, no stake, double pay
+    bool amends = false;         // a Burned client's make-amends job: sized like a big one, no pay; deliver and they're Wary again
     long long target = 0;
     long long start = 0;         // the stat's value when the contract was accepted
     int duration = 0;            // seconds you get once you accept
@@ -197,6 +198,8 @@ struct GameState {
     int offerClock = 0;                 // seconds until a fresh offer appears
     int tipClock = 0;                   // seconds until the tips are judged again (not saved)
     std::array<int, CLIENT_COUNT> standing{};   // with each client, -10..10 (see contracts.hpp)
+    std::array<int, CLIENT_COUNT> bribes{};     // bribes paid to each (every one doubles the next)
+    std::array<long long, CLIENT_COUNT> amendsAfter{};   // playSeconds before they offer to make amends again (after you failed one)
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far
 

@@ -32,9 +32,10 @@ std::string crewRow(const CrewMember& c) {
 }
 
 std::string offerRow(const Contract& c) {
-    std::string tag = c.signature ? paint(Style::Event, "[SIG] ") : c.big ? paint(Style::Warn, "[BIG] ") : "      ";
-    std::string terms = "reward " + paint(Style::Tokens, num(c.rewardTokens)) + " + " +
-                        paint(Style::Shards, count(c.rewardShards, "shard"));
+    std::string tag = c.amends    ? paint(Style::Good, "[MEND] ")
+                    : c.signature ? paint(Style::Event, "[SIG]  ") : c.big ? paint(Style::Warn, "[BIG]  ") : "       ";
+    std::string terms = c.amends ? paint(Style::Good, "no pay")
+                                 : "reward " + paint(Style::Tokens, num(c.rewardTokens)) + " + " + paint(Style::Shards, count(c.rewardShards, "shard"));
     if (c.stake > 0) terms += ", stake " + paint(Style::Shards, num(c.stake));
     return tag + padRight(contractText(c) + (isEndurance(c) ? " for " : " in ") + duration(c.duration), 46) + terms;
 }
@@ -180,15 +181,17 @@ void doContracts(Shared& s) {
         long long p = std::min(contractProgress(g, c), contractGoal(c));
         std::string tag = slots > 1 ? "Active " + std::to_string(i + 1) : "Active";
         out() << paint(Style::Bold, tag) << " (for " << clientLabel(g, c.client) << "): " << contractText(c)
-              << (c.signature ? paint(Style::Event, "  * signature") : "") << "\n"
+              << (c.signature ? paint(Style::Event, "  * signature") : "")
+              << (c.amends ? paint(Style::Good, "  * make amends: deliver it and they'll work with you again") : "") << "\n"
                   << "  " << bar(p, contractGoal(c), 20) << " " << progressText(g, c) << "   "
                   << paint(c.secondsLeft <= CONTRACT_WARN_AT ? Style::Warn : Style::Plain, duration(c.secondsLeft) + " left") << "\n";
         if (isEndurance(c))
             out() << "  " << paint(Style::Warn, std::string("Won by lasting until the end. Fails on ") + CONTRACT_KINDS[(int)c.kind].rule + ".") << "\n";
         if (std::string tip = tipText(c); !tip.empty()) out() << "  " << tip << "\n";
-        out() << "  Pays " << paint(Style::Tokens, num(c.rewardTokens) + " tokens") << " + "
-                  << paint(Style::Shards, count(c.rewardShards, "shard"));
-        if (c.stake > 0) out() << " and your " << num(c.stake) << "-shard stake back";
+        if (c.amends) out() << "  Pays nothing but their goodwill";
+        else out() << "  Pays " << paint(Style::Tokens, num(c.rewardTokens) + " tokens") << " + "
+                   << paint(Style::Shards, count(c.rewardShards, "shard"));
+        if (c.stake > 0) out() << (c.amends ? ", and" : " and") << " your " << num(c.stake) << "-shard stake back";
         out() << ".\n";
     }
     if (g.contracts.empty()) out() << paint(Style::Muted, "No active contract.") << "\n";
@@ -204,6 +207,7 @@ void doContracts(Shared& s) {
                                          duration(o.expiresIn)) << "\n";
         if (o.kind != ContractKind::Count && CONTRACT_KINDS[(int)o.kind].endurance)
             out() << "       " << paint(Style::Warn, std::string("Endurance: last until the end without ") + CONTRACT_KINDS[(int)o.kind].rule + ".") << "\n";
+        if (o.amends) out() << "       " << paint(Style::Good, "Make amends: no pay, but deliver it and they're Wary of you instead of Burned.") << "\n";
         if (std::string tip = tipText(o); !tip.empty()) out() << "       " << tip << "\n";
     }
     out() << paint(Style::Muted, "Fail or abandon a job and you lose the stake and gain heat (big jobs: +2), and the client remembers. "
@@ -221,10 +225,14 @@ void doClients(Shared& s) {
         int v = g.standing[(size_t)i];
         Tier t = tierOf(v);
         std::string num = (v > 0 ? "+" : "") + std::to_string(v);
-        out() << "  " << padRight(c.name, 22) << padRight(CLIENT_STYLES[(int)c.style].name, 10) << " " << paint(tierStyle(t), standingBar(v))
-              << " " << padLeft(num, 3) << "  " << paint(tierStyle(t), padRight(TIERS[(int)t].name, 9))
-              << paint(Style::Muted, std::string("rival: ") + CLIENTS[c.rival].name) << "\n";
+        out() << padLeft(std::to_string(i + 1), 3) << " " << padRight(c.name, 22) << padRight(CLIENT_STYLES[(int)c.style].name, 10) << " "
+              << paint(tierStyle(t), standingBar(v)) << " " << padLeft(num, 3) << "  " << paint(tierStyle(t), padRight(TIERS[(int)t].name, 9))
+              << paint(Style::Muted, padRight(std::string("rival: ") + CLIENTS[c.rival].name, 30));
+        if (t == Tier::Burned) out() << paint(Style::Shards, "bribe: " + count(bribeCost(g, i), "shard"));
+        out() << "\n";
     }
+    if (std::any_of(g.standing.begin(), g.standing.end(), [](int v) { return tierOf(v) == Tier::Burned; }))
+        out() << paint(Style::Muted, "  Burned clients come back with 'bribe <n>', or by delivering a make-amends job when they post one.") << "\n";
     out() << "\n" << paint(Style::Bold, "Standing") << "\n";
     for (int t = (int)Tier::Count - 1; t >= 0; --t) {
         std::string range = t == (int)Tier::Count - 1 ? std::to_string(TIERS[t].from) + " and up"
@@ -236,6 +244,18 @@ void doClients(Shared& s) {
     out() << "\n" << paint(Style::Bold, "Styles") << "\n";
     for (int st = 0; st < (int)ClientStyle::Count; ++st)
         out() << "  " << padRight(CLIENT_STYLES[st].name, 11) << CLIENT_STYLES[st].desc << "\n";
+}
+
+void doBribe(Shared& s, const std::string& args) {
+    if (trim(args).empty()) { out() << "Bribe who? 'bribe <client>', by name or by its number in 'clients'.\n"; return; }
+    int who = findClient(args);
+    if (who < 0) { out() << paint(Style::Warn, "No client called '" + trim(args) + "'. 'clients' lists them.") << "\n"; return; }
+    Notes notes;
+    {
+        std::lock_guard lk(s.m);
+        notes = bribeClient(s.g, who);
+    }
+    printNotes(notes);
 }
 
 void doAccept(Shared& s, const std::string& arg) {

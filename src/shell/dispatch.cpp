@@ -59,6 +59,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         case Cmd::Sell:      doSell(s, arg); break;
         case Cmd::Contracts: doContracts(s); break;
         case Cmd::Clients:   doClients(s); break;
+        case Cmd::Bribe:     doBribe(s, rest); break;
         case Cmd::Workshop:  doWorkshop(s); break;
         case Cmd::Craft:     doCraft(s, rest); break;
         case Cmd::Equip:     doEquip(s, rest); break;

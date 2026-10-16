@@ -166,7 +166,9 @@ before this kept everything they were already using. The table lives in `FEATURE
 - **Clients and standing.** Every client remembers you (`clients`): standing from -10 to 10,
   up when you deliver, down when you don't, and down with their rival when you work for them.
   Burned clients post nothing; Trusted ones pay 30% more and post signature jobs (longer, no
-  stake, double pay). Styles: Shady (40% more pay, but their money adds heat), Miners (mining
+  stake, double pay). A Burned client isn't gone for good: `bribe <client>` (or the Bribe button
+  on the Jobs tab) pays shards to make them Wary again, and now and then they post a
+  **make-amends** job (no pay, a stake) that does the same when you deliver it. Styles: Shady (40% more pay, but their money adds heat), Miners (mining
   by hand only), Merchants (paid in shards), Small fry (forgiving).
 - **Heat.** Widens the market spread. From 3 up, audits can seize part of your tokens.
   It cools slowly on its own; big jobs you finish cool it by 1.

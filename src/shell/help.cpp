@@ -161,14 +161,25 @@ const std::vector<CommandInfo>& commands() {
          {"Standing runs from -10 to 10, starting at 0. Finishing a job for a client raises it by 1 (2 for a big or "
           "signature job) and lowers it by 1 with their rival. Failing or abandoning one lowers it by 2 (3 for a big "
           "job); small fry forgive more easily and only take 1.",
-          "Tiers: Burned (-5 and below) won't post jobs for you. Wary (-4 to -2) pay 20% less. Neutral (-1 to 2) pay "
+          "Tiers: Burned (-5 and below) won't post jobs for you, until you bribe them ('bribe') or deliver a "
+          "make-amends job they post (see 'help bribe'). Wary (-4 to -2) pay 20% less. Neutral (-1 to 2) pay "
           "normally. Friendly (3 to 5) pay 15% more. Trusted (6 and up) pay 30% more and now and then post a signature "
           "job: half again as long, no stake, double pay.",
           "Styles: Shady clients pay 40% more, but every job you finish for them adds 1 heat. Miners only post "
           "mining-by-hand jobs and pay 25% more shards. Merchants post money and market jobs and pay 60% more shards "
           "and 20% fewer tokens. Small fry only post small jobs."},
          {{"clients", "the table"}, {"cl", "the same"}},
-         {"contracts"}, CONTRACTS, BUSINESS},
+         {"contracts", "bribe"}, CONTRACTS, BUSINESS},
+        {Cmd::Bribe, {"bribe"}, "bribe <client>", "Pay a Burned client to work with you again",
+         {"A Burned client posts no jobs, so delivering can't win them back. Two things can. A bribe, paid in shards, "
+          "puts them at -4 (Wary) right away. It costs more the deeper you've sunk with them (twice as much at -10 as at "
+          "-5), grows with your income like job pay does, and every bribe to the same client doubles the next one. "
+          "'clients' shows each Burned client's price.",
+          "Or wait for a make-amends job: now and then a Burned client posts one (the log says so). It's sized like a "
+          "big job, with a stake and no pay at all; deliver it and they're Wary again. Fail or abandon it and they're "
+          "back at -10, and won't offer another for half an hour of play."},
+         {{"bribe syndicate", "by part of a name"}, {"bribe 5", "by its number in 'clients'"}},
+         {"clients", "contracts"}, CONTRACTS, BUSINESS},
         {Cmd::Accept, {"accept"}, "accept <n>", "Take offer n from the board",
          {"Takes an offer off the board and starts its timer. A big job takes its shard stake right away.",
           "You can run one job at a time, or two after the Orrery's Second Ring, as long as they're different kinds "

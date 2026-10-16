@@ -455,6 +455,7 @@ void addContractSlot(std::vector<Field>& fields, const std::string& sec, size_t 
     fields.push_back(numAt(sec, "client", [c](GameState& g) -> int& { return c(g).client; }, 0, CLIENT_COUNT - 1, present));
     fields.push_back(boolAt(sec, "big", [c](GameState& g) -> bool& { return c(g).big; }, present));
     fields.push_back(boolAt(sec, "signature", [c](GameState& g) -> bool& { return c(g).signature; }, present));
+    fields.push_back(boolAt(sec, "amends", [c](GameState& g) -> bool& { return c(g).amends; }, present));
     fields.push_back(numAt(sec, "target", [c](GameState& g) -> LL& { return c(g).target; }, 1LL, big, present));
     fields.push_back(numAt(sec, "start", [c](GameState& g) -> LL& { return c(g).start; }, 0LL, big, present));
     fields.push_back(numAt(sec, "duration", [c](GameState& g) -> int& { return c(g).duration; }, 1, 24 * 3600, present));
@@ -462,6 +463,29 @@ void addContractSlot(std::vector<Field>& fields, const std::string& sec, size_t 
     fields.push_back(numAt(sec, "stake", [c](GameState& g) -> LL& { return c(g).stake; }, 0LL, big, present));
     fields.push_back(numAt(sec, "rewardTokens", [c](GameState& g) -> LL& { return c(g).rewardTokens; }, 0LL, big, present));
     fields.push_back(numAt(sec, "rewardShards", [c](GameState& g) -> LL& { return c(g).rewardShards; }, 0LL, big, present));
+}
+
+// One number per client, in CLIENTS order: "0, 3, -2, ...". Missing ones stay 0; written only if any isn't.
+template <typename T>
+Field perClientField(const std::string& key, std::array<T, CLIENT_COUNT> GameState::*member, T lo, T hi) {
+    return Field{
+        "jobs", key,
+        [member](const GameState& g) {
+            std::string out;
+            for (int i = 0; i < CLIENT_COUNT; ++i) out += (i ? ", " : "") + std::to_string((g.*member)[(size_t)i]);
+            return out;
+        },
+        [member, lo, hi](GameState& g, const std::string& text) {
+            std::stringstream ss(text);
+            std::string item;
+            for (int i = 0; i < CLIENT_COUNT && std::getline(ss, item, ','); ++i) {
+                T v = 0;
+                if (!parseNumber(trim(item), v) || v < lo || v > hi) return false;
+                (g.*member)[(size_t)i] = v;
+            }
+            return true;
+        },
+        [member](const GameState& g) { return std::any_of((g.*member).begin(), (g.*member).end(), [](T v) { return v != 0; }); }};
 }
 
 void addContractFields(std::vector<Field>& fields) {
@@ -494,6 +518,8 @@ void addContractFields(std::vector<Field>& fields) {
             return true;
         },
         [](const GameState& g) { return std::any_of(g.standing.begin(), g.standing.end(), [](int v) { return v != 0; }); }});
+    fields.push_back(perClientField("bribes", &GameState::bribes, 0, 1'000'000));
+    fields.push_back(perClientField("amendsAfter", &GameState::amendsAfter, std::numeric_limits<LL>::min(), big));
     fields.push_back(numAt("jobs", "streak", [](GameState& g) -> LL& { return g.contractStreak; }, 0LL, big, any));
     fields.push_back(numAt("jobs", "peakStreak", [](GameState& g) -> LL& { return g.contractPeakStreak; }, 0LL, big, any));
     for (size_t i = 0; i < 2; ++i) {

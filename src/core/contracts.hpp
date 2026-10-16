@@ -39,6 +39,24 @@ Tier tierOf(int standing);
 Tier clientTier(const GameState& g, int client);
 int bestStanding(const GameState& g);   // the highest standing with anyone (for the goal)
 
+// ----- Coming back from Burned -----
+// A Burned client posts no jobs, so delivering can't win them back. Two ways can:
+//  - a bribe (shards, scaled like job pay: deeper standing costs more, and each bribe to the
+//    same client doubles the next), or
+//  - a make-amends job they post now and then: sized like a big job, with a stake and no pay.
+//    Deliver it and they're Wary again; fail it and they're back at -10, and won't offer
+//    another for AMENDS_COOLDOWN seconds of play.
+// Either way they land at AMENDS_STANDING (Wary, -4).
+inline constexpr int AMENDS_STANDING = -4;
+inline constexpr double AMENDS_CHANCE = 0.25;   // of a new offer, while someone Burned has none out
+inline constexpr int AMENDS_COOLDOWN = 1800;
+inline constexpr double BRIBE_BASE = 150;       // shards, before the job-pay scale
+inline constexpr int BRIBE_DOUBLINGS_MAX = 6;
+double contractShardScale(double power);         // how job shards (and bribes) grow with income: x1 at 10K/s
+long long bribeCost(const GameState& g, int client);   // 0 if they aren't Burned
+Notes bribeClient(GameState& g, int client);
+int findClient(const std::string& word);         // its number in the 'clients' list (from 1) or part of a name; -1 if none
+
 long long contractProgress(const GameState& g, const Contract& c);
 long long contractGoal(const Contract& c);       // what progress has to reach: the target, or the duration for endurance jobs
 bool isEndurance(const Contract& c);

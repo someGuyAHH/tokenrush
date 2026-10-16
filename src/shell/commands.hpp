@@ -25,7 +25,7 @@ enum class Cmd {
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
     Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair, Stars, Task, Pay, Borrow, Predict,
-    Update, Alias, RmAlias,
+    Update, Alias, RmAlias, Bribe,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -75,6 +75,7 @@ void doBuy(Shared& s, const std::string& arg);   // <n|max>
 void doSell(Shared& s, const std::string& arg);  // <n|all>
 void doContracts(Shared& s);
 void doClients(Shared& s);                       // standing with every client
+void doBribe(Shared& s, const std::string& args);   // a Burned client, by number or name
 void doAccept(Shared& s, const std::string& arg);
 void doAbandon(Shared& s, const std::string& arg);   // empty: the only job
 void doCrew(Shared& s);

@@ -13,7 +13,7 @@
 
 // ----- Standing -----
 const TierInfo TIERS[] = {
-    {"Burned",   -10, 0.00, "won't post jobs for you"},
+    {"Burned",   -10, 0.00, "won't post jobs for you (until a bribe or a make-amends job)"},
     {"Wary",      -4, 0.80, "pay 20% less"},
     {"Neutral",   -1, 1.00, "normal pay"},
     {"Friendly",   3, 1.15, "pay 15% more"},
@@ -31,6 +31,11 @@ Tier tierOf(int standing) {
 Tier clientTier(const GameState& g, int client) { return tierOf(g.standing[(size_t)std::clamp(client, 0, CLIENT_COUNT - 1)]); }
 
 int bestStanding(const GameState& g) { return *std::max_element(g.standing.begin(), g.standing.end()); }
+
+// A shard costs about the same at every stage, so job shards can't follow income one for one the
+// way tokens do (that would flood the market). They grow with each doubling of income instead:
+// x1 at 10K tokens/s, about x8 at 1M/s, x17 at 500M/s.
+double contractShardScale(double power) { return 1.0 + std::max(0.0, std::log2(std::max(power, 1.0) / 1e4)); }
 
 namespace {
 
@@ -76,12 +81,20 @@ long long niceRound(double v) {
     return toTokens(std::round(v / mag) * mag);
 }
 
-// A shard costs about the same at every stage, so job shards can't follow income one for one the
-// way tokens do (that would flood the market). They grow with each doubling of income instead:
-// x1 at 10K tokens/s, about x8 at 1M/s, x17 at 500M/s.
-double contractShardScale(double power) { return 1.0 + std::max(0.0, std::log2(std::max(power, 1.0) / 1e4)); }
-
 int roundTo30(double seconds) { return std::max(30, (int)std::lround(seconds / 30.0) * 30); }
+
+std::string capitalized(std::string s) {
+    if (!s.empty()) s[0] = (char)std::toupper((unsigned char)s[0]);
+    return s;
+}
+
+// A make-amends job from them on the board or running.
+bool amendsOut(const GameState& g, int client) {
+    for (const auto* list : {&g.offers, &g.contracts})
+        for (const Contract& c : *list)
+            if (c.amends && c.client == client) return true;
+    return false;
+}
 
 Contract makeOffer(const GameState& g, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
@@ -98,9 +111,27 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     if (g.drone + g.bot > 0 || !g.crew.empty()) kinds.push_back(ContractKind::HandsOff);   // something to live on meanwhile
     std::shuffle(kinds.begin(), kinds.end(), rng);
 
-    // The first kind some client (one that still talks to you) wants, from one of them at random.
     Contract c;
+    c.kind = ContractKind::Count;   // nothing picked yet
+
+    // Now and then someone you burned offers to bury the hatchet: a make-amends job.
+    std::vector<int> sore;
+    for (int i = 0; i < CLIENT_COUNT; ++i)
+        if (clientTier(g, i) == Tier::Burned && g.playSeconds >= g.amendsAfter[(size_t)i] && !amendsOut(g, i)) sore.push_back(i);
+    if (!sore.empty() && isUnlocked(g, Feature::Contracts) && uni(rng) < AMENDS_CHANCE) {
+        int who = sore[std::uniform_int_distribution<size_t>(0, sore.size() - 1)(rng)];
+        for (ContractKind k : kinds) {
+            if (!offers(CLIENTS[who].style, k)) continue;
+            c.kind = k;
+            c.client = who;
+            c.amends = true;
+            break;
+        }
+    }
+
+    // The first kind some client (one that still talks to you) wants, from one of them at random.
     for (ContractKind k : kinds) {
+        if (c.amends) break;
         std::vector<int> who;
         for (int i = 0; i < CLIENT_COUNT; ++i)
             if (offers(CLIENTS[i].style, k) && clientTier(g, i) != Tier::Burned) who.push_back(i);
@@ -113,7 +144,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     const ClientInfo& client = CLIENTS[c.client];
     Tier tier = clientTier(g, c.client);
 
-    c.big = client.style != ClientStyle::SmallFry && uni(rng) < 0.35;
+    c.big = c.amends || (client.style != ClientStyle::SmallFry && uni(rng) < 0.35);   // amends: they want it done properly
     c.signature = tier == Tier::Trusted && uni(rng) < SIGNATURE_CHANCE;
     c.duration = c.kind == ContractKind::CoolOff ? roundTo30(c.big ? between(600, 900) : between(420, 600))
                                                  : roundTo30(c.big ? between(240, 420) : between(150, 240));
@@ -187,6 +218,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         c.rewardShards = std::max(1LL, std::llround(between(1, 3) * shardsPay * pay));
         c.stake = 0;
     }
+    if (c.amends) c.rewardTokens = c.rewardShards = 0;   // (Burned pays nothing anyway; this skips niceRound's minimum of 1)
     // Forged Papers: the same job and the same pay, with a quarter as long again to do it. (Not for
     // endurance jobs, where more time would only mean lasting longer. Failing costs more: fail().)
     if (gadgetOn(g, Gadget::ForgedPapers) && !isEndurance(c)) c.duration = roundTo30(c.duration * 1.25);
@@ -227,7 +259,13 @@ Note fail(GameState& g, size_t idx, const std::string& why) {
     if (c.stake > 0) msg += " Lost your " + num(c.stake) + "-shard stake.";
     msg += " Heat +" + std::to_string(heatGain) + " (now " + std::to_string(g.heat) + ").";
     bool forgiving = CLIENTS[c.client].style == ClientStyle::SmallFry;
-    msg += shiftStanding(g, c.client, (forgiving ? -1 : c.big ? -3 : -2) * caught);
+    if (c.amends && clientTier(g, c.client) == Tier::Burned) {   // (bribed meanwhile: an ordinary failure)
+        g.standing[(size_t)c.client] = STANDING_MIN;
+        g.amendsAfter[(size_t)c.client] = g.playSeconds + AMENDS_COOLDOWN;
+        msg += " " + capitalized(CLIENTS[c.client].name) + " won't offer to make up again for a while.";
+    } else {
+        msg += shiftStanding(g, c.client, (forgiving ? -1 : c.big ? -3 : -2) * caught);
+    }
     if (caught > 1) msg += " (Forged papers: twice the trouble.)";
     return {Sev::Bad, msg};
 }
@@ -525,6 +563,13 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     if (g.playSeconds - g.lastContractAt <= 10) spotStar(g, Constellation::Twins);
     g.lastContractAt = g.playSeconds;
     if (c.signature) g.signatureClients |= 1u << c.client;
+    if (c.amends) {   // no pay: what you get back is the client
+        g.standing[(size_t)c.client] = std::max(g.standing[(size_t)c.client], AMENDS_STANDING);
+        log.push(Sev::Good, "AMENDS MADE with " + std::string(CLIENTS[c.client].name) + ": " + contractText(c) +
+                                (c.stake > 0 ? ". Stake returned. " : ". ") + capitalized(CLIENTS[c.client].name) +
+                                " is Wary of you, but will post jobs for you again.");
+        return;
+    }
     std::string msg = "CONTRACT DONE for " + std::string(CLIENTS[c.client].name) + ": " + contractText(c) + ". +" +
                       num(tokensPaid) + " tokens, +" + count(shardsPaid, "shard");
     if (fog > 1.0) msg += " (+" + std::to_string(10 * g.heat) + "% from the Fog Machine)";
@@ -594,8 +639,48 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
         g.offerClock = OFFER_EVERY;
         if (isUnlocked(g, Feature::Contracts)) {
             const Contract& o = g.offers.back();
-            log.push(Sev::Info, std::string(o.signature ? "A SIGNATURE job from " : "A new contract offer from ") +
-                                CLIENTS[o.client].name + " is on the board. (contracts)");
+            if (o.amends)
+                log.push(Sev::Event, "A MAKE-AMENDS job from " + std::string(CLIENTS[o.client].name) +
+                                         " is on the board: no pay, but deliver it and they'll work with you again. (contracts)");
+            else
+                log.push(Sev::Info, std::string(o.signature ? "A SIGNATURE job from " : "A new contract offer from ") +
+                                    CLIENTS[o.client].name + " is on the board. (contracts)");
         }
     }
+}
+
+// ----- Coming back from Burned -----
+long long bribeCost(const GameState& g, int client) {
+    if (client < 0 || client >= CLIENT_COUNT || clientTier(g, client) != Tier::Burned) return 0;
+    int st = g.standing[(size_t)client];
+    double power = std::max(incomeEstimate(g), g.incomeRate);
+    double depth = 1.0 + 0.2 * (TIERS[(int)Tier::Wary].from - 1 - st);   // x1 just Burned (-5), x2 at -10
+    double again = std::pow(2.0, std::min(g.bribes[(size_t)client], BRIBE_DOUBLINGS_MAX));
+    return niceRound(BRIBE_BASE * contractShardScale(power) * depth * again);
+}
+
+Notes bribeClient(GameState& g, int client) {
+    if (client < 0 || client >= CLIENT_COUNT) return {{Sev::Warn, "No such client. 'clients' lists them."}};
+    std::string name = CLIENTS[client].name;
+    if (clientTier(g, client) != Tier::Burned)
+        return {{Sev::Info, capitalized(name) + " still works with you: no bribe needed."}};
+    long long cost = bribeCost(g, client);
+    if (g.shards < cost) return {{Sev::Warn, "Bribing " + name + " takes " + count(cost, "shard") + ". You have " + num(g.shards) + "."}};
+    g.shards -= cost;
+    g.bribes[(size_t)client] += 1;
+    g.standing[(size_t)client] = AMENDS_STANDING;
+    std::erase_if(g.offers, [client](const Contract& o) { return o.amends && o.client == client; });   // nothing left to make up for
+    return {{Sev::Good, "Paid " + name + " " + count(cost, "shard") + " to forget about it. " + capitalized(name) +
+                            " is Wary of you, but will post jobs for you again. (Another bribe to them would cost twice as much.)"}};
+}
+
+int findClient(const std::string& word) {
+    std::string w = lower(trim(word));
+    if (w.empty()) return -1;
+    if (long long n = 0; parseLongLong(w, n)) return n >= 1 && n <= CLIENT_COUNT ? (int)n - 1 : -1;
+    for (int i = 0; i < CLIENT_COUNT; ++i)   // the id, or the name with or without "the"/"a"
+        if (w == CLIENTS[i].id || w == lower(CLIENTS[i].name)) return i;
+    for (int i = 0; i < CLIENT_COUNT; ++i)
+        if (lower(CLIENTS[i].name).find(w) != std::string::npos) return i;
+    return -1;
 }

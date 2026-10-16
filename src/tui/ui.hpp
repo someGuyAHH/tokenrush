@@ -54,6 +54,8 @@ struct Ui {
     // Two-click confirmations
     int abandonArmed = -1;
     Clock::time_point abandonArmedUntil{};
+    int bribeArmed = -1;                 // the client whose Bribe button was clicked once
+    Clock::time_point bribeArmedUntil{};
     Clock::time_point buyMaxArmedUntil{};
     int fireArmed = -1;
     Clock::time_point fireArmedUntil{};

@@ -374,7 +374,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
   | Tier | Standing | Effect |
   |---|---|---|
-  | Burned | -5 and down | posts no jobs for you |
+  | Burned | -5 and down | posts no jobs for you (but see "Coming back" below) |
   | Wary | -4 to -2 | pays 20% less |
   | Neutral | -1 to 2 | normal |
   | Friendly | 3 to 5 | pays 15% more |
@@ -390,7 +390,22 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - **Small fry** (a nervous intern, your landlord): never big jobs; forgive easily.
 - **Rivals** come in pairs: Syndicate/Guild, Corvid/Saffron, Night Exchange/Foundry, burner/Kestrel,
   Halvard/Pellucid, intern/landlord.
-- Offers pick a kind first, then a client who posts it and isn't Burned.
+- Offers pick a kind first, then a client who posts it and isn't Burned. (If nobody posts it, the
+  nervous intern does; that fallback never fired before, since an unpicked offer looked like an
+  Earn job from the Foundry, Burned or not.)
+- **Coming back from Burned** (a Burned client posts nothing, so delivering can't fix it). Either way
+  they land at -4 (Wary):
+  - **Bribes** (`bribe <client>`, by part of a name or its number in `clients`; a two-click Bribe
+    button per Burned client on the Jobs tab): 150 shards × the job-pay shard scale
+    (`contractShardScale`: ×1 at 10K tokens/s, ×17 at 500M/s) × depth (×1 at -5, ×2 at -10),
+    doubled for every earlier bribe to the same client (`[jobs] bribes`, up to ×64). It also clears
+    their make-amends offer off the board.
+  - **Make-amends jobs:** a new offer has a 25% chance to come from a Burned client who has none out
+    (one at a time each), as a job of a kind they post, sized like a big one, with its stake and
+    **no pay** (AMENDS on the Jobs tab, `[MEND]` in `contracts`, an event in the log). Deliver it:
+    stake back, Wary. Fail or abandon it while they're still Burned: the usual heat and stake, -10,
+    and no new one from them for 30 minutes of play (`[jobs] amendsAfter`). Bribed meanwhile, it
+    fails like any job.
 - **Heat (0–10):**
   - Widens the spread.
   - Cools 1 point per 15 min, faster with Fixers, never with Fever.
