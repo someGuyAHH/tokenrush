@@ -126,6 +126,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   gone, renamed), `current` (your hash, branch, date, title, own commits, uncommitted edits). It
   needs `play.py`'s `TOKENRUSH_REPO` (it works with `--no-update-check` too), runs on the Console's
   thread, and refreshes what the log and the `u` key know.
+  - **Earlier versions** (no fetch needed): `history [n]` (yours as "now", then ~1, ~2... back
+    10 or n, up to 100), `show ~N` or `show <hash>` (any version, yours or GitHub's, offline too),
+    `find <words>` (`git log -i --fixed-strings --grep` over yours and GitHub's, newest 30,
+    marked "new" if not installed). What's typed is checked before it reaches git: ~N, 4-40 hex
+    digits, or letters, digits, spaces and - _ . for a search.
 - **Updates in the Console:** `update`/`u` checks GitHub right away (on the Console's thread, a
   second or two of git) and says "Up to date", "pull it yourself" (your copy has commits of its
   own) or what's new, then saves and quits with exit code 42 for `play.py` to pull, build and

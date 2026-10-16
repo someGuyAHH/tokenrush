@@ -478,7 +478,7 @@ const std::vector<CommandInfo>& commands() {
          {"Removes the alias with that name. 'alias' lists them."},
          {{"rmalias pt", "pt is gone"}},
          {"alias"}, -1, PROGRESS},
-        {Cmd::Check, {"check"}, "check [count|list|titles|dates|show <n>|files|current]", "What's new on GitHub, without installing it",
+        {Cmd::Check, {"check"}, "check [count|list|titles|dates|show <n>|files|current|history|find]", "What's new on GitHub (and what came before), without installing it",
          {"Looks at GitHub right away (under 'python play.py') and tells you, without installing anything. Alone, it "
           "says whether you're up to date, and what the newest change is called and when it was made.",
           "'check count' says how many new versions there are (and how many commits of your own GitHub doesn't have). "
@@ -486,9 +486,14 @@ const std::vector<CommandInfo>& commands() {
           "list 30' for more). 'check titles' and 'check dates' list just one or the other. 'check show 2' prints the "
           "whole message of the second one (or give its hash). 'check files' lists the files the new versions change. "
           "'check current' says which version you're running.",
+          "Earlier versions too: 'check history' lists yours and the 10 before it ('check history 30' for more), "
+          "'check show ~3' prints the whole message of the third one before yours (or give any hash), and 'check find "
+          "<words>' finds every version whose message mentions them, yours and GitHub's, marking the ones you don't "
+          "have yet.",
           "'update' installs what's new."},
          {{"check", "up to date?"}, {"check list", "the new versions"}, {"check show 1", "all about the newest"},
-          {"check files", "what they change"}, {"check current", "your version"}},
+          {"check files", "what they change"}, {"check current", "your version"},
+          {"check history", "the versions before yours"}, {"check show ~1", "the one before yours"}, {"check find predict", "every version about predict"}},
          {"update"}, -1, PROGRESS},
         {Cmd::Update, {"update", "u"}, "update", "Check GitHub for a new version now, and install it",
          {"When the game is started with 'python play.py', it checks GitHub for a new version when it starts and again "

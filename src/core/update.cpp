@@ -1,6 +1,8 @@
 #include "update.hpp"
 
+#include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -224,5 +226,67 @@ bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles) {
         c.found = found;
     }
     c.done = true;
+    return true;
+}
+
+namespace {
+
+bool openRepo(std::string& repo, std::string& why) {
+    repo = updateRepo();
+    if (repo.empty()) why = "not started through play.py";
+    return !repo.empty();
+}
+
+}  // namespace
+
+bool repoHistory(std::vector<Commit>& out, int count, std::string& why) {
+    std::string repo;
+    if (!openRepo(repo, why)) return false;
+    std::lock_guard g(check().gitM);
+    out = readLog(repo, "-n " + std::to_string(std::max(1, count)) + " HEAD");
+    if (out.empty()) why = "git couldn't read this copy's history";
+    return !out.empty();
+}
+
+bool repoCommit(Commit& out, const std::string& ref, std::string& why) {
+    std::string repo;
+    if (!openRepo(repo, why)) return false;
+    std::string target;
+    if (ref.size() >= 2 && ref[0] == '~' && ref.size() <= 6 && std::all_of(ref.begin() + 1, ref.end(), [](char c) { return std::isdigit((unsigned char)c) != 0; }))
+        target = "HEAD" + ref;
+    else if (ref.size() >= 4 && ref.size() <= 40 && std::all_of(ref.begin(), ref.end(), [](char c) { return std::isxdigit((unsigned char)c) != 0; }))
+        target = ref;
+    else { why = "'" + ref + "' isn't a version: give ~3 (three before yours) or a hash"; return false; }
+    std::lock_guard g(check().gitM);
+    std::vector<Commit> one = readLog(repo, "-n 1 " + target);
+    if (one.empty()) { why = "no version " + ref + (target == ref ? " (try 'check' first, so GitHub's are fetched)" : ""); return false; }
+    out = one[0];
+    return true;
+}
+
+bool repoFind(std::vector<Commit>& out, std::vector<bool>& fresh, const std::string& words, int limit, std::string& why) {
+    std::string repo;
+    if (!openRepo(repo, why)) return false;
+    bool safe = !words.empty() && std::all_of(words.begin(), words.end(), [](char c) {
+        return std::isalnum((unsigned char)c) != 0 || c == ' ' || c == '-' || c == '_' || c == '.';
+    });
+    if (!safe) { why = "search for letters, digits and spaces (and - _ .)"; return false; }
+    std::lock_guard g(check().gitM);
+    std::string n = "-n " + std::to_string(std::max(1, limit));
+    std::string grep = " -i --fixed-strings --grep=\"" + words + "\" ";
+    out = readLog(repo, n + grep + "HEAD @{u}");
+    if (out.empty()) out = readLog(repo, n + grep + "HEAD");   // (no upstream to look at)
+    std::string text;
+    std::vector<std::string> incoming;
+    if (git(repo, "rev-list --abbrev-commit HEAD..@{u}", text)) {
+        std::istringstream lines(text);
+        for (std::string l; std::getline(lines, l);) {
+            if (!l.empty() && l.back() == '\r') l.pop_back();
+            incoming.push_back(l);
+        }
+    }
+    fresh.clear();
+    for (const Commit& c : out)
+        fresh.push_back(std::any_of(incoming.begin(), incoming.end(), [&](const std::string& h) { return h.rfind(c.hash, 0) == 0 || c.hash.rfind(h, 0) == 0; }));
     return true;
 }

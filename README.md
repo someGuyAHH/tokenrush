@@ -38,7 +38,8 @@ there are any, the profile screen says what's new and offers **update now** / **
 the game the log says so (once per new update) and `u` updates. In the Console, `update` (or `u`)
 checks right away and updates if there's something new, and `check` only looks: whether you're
 up to date, `check list` (when and what), `check titles`, `check dates`, `check count`, `check
-show <n>` (a whole commit message), `check files` and `check current`. On a yes the
+show <n>` (a whole commit message), `check files` and `check current`; and earlier versions with
+`check history`, `check show ~3` and `check find <words>`. On a yes the
 game saves and quits, and `play.py` clears the screen, lists what's new, runs `git pull --ff-only`
 and `build.py` quietly behind a progress bar, then starts the new launcher and the game. If the
 pull or the build fails (say, your own edits clash with the update), it shows git's or g++'s

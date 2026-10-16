@@ -360,6 +360,9 @@ void checkUsage() {
         {"check show <n>", "the whole message of one (n from the list, or its hash)"},
         {"check files", "which files the new versions change"},
         {"check current", "the version you're running"},
+        {"check history [n]", "your version and the ones before it (10 unless you say)"},
+        {"check show ~3", "an earlier one: ~1 is the one before yours (a hash works too)"},
+        {"check find <words>", "versions whose message mentions them, yours and GitHub's"},
     };
     for (auto [cmd, what] : rows) out() << "  " << padRight(cmd, 20) << paint(Style::Muted, what) << "\n";
 }
@@ -372,14 +375,15 @@ void doCheck(const std::string& args) {
     ss >> sub >> arg;
     if (sub == "help" || sub == "?") { checkUsage(); return; }
     static const char* const SUBS[] = {"", "count", "n", "list", "log", "new", "titles", "messages", "names", "dates", "when",
-                                       "show", "message", "files", "changes", "current", "version", "me"};
+                                       "show", "message", "files", "changes", "current", "version", "me",
+                                       "history", "past", "earlier", "old", "find", "search"};
     if (std::find(std::begin(SUBS), std::end(SUBS), sub) == std::end(SUBS)) {
         out() << paint(Style::Warn, "No 'check " + sub + "'.") << "\n";
         checkUsage();
         return;
     }
     long long limit = 10;
-    if (!arg.empty() && sub != "show" && sub != "message") {
+    if (!arg.empty() && sub != "show" && sub != "message" && sub != "find" && sub != "search") {
         if (!parseLongLong(arg, limit) || limit < 1) { out() << "'" << arg << "' isn't a number of versions.\n"; return; }
         limit = std::min(limit, 100LL);
     }
@@ -387,10 +391,40 @@ void doCheck(const std::string& args) {
         out() << "This run can't look: start the game with " << paint(Style::Bold, "python play.py") << " (from the git checkout) and it can.\n";
         return;
     }
+    std::string why;
+    if (sub == "history" || sub == "past" || sub == "earlier" || sub == "old") {
+        std::vector<Commit> list;
+        if (!repoHistory(list, (int)limit + 1, why)) { out() << paint(Style::Warn, "Couldn't look: " + why + ".") << "\n"; return; }
+        out() << "Your version and the " << (list.size() - 1) << (list.size() == 2 ? " before it" : " before it") << ", newest first:\n";
+        for (size_t i = 0; i < list.size(); ++i) {
+            const Commit& c = list[i];
+            std::string tag = i == 0 ? "now" : "~" + std::to_string(i);
+            out() << padLeft(tag, 5) << "  " << paint(Style::Muted, c.hash) << "  " << padRight(committedText(c.when), 26)
+                  << (i == 0 ? paint(Style::Bold, c.title) : c.title) << "\n";
+        }
+        out() << paint(Style::Muted, "'check show ~2' for the whole message of one; 'check history 30' goes further back.") << "\n";
+        return;
+    }
+    if (sub == "find" || sub == "search") {
+        std::string words = trim(trim(args).substr(sub.size()));
+        if (words.empty()) { out() << "Find what? 'check find tasks', for example.\n"; return; }
+        std::vector<Commit> list;
+        std::vector<bool> fresh;
+        if (!repoFind(list, fresh, words, 30, why)) { out() << paint(Style::Warn, "Couldn't look: " + why + ".") << "\n"; return; }
+        if (list.empty()) { out() << "No version mentions '" << words << "'.\n"; return; }
+        out() << list.size() << (list.size() == 1 ? " version mentions '" : " versions mention '") << words << "'" << (list.size() >= 30 ? " (the newest 30)" : "") << ":\n";
+        for (size_t i = 0; i < list.size(); ++i) {
+            const Commit& c = list[i];
+            out() << "  " << (fresh[i] ? paint(Style::Event, "new ") : "    ") << paint(Style::Muted, c.hash) << "  "
+                  << padRight(committedText(c.when), 26) << c.title << "\n";
+        }
+        out() << paint(Style::Muted, "'new' ones aren't installed yet. 'check show <hash>' for the whole message.") << "\n";
+        return;
+    }
     RepoStatus st;
     bool showing = sub == "show" || sub == "message";
     int wanted = showing ? 100 : sub.empty() ? 1 : (int)limit;
-    if (!repoStatus(st, wanted, sub == "files" || sub == "changes")) {
+    if (!repoStatus(st, wanted, sub == "files" || sub == "changes") && !showing) {   // (an earlier version can be shown offline)
         out() << paint(Style::Warn, "Couldn't check: " + st.why + ".") << "\n";
         return;
     }
@@ -411,6 +445,32 @@ void doCheck(const std::string& args) {
         out() << ".\n";
         return;
     }
+    if (showing) {
+        if (arg.empty()) { out() << "Show which? 'check show 1' (the newest new one), 'check show ~1' (the one before yours), or a hash.\n"; return; }
+        const Commit* c = nullptr;
+        long long n = 0;
+        if (parseLongLong(arg, n) && arg.size() < 4) {
+            if (n >= 1 && n <= (long long)st.incoming.size()) c = &st.incoming[(size_t)n - 1];
+        } else {
+            for (const Commit& k : st.incoming)
+                if (k.hash.rfind(arg, 0) == 0 || arg.rfind(k.hash, 0) == 0) c = &k;
+        }
+        Commit any;
+        if (!c) {   // an earlier one (~3), or any hash
+            if (!repoCommit(any, arg, why)) { out() << paint(Style::Warn, "Can't show it: " + why + ".") << "\n"; return; }
+            c = &any;
+        }
+        out() << paint(Style::Bold, c->hash) << paint(Style::Muted, "  by " + c->author + ", " + committedText(c->when)) << "\n"
+              << "  " << paint(Style::Bold, c->title) << "\n";
+        if (!c->body.empty()) {
+            std::istringstream lines(c->body);
+            for (std::string l; std::getline(lines, l);) {
+                if (!l.empty() && l.back() == '\r') l.pop_back();
+                out() << "  " << l << "\n";
+            }
+        }
+        return;
+    }
     if (st.behind == 0) {
         out() << paint(Style::Good, "Up to date") << " with " << where << paint(Style::Muted, " (you're on " + st.current.hash + ", " + committedText(st.current.when) + ")") << ".\n";
         return;
@@ -421,28 +481,6 @@ void doCheck(const std::string& args) {
               << "  " << paint(Style::Bold, c.title) << "\n";
         if (st.ahead > 0) out() << paint(Style::Warn, "  This copy has commits of its own, so 'update' can't just move it ahead: pull it yourself.") << "\n";
         else out() << paint(Style::Muted, "  'update' installs it; 'check list' shows them all.") << "\n";
-        return;
-    }
-    if (showing) {
-        if (arg.empty()) { out() << "Show which? 'check show 1' (the newest), or a hash from 'check list'.\n"; return; }
-        const Commit* c = nullptr;
-        long long n = 0;
-        if (parseLongLong(arg, n) && arg.size() < 4) {
-            if (n >= 1 && n <= (long long)st.incoming.size()) c = &st.incoming[(size_t)n - 1];
-        } else {
-            for (const Commit& k : st.incoming)
-                if (k.hash.rfind(arg, 0) == 0 || arg.rfind(k.hash, 0) == 0) c = &k;
-        }
-        if (!c) { out() << "No new version '" << arg << "'. 'check list' numbers them.\n"; return; }
-        out() << paint(Style::Bold, c->hash) << paint(Style::Muted, "  by " + c->author + ", " + committedText(c->when)) << "\n"
-              << "  " << paint(Style::Bold, c->title) << "\n";
-        if (!c->body.empty()) {
-            std::istringstream lines(c->body);
-            for (std::string l; std::getline(lines, l);) {
-                if (!l.empty() && l.back() == '\r') l.pop_back();
-                out() << "  " << l << "\n";
-            }
-        }
         return;
     }
     if (sub == "files" || sub == "changes") {

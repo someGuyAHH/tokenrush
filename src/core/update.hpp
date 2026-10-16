@@ -58,3 +58,11 @@ std::string updateRepo();   // the checkout play.py started the game from ("" if
 // Fetches and looks, on the calling thread (a second or two). False, with `why`, if it couldn't.
 // Also refreshes what updateAvailable() says.
 bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles = false);
+
+// Earlier versions, from the copy itself (no fetch). Each is false, with `why`, if it can't look.
+bool repoHistory(std::vector<Commit>& out, int count, std::string& why);   // what you're running, then the ones before it
+// One version: "~3" (three before yours) or a hash (4-40 hex digits), yours or GitHub's.
+bool repoCommit(Commit& out, const std::string& ref, std::string& why);
+// Versions whose message mentions `words` (letters, digits, spaces, - _ . only), newest first; `fresh`
+// says which of them are new on GitHub (not installed yet).
+bool repoFind(std::vector<Commit>& out, std::vector<bool>& fresh, const std::string& words, int limit, std::string& why);
