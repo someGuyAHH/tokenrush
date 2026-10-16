@@ -174,7 +174,12 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
             c.target = std::llround(c.big ? between(45, 70) : between(25, 35));
             break;
         case ContractKind::BotEarn:
-            c.target = niceRound(std::max(50.0, botRatePerSec(g) * c.duration * (c.big ? between(1.4, 1.7) : between(0.9, 1.0))));
+        {
+            // What the Bot makes when it runs (not right now: a broken Bot or pulled breakers would
+            // make this a 50-token job), or what it really made lately, whichever is more.
+            double rate = std::max(botRateIfRunning(g), recentSourceRates(g)[(size_t)Source::Bot]);
+            c.target = niceRound(std::max(50.0, rate * c.duration * (c.big ? between(1.4, 1.7) : between(0.9, 1.0))));
+        }
             break;
         case ContractKind::Trade:
             // A few round trips of 50-100 shards (more and the price impact gets silly). Buying and

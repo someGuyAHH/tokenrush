@@ -119,7 +119,12 @@ double passiveRatePerSec(const GameState& g) {
 }
 
 double botRatePerSec(const GameState& g) {
-    if (g.bot <= 0 || g.botBroken || g.machinesPaused > 0) return 0.0;
+    if (g.botBroken || g.machinesPaused > 0) return 0.0;
+    return botRateIfRunning(g);
+}
+
+double botRateIfRunning(const GameState& g) {
+    if (g.bot <= 0) return 0.0;
     if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g) * humBoost(g);
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);

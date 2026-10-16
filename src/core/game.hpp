@@ -79,7 +79,8 @@ inline constexpr double RESONANCE_BOT_LVL = 0.005;    // ...plus this per Bot le
 double resonantBotPower(const GameState& g);         // share of an expected mine per bot swing
 
 double passiveRatePerSec(const GameState& g);
-double botRatePerSec(const GameState& g);      // average, events ignored
+double botRatePerSec(const GameState& g);      // average, events ignored (0 while it's broken or the breakers are pulled)
+double botRateIfRunning(const GameState& g);   // the same, as if it were running (for sizing jobs)
 double expectedMine(const GameState& g);       // average manual mine, streak and events ignored
 double incomeEstimate(const GameState& g);     // tokens/s from the formulas, for one mine every two seconds
 void updateRates(GameState& g);                // once per second: refresh incomeRate and mineRate
