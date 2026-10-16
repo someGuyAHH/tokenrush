@@ -418,7 +418,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
 ### Clients and standing (`CLIENTS`, `TIERS`; `clients` in the Console, the grid on the Jobs tab)
 - **Standing** with each of the 12 clients, -10..10 (`[jobs] standing`). Finishing a job: +1 (big or
-  signature +2), and **their rival -1**. Failing or abandoning: -2 (big -3; small fry -1).
+  signature +2), and **their rival -1**, down to -4 (Wary) and no further: a rival's grudge never
+  burns a client (only your own failures do), and the log says whose rival it is. Failing or abandoning: -2 (big -3; small fry -1).
 
   | Tier | Standing | Effect |
   |---|---|---|

@@ -589,7 +589,13 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     }
     msg += ".";
     msg += shiftStanding(g, c.client, c.big || c.signature ? 2 : 1);
-    msg += shiftStanding(g, CLIENTS[c.client].rival, -1);
+    // Their rival takes it badly, but only so far: a rival's grudge makes them Wary at worst. Burning
+    // a client takes failing them yourself.
+    int rival = CLIENTS[c.client].rival;
+    if (g.standing[(size_t)rival] > TIERS[(int)Tier::Wary].from) {
+        std::string moved = shiftStanding(g, rival, -1);
+        if (!moved.empty()) msg += moved.substr(0, moved.size() - 1) + " (" + CLIENTS[c.client].name + "'s rival).";
+    }
     log.push(Sev::Good, msg);
 }
 

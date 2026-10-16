@@ -240,7 +240,7 @@ void doClients(Shared& s) {
                                    : std::to_string(TIERS[t].from) + " to " + std::to_string(TIERS[t + 1].from - 1);
         out() << "  " << paint(tierStyle((Tier)t), padRight(TIERS[t].name, 10)) << padRight(range, 14) << TIERS[t].desc << "\n";
     }
-    out() << paint(Style::Muted, "  Finishing a job: +1 (big or signature +2), and their rival -1. Failing: -2 (big -3; small fry only -1).") << "\n";
+    out() << paint(Style::Muted, "  Finishing a job: +1 (big or signature +2), and their rival -1 (down to Wary, no further). Failing: -2 (big -3; small fry only -1).") << "\n";
     out() << "\n" << paint(Style::Bold, "Styles") << "\n";
     for (int st = 0; st < (int)ClientStyle::Count; ++st)
         out() << "  " << padRight(CLIENT_STYLES[st].name, 11) << CLIENT_STYLES[st].desc << "\n";

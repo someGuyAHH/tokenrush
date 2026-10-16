@@ -159,7 +159,8 @@ const std::vector<CommandInfo>& commands() {
          {"accept", "abandon", "market"}, CONTRACTS, BUSINESS},
         {Cmd::Clients, {"clients", "cl"}, "clients", "Your standing with every client, their styles and rivals",
          {"Standing runs from -10 to 10, starting at 0. Finishing a job for a client raises it by 1 (2 for a big or "
-          "signature job) and lowers it by 1 with their rival. Failing or abandoning one lowers it by 2 (3 for a big "
+          "signature job) and lowers it by 1 with their rival, though a rival's grudge stops at Wary: only failing a client "
+          "yourself can burn them. Failing or abandoning one lowers it by 2 (3 for a big "
           "job); small fry forgive more easily and only take 1.",
           "Tiers: Burned (-5 and below) won't post jobs for you, until you bribe them ('bribe') or deliver a "
           "make-amends job they post (see 'help bribe'). Wary (-4 to -2) pay 20% less. Neutral (-1 to 2) pay "
