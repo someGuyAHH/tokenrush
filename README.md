@@ -36,7 +36,9 @@ Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
 commits in the background, when it starts and again every 5 to 10 minutes while you play. If
 there are any, the profile screen says what's new and offers **update now** / **not now**, and in
 the game the log says so (once per new update) and `u` updates. In the Console, `update` (or `u`)
-checks right away and updates if there's something new. On a yes the
+checks right away and updates if there's something new, and `check` only looks: whether you're
+up to date, `check list` (when and what), `check titles`, `check dates`, `check count`, `check
+show <n>` (a whole commit message), `check files` and `check current`. On a yes the
 game saves and quits, and `play.py` runs `git pull --ff-only`, then `build.py`, then starts the
 game again. If the pull or the build fails (say, your own edits clash with the update), it
 shows git's or g++'s reason and starts the version you had. Started any other way, or with

@@ -116,6 +116,15 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   alias starts with a real command (no alias of an alias), one command (no `;`), 120 characters,
   50 per profile. Reusing a name replaces it. Saved as `[console] aliases = "pt: predict tokens 1h ;
   ..."` (a broken entry is dropped, not the save) and kept by `wipe`.
+- **Looking without installing:** `check` (`shell/commands.cpp: doCheck`, `core/update.cpp:
+  repoStatus`): one fetch, then your version and the new commits (short hash, commit time, author,
+  title, the rest of the message) read from `git log` with \x1f/\x1e separators. Alone: up to date,
+  or how many and the newest one's title and age. `count` (with your own commits too), `list [n]`
+  (default 10, up to 100: age and local time, title), `titles [n]`, `dates [n]`, `show <n|hash>`
+  (the whole message and author), `files` (`git diff --name-status HEAD...@{u}`: new, changed,
+  gone, renamed), `current` (your hash, branch, date, title, own commits, uncommitted edits). It
+  needs `play.py`'s `TOKENRUSH_REPO` (it works with `--no-update-check` too), runs on the Console's
+  thread, and refreshes what the log and the `u` key know.
 - **Updates in the Console:** `update`/`u` checks GitHub right away (on the Console's thread, a
   second or two of git) and says "Up to date", "pull it yourself" (your copy has commits of its
   own) or what's new, then saves and quits with exit code 42 for `play.py` to pull, build and

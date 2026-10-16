@@ -84,6 +84,38 @@ bool runCheck(std::optional<UpdateInfo>& result) {
     return true;
 }
 
+// git log lines: fields split by \x1f, commits by \x1e.
+std::vector<Commit> readLog(const std::string& repo, const std::string& args) {
+    std::vector<Commit> out;
+    std::string text;
+    if (!git(repo, "log --format=%h%x1f%ct%x1f%an%x1f%s%x1f%b%x1e " + args, text)) return out;
+    size_t at = 0;
+    while (at < text.size()) {
+        size_t end = text.find('\x1e', at);
+        if (end == std::string::npos) end = text.size();
+        std::string rec = text.substr(at, end - at);
+        at = end + 1;
+        while (!rec.empty() && (rec.front() == '\n' || rec.front() == '\r')) rec.erase(0, 1);
+        if (rec.empty()) continue;
+        std::vector<std::string> f;
+        size_t p = 0;
+        for (size_t q; (q = rec.find('\x1f', p)) != std::string::npos; p = q + 1) f.push_back(rec.substr(p, q - p));
+        f.push_back(rec.substr(p));
+        if (f.size() < 4) continue;
+        Commit c;
+        c.hash = f[0];
+        try { c.when = std::stoll(f[1]); } catch (...) {}
+        c.author = f[2];
+        c.title = f[3];
+        if (f.size() > 4) {
+            c.body = f[4];
+            while (!c.body.empty() && (c.body.back() == '\n' || c.body.back() == '\r' || c.body.back() == ' ')) c.body.pop_back();
+        }
+        out.push_back(c);
+    }
+    return out;
+}
+
 void loop() {
     std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> wait(UPDATE_RECHECK_MIN, UPDATE_RECHECK_MAX);
@@ -138,4 +170,59 @@ std::string updateSummary(const UpdateInfo& u) {
     for (size_t i = 0; i < u.titles.size(); ++i) s += (i == 0 ? ": " : "; ") + u.titles[i];
     if ((int)u.titles.size() < u.behind) s += "; ...";
     return s;
+}
+
+std::string updateRepo() {
+    const char* repo = std::getenv("TOKENRUSH_REPO");
+    return repo ? repo : "";
+}
+
+bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles) {
+    out = RepoStatus{};
+    std::string repo = updateRepo();
+    if (repo.empty()) { out.why = "not started through play.py"; return false; }
+    Check& c = check();
+    if (c.repo.empty()) c.repo = repo;   // (started with --no-update-check: the background check never ran)
+    std::lock_guard g(c.gitM);
+    std::string text;
+    if (!git(repo, "fetch --quiet", text)) { out.why = "couldn't reach GitHub (offline, or git isn't working)"; return false; }
+    auto line = [&](const std::string& args) {
+        std::string s;
+        if (!git(repo, args, s)) return std::string();
+        while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+        return s;
+    };
+    out.branch = line("rev-parse --abbrev-ref HEAD");
+    out.upstream = line("rev-parse --abbrev-ref @{u}");
+    if (out.upstream.empty()) { out.why = "this copy's branch (" + out.branch + ") doesn't follow one on GitHub"; return false; }
+    std::vector<Commit> head = readLog(repo, "-n 1 HEAD");
+    if (!head.empty()) out.current = head[0];
+    out.behind = std::max(0, count(repo, "HEAD..@{u}"));
+    out.ahead = std::max(0, count(repo, "@{u}..HEAD"));
+    if (out.behind > 0) out.incoming = readLog(repo, "-n " + std::to_string(std::max(1, maxCommits)) + " HEAD..@{u}");
+    out.edited = !line("status --porcelain --untracked-files=no").empty();
+    if (withFiles && out.behind > 0) {
+        std::istringstream lines(line("diff --name-status HEAD...@{u}"));
+        for (std::string l; std::getline(lines, l);) {
+            if (!l.empty() && l.back() == '\r') l.pop_back();
+            for (char& ch : l) if (ch == '\t') ch = ' ';
+            if (!l.empty()) out.files.push_back(l);
+        }
+    }
+    // What the background check would have found, so the log and the u key agree with this.
+    std::optional<UpdateInfo> found;
+    if (out.behind > 0) {
+        UpdateInfo u;
+        u.behind = out.behind;
+        u.diverged = out.ahead > 0;
+        u.edited = out.edited;
+        for (size_t i = 0; i < out.incoming.size() && i < 3; ++i) u.titles.push_back(out.incoming[i].title);
+        found = u;
+    }
+    {
+        std::lock_guard lk(c.m);
+        c.found = found;
+    }
+    c.done = true;
+    return true;
 }

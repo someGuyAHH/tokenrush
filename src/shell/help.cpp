@@ -472,6 +472,18 @@ const std::vector<CommandInfo>& commands() {
          {"Removes the alias with that name. 'alias' lists them."},
          {{"rmalias pt", "pt is gone"}},
          {"alias"}, -1, PROGRESS},
+        {Cmd::Check, {"check"}, "check [count|list|titles|dates|show <n>|files|current]", "What's new on GitHub, without installing it",
+         {"Looks at GitHub right away (under 'python play.py') and tells you, without installing anything. Alone, it "
+          "says whether you're up to date, and what the newest change is called and when it was made.",
+          "'check count' says how many new versions there are (and how many commits of your own GitHub doesn't have). "
+          "'check list' lists them, newest first, with when each was made and what it's called (the newest 10; 'check "
+          "list 30' for more). 'check titles' and 'check dates' list just one or the other. 'check show 2' prints the "
+          "whole message of the second one (or give its hash). 'check files' lists the files the new versions change. "
+          "'check current' says which version you're running.",
+          "'update' installs what's new."},
+         {{"check", "up to date?"}, {"check list", "the new versions"}, {"check show 1", "all about the newest"},
+          {"check files", "what they change"}, {"check current", "your version"}},
+         {"update"}, -1, PROGRESS},
         {Cmd::Update, {"update", "u"}, "update", "Check GitHub for a new version now, and install it",
          {"When the game is started with 'python play.py', it checks GitHub for a new version when it starts and again "
           "every 5 to 10 minutes, and says so in the log. 'update' checks right away. If there's one, it saves and "

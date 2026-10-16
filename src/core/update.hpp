@@ -35,3 +35,26 @@ bool updateRequested();
 void dismissUpdate();                          // "not now" on the profile picker: don't ask there again
 bool updateDismissed();
 std::string updateSummary(const UpdateInfo& u);   // "2 new versions: Wrap long log messages; ..."
+
+// ----- 'check': a closer look, without installing anything -----
+struct Commit {
+    std::string hash;     // short
+    long long when = 0;   // unix time it was committed
+    std::string author;
+    std::string title;    // the first line
+    std::string body;     // the rest of the message (may be empty)
+};
+struct RepoStatus {
+    std::string why;               // set when it couldn't look (no play.py, offline, no git)
+    std::string branch, upstream;  // "main", "origin/main"
+    Commit current;                // what you're running (the checkout's HEAD)
+    std::vector<Commit> incoming;  // new on GitHub, newest first (up to the limit asked for)
+    int behind = 0;                // all of them, past the limit too
+    int ahead = 0;                 // commits of your own
+    bool edited = false;           // uncommitted changes to tracked files
+    std::vector<std::string> files;   // with `withFiles`: what the new versions change, "M src/core/game.cpp"
+};
+std::string updateRepo();   // the checkout play.py started the game from ("" if it didn't)
+// Fetches and looks, on the calling thread (a second or two). False, with `why`, if it couldn't.
+// Also refreshes what updateAvailable() says.
+bool repoStatus(RepoStatus& out, int maxCommits, bool withFiles = false);

@@ -81,6 +81,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         case Cmd::No:        doAnswer(s, rng, false); break;
         case Cmd::Alias:     doAlias(s, rest); break;
         case Cmd::RmAlias:   doRmAlias(s, rest); break;
+        case Cmd::Check:     doCheck(rest); break;
         case Cmd::Update:    if (doUpdate()) result = Outcome::Quit; break;   // main() hands over to play.py after the save
         case Cmd::Quit:      result = Outcome::Quit; break;
         case Cmd::Logout:

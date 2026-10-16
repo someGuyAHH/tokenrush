@@ -25,7 +25,7 @@ enum class Cmd {
     Clear, Logout, Orrery,
     Stats, Promote, Yes, No,
     Theme, Clients, Workshop, Craft, Equip, Unequip, Expedition, Respond, Repair, Stars, Task, Pay, Borrow, Predict,
-    Update, Alias, RmAlias, Bribe, Eval,
+    Update, Alias, RmAlias, Bribe, Eval, Check,
     Locked,   // a command whose feature isn't unlocked yet (see commandAllowed)
 };
 
@@ -46,7 +46,8 @@ void doRepair(Shared& s, const std::string& arg); // no arg: what's broken; "2" 
 void doGoals(Shared& s);
 void doLog(Shared& s, const std::string& args);   // [n] [good|bad|warn|event|info]
 void doWipe(Shared& s);
-bool doUpdate();                                 // checks GitHub now; true = an update is ready: save, quit, play.py installs it
+bool doUpdate();
+void doCheck(const std::string& args);           // what's new on GitHub, without installing it                                 // checks GitHub now; true = an update is ready: save, quit, play.py installs it
 
 // ----- aliases.cpp -----
 void doAlias(Shared& s, const std::string& args);     // nothing: the list; "predict tokens 1h pt": pt runs that
