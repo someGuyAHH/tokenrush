@@ -1,7 +1,7 @@
 # TokenRush
 
-A token-mining idle game with background automation, full screen in the terminal: a pinned log,
-tabs, a clickable MINE button, and a **Console** tab where every command can be typed.
+An idle mining and clicker game with background automation, full screen in the terminal: a pinned
+log, tabs, a clickable MINE button, and a **Console** tab where every command can be typed.
 
 ![Mining by hand, with a streak going and jackpots in the log](docs/screenshots/mine.png)
 
