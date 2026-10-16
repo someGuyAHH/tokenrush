@@ -47,7 +47,13 @@ bool commandAllowed(Shared& s, Cmd c) {
 std::string promptText(Shared& s) {
     std::lock_guard lk(s.m);
     const GameState& g = s.g;
-    return "[" + paint(Style::Bold, TITLES[titleIndex(renownOf(g))].name) + "] " + promptOf(g);
+    std::string prompt = promptOf(g);
+    if (g.promptColorOwned && g.promptColorOn) {   // its own color, ended right after it (paintRgb resets)
+        std::string mark = prompt, gap;
+        while (!mark.empty() && mark.back() == ' ') { mark.pop_back(); gap += ' '; }   // the space after it stays plain
+        prompt = paintRgb(g.promptColor, mark) + gap;
+    }
+    return "[" + paint(Style::Bold, TITLES[titleIndex(renownOf(g))].name) + "] " + prompt;
 }
 
 void printStatus(Shared& s) {

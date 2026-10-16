@@ -169,7 +169,30 @@ void doPrompt(Shared& s, const std::string& arg) {
                       << (g.promptSel == PROMPT_COUNT ? paint(Style::Good, "(in use)") : std::string("(owned)"))
                       << paint(Style::Muted, "   change it any time, free") << "\n";
         }
-        out() << "Use 'prompt <n>' to buy or switch, 'prompt custom <text>' to make your own.\n";
+        out() << "  Color: ";
+        if (!g.promptColorOwned) out() << num(promptColorCost()) << " shards" << paint(Style::Muted, "   draws any prompt in a color of yours") << "\n";
+        else out() << paintRgb(g.promptColor, hexColor(g.promptColor)) << (g.promptColorOn ? "" : paint(Style::Muted, " (off)"))
+                   << paint(Style::Muted, "   change it any time, free") << "\n";
+        out() << "Use 'prompt <n>' to buy or switch, 'prompt custom <text>' to make your own, 'prompt color #ff8800' to color it.\n";
+        return;
+    }
+
+    // "color <#rrggbb|off|on>"
+    if (lower(arg.substr(0, 5)) == "color" && (arg.size() == 5 || arg[5] == ' ')) {
+        std::string text = trim(arg.substr(5));
+        if (text.empty()) {
+            std::lock_guard lk(s.m);
+            const GameState& g = s.g;
+            if (!g.promptColorOwned) out() << "'prompt color #ff8800' draws your prompt in that color (" << num(promptColorCost()) << " shards, once; then free to change).\n";
+            else out() << "Your prompt's color: " << paintRgb(g.promptColor, hexColor(g.promptColor)) << (g.promptColorOn ? "" : " (off: 'prompt color on')") << ".\n";
+            return;
+        }
+        Notes out;
+        {
+            std::lock_guard lk(s.m);
+            out = setPromptColor(s.g, text);
+        }
+        printNotes(out);
         return;
     }
 
@@ -187,7 +210,7 @@ void doPrompt(Shared& s, const std::string& arg) {
 
     long long n;
     if (!parseLongLong(arg, n) || n < 1 || n > PROMPT_COUNT + 1) {
-        out() << "Usage: prompt [1-" << (PROMPT_COUNT + 1) << "]  or  prompt custom <text>\n";
+        out() << "Usage: prompt [1-" << (PROMPT_COUNT + 1) << "], prompt custom <text>, or prompt color <#rrggbb|off|on>\n";
         return;
     }
     Notes out;

@@ -73,7 +73,8 @@ second click within 3 seconds.
 **The Console tab** is where everything can be typed: every command, with its menus and
 questions, in color, with Up/Down for earlier lines. PgUp/PgDn and the mouse wheel scroll back
 through its output (End, or just typing, comes back down). A few things only exist there:
-prompt styles, `wipe`, `log` with filters, `predict`, and the `help` pages.
+prompt styles (and `prompt color #ff8800`: your prompt in a color of yours, 12,000 shards once),
+`wipe`, `log` with filters, `predict`, and the `help` pages.
 
 **Commands:** type `help` in the Console, and `help <command>` (aliases work: `help ct`) for a full page on one
 command, with examples. `logout` goes back to the profile list, `cls`/`clear` clears the

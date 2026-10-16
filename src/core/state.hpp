@@ -299,6 +299,9 @@ struct GameState {
     int promptSel = 0;               // index into PROMPTS, or PROMPT_COUNT for the custom prompt
     bool customPromptOwned = false;
     std::string customPrompt;        // 1-5 characters, shown with a space after it
+    bool promptColorOwned = false;   // 'prompt color': the prompt in a color of your own (shards, once)
+    bool promptColorOn = false;
+    Rgb promptColor{255, 255, 255};
     int themeSel = 0;                // index into THEMES
     std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
     std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)

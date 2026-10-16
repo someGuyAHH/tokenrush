@@ -174,6 +174,32 @@ std::string promptOf(const GameState& g) {
     return PROMPTS[std::clamp(g.promptSel, 0, PROMPT_COUNT - 1)].text;
 }
 
+long long promptColorCost() { return std::llround(4.0 * (double)customPromptCost() / SHARD_FAIR_PRICE); }
+
+Notes setPromptColor(GameState& g, const std::string& text) {
+    std::string t = lower(trim(text));
+    if (t == "off" || t == "on") {
+        if (!g.promptColorOwned) return {{Sev::Warn, "Pick a color first: 'prompt color #ff8800'."}};
+        g.promptColorOn = t == "on";
+        return {{Sev::Info, g.promptColorOn ? "The prompt has its color again." : "The prompt is back to the theme's color (yours is kept)."}};
+    }
+    Rgb rgb;
+    if (!parseHexColor(t, rgb)) return {{Sev::Warn, "A color is written like #ff8800 (or #f80)."}};
+    Notes out;
+    if (!g.promptColorOwned) {
+        if (!isUnlocked(g, Feature::Market)) return {{Sev::Warn, "The prompt's color is bought with shards: " + lockedText(g, Feature::Market)}};
+        long long cost = promptColorCost();
+        if (g.shards < cost) return {{Sev::Warn, "A prompt color costs " + num(cost) + " shards. You have " + num(g.shards) + "."}};
+        g.shards -= cost;
+        g.promptColorOwned = true;
+        out.push_back({Sev::Good, "Bought the prompt color for " + num(cost) + " shards. Changing it is free from now on."});
+    }
+    g.promptColor = rgb;
+    g.promptColorOn = true;
+    out.push_back({Sev::Info, "Prompt color set to " + hexColor(rgb) + "."});
+    return out;
+}
+
 Notes choosePrompt(GameState& g, int idx) {
     if (idx == PROMPT_COUNT) {
         if (!g.customPromptOwned) return {{Sev::Warn, "Make one first: 'prompt custom <text>' (" + num(customPromptCost()) + " tokens)."}};

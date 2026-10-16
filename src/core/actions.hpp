@@ -52,6 +52,11 @@ bool validCustomPrompt(const std::string& text, std::string& why);
 Notes setCustomPrompt(GameState& g, const std::string& text);
 std::string promptOf(const GameState& g);    // what to print before the cursor, e.g. "> "
 
+// The prompt's color: bought once with shards (4x the custom prompt's price, in shards at their
+// fair price), then free to change. Any prompt style, custom or not, is drawn in it.
+long long promptColorCost();
+Notes setPromptColor(GameState& g, const std::string& text);   // "#ff8800" (buying it the first time), or "off" / "on"
+
 // ----- The Workshop (gadgets) -----
 Notes craftGadget(GameState& g, int idx);     // build it (needs its curio and shards); equipped if a slot is free
 Notes equipGadget(GameState& g, int idx);
