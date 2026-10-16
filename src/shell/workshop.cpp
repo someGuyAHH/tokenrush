@@ -6,6 +6,7 @@
 #include "commands.hpp"
 #include "core/actions.hpp"
 #include "core/content.hpp"
+#include "core/disasters.hpp"
 #include "core/game.hpp"
 #include "core/util.hpp"
 #include "term.hpp"
@@ -47,13 +48,19 @@ void doWorkshop(Shared& s) {
     out() << "Slots: ";
     for (int i = 0; i < GADGET_SLOTS; ++i) {
         int x = g.gadgetSlots[(size_t)i];
-        out() << (i ? "  " : "") << "[" << (x >= 0 ? paint(Style::Good, GADGETS[x].name) : paint(Style::Muted, "empty")) << "]";
+        std::string name = x < 0 ? paint(Style::Muted, "empty")
+                         : hasBit(g.gadgetsBroken, x) ? paint(Style::Bad, std::string(GADGETS[x].name) + " (broken)")
+                         : g.gadgetsUnplugged > 0 ? paint(Style::Warn, std::string(GADGETS[x].name) + " (off)") : paint(Style::Good, GADGETS[x].name);
+        out() << (i ? "  " : "") << "[" << name << "]";
     }
-    out() << "\n\n";
+    out() << "\n";
+    for (const Note& n : gadgetTrouble(g)) out() << paint(styleFor(n.sev), n.text) << "\n";
+    out() << "\n";
     for (int i = 0; i < GADGET_COUNT; ++i) {
         const GadgetInfo& x = GADGETS[i];
         bool built = hasBit(g.gadgetsOwned, i), on = gadgetEquipped(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
-        std::string state = hasBit(g.gadgetsBroken, i) ? paint(Style::Bad, "BROKEN") : on ? paint(Style::Good, "equipped") : built ? std::string("built")
+        std::string state = hasBit(g.gadgetsBroken, i) ? paint(Style::Bad, "BROKEN") : on && g.gadgetsUnplugged > 0 ? paint(Style::Warn, "unplugged")
+                          : on ? paint(Style::Good, "equipped") : built ? std::string("built")
                           : curio ? paint(Style::Shards, count(x.cost, "shard")) : paint(Style::Muted, "needs curio");
         out() << "  " << padLeft(std::to_string(i + 1), 2) << ") " << paint(Style::Bold, padRight(x.name, 15)) << padVisible(state, 17)
               << paint(Style::Good, "+ ") << x.plus << "\n"

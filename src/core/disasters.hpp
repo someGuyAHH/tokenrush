@@ -56,6 +56,13 @@ struct Repair {
 std::vector<Repair> repairs(const GameState& g);   // everything broken right now, in a stable order
 Notes repair(GameState& g, int idx);                // one of repairs(); -1 = all you can afford
 bool anythingBroken(const GameState& g);
+int repairIndexOf(const GameState& g, Repair::Kind kind, int index);   // its place in repairs(), or -1
+long long gadgetRepairShards(const GameState& g, int gadget);           // what fixing that gadget would cost
+
+// What's wrong with your gadgets right now, worst first: a Short Circuit on its way (and which gadget
+// it'll take), gadgets unplugged against one, and burnt-out ones with their repair bills.
+// Empty when all is well. For the Workshop tab, 'workshop' and 'status'.
+Notes gadgetTrouble(const GameState& g);
 
 // Forces a disaster's warning (tests, the simulator). False if it can't happen right now.
 bool startDisaster(GameState& g, DisasterKind k, std::mt19937& rng);

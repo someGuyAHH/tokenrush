@@ -70,6 +70,8 @@ void printStatus(Shared& s) {
               << EARN_WINDOW_SECONDS << "s)";
     if (std::string split = incomeSplit(g); !split.empty()) out() << paint(Style::Muted, "  " + split);
     out() << "\n";
+    out() << "Est. Income " << paint(Style::Tokens, perSecond(estimatedIncome(g, nowSec()))) << " tokens/s"
+          << paint(Style::Muted, "   (from your Drones, Bot and crew now, and your last " + std::to_string(EST_MINE_WINDOW) + "s of mining)") << "\n";
     if (isUnlocked(g, Feature::Market))
         out() << "Shards: " << paint(Style::Shards, num(g.shards)) << "   (price " << fixed(g.shardPrice, 1) << ")\n";
     out() << "Title:  " << paint(Style::Bold, TITLES[titleIndex(renown)].name) << "   Renown " << renown
@@ -107,6 +109,9 @@ void printStatus(Shared& s) {
         std::string list;
         for (const Repair& r : repairs(g)) list += (list.empty() ? "" : ", ") + r.what;
         out() << paint(Style::Bad, "Broken: ") << list << paint(Style::Muted, "  ('repair')") << "\n";
+    }
+    if (g.gadgetsUnplugged > 0) {
+        out() << paint(Style::Warn, "Gadgets unplugged") << " for another " << duration(g.gadgetsUnplugged) << paint(Style::Muted, "  (they do nothing meanwhile)") << "\n";
     }
     if (g.dronesDown > 0)
         out() << paint(Style::Warn, num(g.dronesDown) + " Drones burnt out") << paint(Style::Muted, ", back in " + duration(g.dronesDownSecs)) << "\n";
@@ -522,6 +527,8 @@ void doStats(Shared& s) {
     row("Tokens", paint(Style::Tokens, num(g.tokens)));
     row("Earned in total", paint(Style::Tokens, num(g.lifetimeEarned)));
     row("Earning now", perSecond(recentEarnRate(g)) + "/s   (best " + perSecond((double)g.bestEarnRate) + "/s)");
+    row("Est. Income", perSecond(estimatedIncome(g, nowSec())) + "/s" +
+                           paint(Style::Muted, "   (the formulas: Drones, Bot, crew, and your last " + std::to_string(EST_MINE_WINDOW) + "s of mining)"));
     if (isUnlocked(g, Feature::Market)) row("Shards", paint(Style::Shards, num(g.shards)));
 
     out() << paint(Style::Bold, "Mining") << "\n";

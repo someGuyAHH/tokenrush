@@ -11,6 +11,21 @@
 #include "core/util.hpp"
 #include "term.hpp"
 
+namespace {
+
+// "Save and quit? (y/n)": only y (or yes) goes ahead.
+bool confirmLeave(const std::string& question) {
+    out() << paint(Style::Warn, question + " (y/n) ") << std::flush;
+    std::string answer;
+    if (!std::getline(in(), answer)) return false;
+    answer = lower(trim(answer));
+    if (answer == "y" || answer == "yes") return true;
+    out() << "Staying.\n";
+    return false;
+}
+
+}  // namespace
+
 Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool profiles) {
     std::string line = typed;
     bool aliased;
@@ -83,10 +98,10 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         case Cmd::RmAlias:   doRmAlias(s, rest); break;
         case Cmd::Check:     doCheck(rest); break;
         case Cmd::Update:    if (doUpdate()) result = Outcome::Quit; break;   // main() hands over to play.py after the save
-        case Cmd::Quit:      result = Outcome::Quit; break;
+        case Cmd::Quit:      if (confirmLeave("Save and quit?")) result = Outcome::Quit; break;
         case Cmd::Logout:
             if (!profiles) { out() << "No profiles in this session (started with --save-dir).\n"; break; }
-            result = Outcome::Logout;
+            if (confirmLeave("Save and go back to the profiles?")) result = Outcome::Logout;
             break;
     }
 

@@ -252,6 +252,11 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
 
     // The offer and danger bars come last in the focus order, so one showing up never moves the
     // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
+    // q and p ask first: the same key again within CONFIRM_WINDOW does it, anything else cancels.
+    char leaveKey = 0;
+    tui::Clock::time_point leaveUntil{};
+    auto leaveArmed = [&] { return leaveKey != 0 && tui::Clock::now() < leaveUntil; };
+
     Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar, dangerBar}), [&] {
         if (ui.page != THEMES_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Themes tab
         ui.snapshot();   // must come first: everything below draws from it
@@ -292,7 +297,10 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             tabBar->Render(),
             themeClassic(tui::currentTheme()) ? separatorLight() : separatorLight() | color(tui::hue(Hue::Muted)),
             pages->Render() | flex,
-            text(ui.page == CONSOLE_PAGE
+            leaveArmed()
+                ? text(leaveKey == 'q' ? " Press q again to save and quit (any other key stays)."
+                                       : " Press p again to save and go back to the profiles (any other key stays).") | bold | color(tui::hue(Hue::Warn))
+                : text(ui.page == CONSOLE_PAGE
                      ? std::string(" Esc back to the game   Up/Down earlier lines   PgUp/PgDn or the mouse wheel scroll back   (typing goes to the console)")
                      : std::string(" 1-9 0 tabs   m mine   s save   y/n offers   ") +
                            (isUnlocked(ui.snap, Feature::Crew) ? "x stop a disaster   " : "") + ": console   " + (profile.empty() ? "" : "p profile   ") +
@@ -310,14 +318,26 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
             }
             return false;
         }
-        if (e == Event::Character('q')) { screen.Exit(); return true; }
+        if (leaveKey != 0 && (e.is_character() || e == Event::Escape)) {   // a key press settles a pending "really leave?"
+            bool live = leaveArmed();
+            char was = leaveKey;
+            leaveKey = 0;
+            if (live && e == Event::Character(std::string(1, was))) {
+                if (was == 'p') end = SessionEnd::Logout;
+                screen.Exit();
+                return true;
+            }
+            if (live && (e == Event::Character('q') || e == Event::Character('p') || e == Event::Escape)) return true;   // just cancels
+        }
+        auto askToLeave = [&](char key) { leaveKey = key; leaveUntil = tui::Clock::now() + std::chrono::seconds(4); };
+        if (e == Event::Character('q')) { askToLeave('q'); return true; }
         if (e == Event::Character('m')) { ui.mineNow(); return true; }
         if (e == Event::Character('s')) { ui.saveNow(); return true; }
         if (e == Event::Character('y') && hasChoice(ui.snap)) { answer(true); return true; }
         if (e == Event::Character('x') && disasterPending(ui.snap)) { respond(); return true; }
         if (e == Event::Character('n') && hasChoice(ui.snap)) { answer(false); return true; }
         if (e == Event::Character(':')) { showPage(CONSOLE_PAGE); return true; }
-        if (e == Event::Character('p') && !profile.empty()) { end = SessionEnd::Logout; screen.Exit(); return true; }
+        if (e == Event::Character('p') && !profile.empty()) { askToLeave('p'); return true; }
         if (e == Event::Character('u') && updateReady()) { requestUpdate(); screen.Exit(); return true; }   // saved on the way out
         if (e.is_character() && e.character().size() == 1) {
             char c = e.character()[0];

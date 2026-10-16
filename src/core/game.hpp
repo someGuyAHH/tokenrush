@@ -87,6 +87,11 @@ void updateRates(GameState& g);                // once per second: refresh incom
 // crew, contract pay). Measured from lifetimeEarned, so spending doesn't drag it down.
 inline constexpr int EARN_WINDOW_SECONDS = 10;
 double recentEarnRate(const GameState& g);
+// What you'd make a second from the formulas, not from what came in: Drones, the Bot and crew Miners
+// as they are now, plus mining by hand at the last EST_MINE_WINDOW seconds' pace and your streak.
+// Events count; luck, contracts and offers don't.
+inline constexpr int EST_MINE_WINDOW = 5;
+double estimatedIncome(const GameState& g, std::time_t t);
 std::array<double, SOURCE_COUNT> recentSourceRates(const GameState& g);   // the same, split by Source
 std::string incomeSplit(const GameState& g);   // "mining 61%, drones 27%, bot 12%" (empty while nothing comes in)
 void updatePassive(GameState& g, std::time_t t);

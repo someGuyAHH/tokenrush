@@ -95,7 +95,7 @@ StartReport startGame(Shared& s, std::mt19937& rng) {
         normalizeStreak(s.g, t);
         if (s.g.event != EV_NONE && t >= s.g.eventEnds) { s.g.event = EV_NONE; s.g.eventEnds = 0; }
         if (s.g.lifetimeEarned > before)
-            r.notes.push_back({Sev::Good, "Your drones earned " + num(s.g.lifetimeEarned - before) + " tokens while you were away."});
+            r.notes.push_back({Sev::Good, "Your drones earned " + compact(s.g.lifetimeEarned - before) + " tokens while you were away."});
     }
 
     checkGoals(s.g, s.log);   // old saves may already qualify for some goals

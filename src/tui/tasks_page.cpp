@@ -53,7 +53,12 @@ Component TasksPage(Ui& ui) {
     Components rows;
     std::vector<Component> onBtns, editBtns, quietBtns, delBtns;
     for (int i = 0; i < TASK_SLOTS_MAX; ++i) {
-        Component on = Btn([&ui, i] { return i < (int)ui.snap.tasks.size() && ui.snap.tasks[(size_t)i].on ? std::string(" On ") : std::string(" Off"); },
+        // Running: Suspend (free). Suspended: Resume, for its startup cost.
+        Component on = Btn([&ui, i] {
+                               if (i >= (int)ui.snap.tasks.size()) return std::string("");
+                               const ::Task& t = ui.snap.tasks[(size_t)i];
+                               return t.on ? std::string("Suspend") : "Resume " + compact(taskStartupCost(ui.snap, t));
+                           },
                            [&ui, i] { ui.run([i](GameState& g) { return i < (int)g.tasks.size() ? setTaskOn(g, i, !g.tasks[(size_t)i].on) : Notes{}; }); },
                            [&ui, i] { return i < (int)ui.snap.tasks.size() && ui.snap.tasks[(size_t)i].on; });
         Component edit = FlatBtn([&ui, i] { return std::string(ui.taskEditing == i ? "editing" : "edit"); }, [startEdit, i] { startEdit(i); });
@@ -145,11 +150,15 @@ Component TasksPage(Ui& ui) {
                     out.push_back(hbox({text(std::string(BOX_INDENT, ' ')), paragraph(c.error) | color(hue(Hue::Warn)) | flex}));
                 } else {
                     long long fee = taskFee(g, c.instructions);
+                    bool starts = ui.taskEditing < 0 || (ui.taskEditing < (int)g.tasks.size() && g.tasks[(size_t)ui.taskEditing].on);
+                    long long startup = starts ? taskStartupCost(g, c.instructions) : 0;
                     std::string often = c.repeats ? ", up to " + compact(std::min(fee * 60, taskFeeBudget(g))) + " a minute while it's true"
                                       : c.every > 0 ? ", once every " + duration(c.every) + " at most" : ", once each time it turns true";
                     out.push_back(hbox({text(std::string(BOX_INDENT, ' ')), text("Looks right. ") | color(hue(Hue::Good)),
                                         text(std::to_string(c.instructions) + " instructions: about ") | muted(),
-                                        text(compact(fee)) | color(hue(Hue::Tokens)), text(" per run" + often + ".") | muted()}));
+                                        text(compact(fee)) | color(hue(Hue::Tokens)), text(" per run" + often + ".") | muted(),
+                                        startup > 0 ? hbox({text(" Starting it: ") | muted(), text(compact(startup)) | color(hue(Hue::Tokens))})
+                                                    : text("")}));
                 }
             } else if ((int)g.tasks.size() >= g.taskSlots && ui.taskEditing < 0) {
                 out.push_back(hbox({text(std::string(BOX_INDENT, ' ')), text("Every slot is in use: delete a task, or buy another slot.") | muted()}));
@@ -171,7 +180,8 @@ Component TasksPage(Ui& ui) {
             out.push_back(hbox({vbox(reads) | flex, text("  "), vbox(does)}));
             out.push_back(paragraph("Numbers: 500, 5,000, 2.5k, 3M, 1.2B. Times: 30s, 5m, 1h. '5m' is 5 minutes next to payday and 5 million "
                                     "next to tokens. Fees: 0.3s of income per instruction, per run; they stop at a fifth of a minute's "
-                                    "income. Tasks never mine, stop disasters, answer offers, fire, hire or take jobs. More: 'help task' "
+                                    "income. Starting a task (adding it, saving an edit, resuming it) costs 1s of income per instruction; "
+                                    "suspending is free. Tasks never mine, stop disasters, answer offers, fire, hire or take jobs. More: 'help task' "
                                     "in the Console.") | muted());
         }
         return vbox(out) | yframe;

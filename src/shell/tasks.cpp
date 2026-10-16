@@ -40,7 +40,8 @@ void printList(const GameState& g) {
           << "\n";
     for (size_t i = 0; i < g.tasks.size(); ++i) {
         const Task& t = g.tasks[i];
-        std::string tag = !t.error.empty() ? "broken" : t.on ? (t.quiet ? "on, quiet" : "on") : "off";
+        std::string tag = !t.error.empty() ? "broken" : t.on ? (t.quiet ? "running, quiet" : "running")
+                        : "suspended: resume for " + compact(taskStartupCost(g, t));
         Style st = !t.error.empty() ? Style::Bad : t.on ? Style::Good : Style::Muted;
         out() << "  " << (i + 1) << ") " << paint(st, "[" + tag + "]") << " " << t.text << "\n";
         out() << paint(Style::Muted, "       " + taskStatus(g, t)) << "\n";
@@ -105,11 +106,12 @@ void doTask(Shared& s, const std::string& args) {
         TaskCheck c = checkTask(text, &s.g);
         if (!c.ok) { printMistake(text, c); return; }
         notes = sub == "add" ? addTask(s.g, text) : editTask(s.g, idx, text);
-    } else if (sub == "on" || sub == "off" || sub == "quiet" || sub == "loud" || sub == "remove" || sub == "delete" || sub == "rm") {
+    } else if (sub == "on" || sub == "off" || sub == "resume" || sub == "suspend" || sub == "quiet" || sub == "loud" || sub == "remove" ||
+               sub == "delete" || sub == "rm") {
         int idx = parseIndex(rest);
         if (idx < 0) { out() << "Usage: task " << sub << " <n>\n"; return; }
         std::lock_guard lk(s.m);
-        if (sub == "on" || sub == "off") notes = setTaskOn(s.g, idx, sub == "on");
+        if (sub == "on" || sub == "off" || sub == "resume" || sub == "suspend") notes = setTaskOn(s.g, idx, sub == "on" || sub == "resume");
         else if (sub == "quiet" || sub == "loud") notes = setTaskQuiet(s.g, idx, sub == "quiet");
         else notes = removeTask(s.g, idx);
     } else if (sub == "move") {

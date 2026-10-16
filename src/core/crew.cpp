@@ -395,7 +395,7 @@ void crewTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
     }
 
     if (g.crewClock % CREW_REPORT_EVERY == 0 && g.crewMinedSinceReport > 0) {
-        log.push(Sev::Info, "Your crew mined +" + num(g.crewMinedSinceReport) + " tokens in the last minute.");
+        log.push(Sev::Info, "Your crew mined +" + compact(g.crewMinedSinceReport) + " tokens in the last minute.");
         g.crewMinedSinceReport = 0;
     }
 

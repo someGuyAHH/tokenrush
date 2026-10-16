@@ -915,6 +915,28 @@ long long taskFee(const GameState& g, int instructions) {
     return std::max(TASK_FEE_MIN, (long long)std::llround((double)instructions * TASK_FEE_SECONDS * std::max(0.0, g.incomeRate)));
 }
 
+long long taskStartupCost(const GameState& g, int instructions) {
+    return std::max(TASK_STARTUP_MIN, (long long)std::llround((double)instructions * TASK_STARTUP_SECONDS * std::max(0.0, g.incomeRate)));
+}
+
+long long taskStartupCost(const GameState& g, const Task& t) {
+    return taskStartupCost(g, t.prog ? t.prog->instructions : 1);
+}
+
+namespace {
+
+// Pays a task's startup, or says why it can't be paid.
+bool payStartup(GameState& g, long long cost, Notes& out) {
+    if (g.tokens < cost) {
+        out = {{Sev::Warn, "Starting it costs " + compact(cost) + " tokens. You have " + compact(g.tokens) + "."}};
+        return false;
+    }
+    g.tokens -= cost;
+    return true;
+}
+
+}  // namespace
+
 long long taskFeeBudget(const GameState& g) {
     return std::max(10 * TASK_FEE_MIN, (long long)std::llround(TASK_FEE_BUDGET * g.incomeRate * 60.0));
 }
@@ -954,12 +976,16 @@ Notes addTask(GameState& g, const std::string& text) {
     TaskCheck c;
     auto prog = compileTask(text, &g, c);
     if (!prog) return rejected(c);
+    long long startup = taskStartupCost(g, prog->instructions);
+    if (!payStartup(g, startup, out)) return out;
     Task t;
     t.text = trim(text);
     t.prog = prog;
+    t.fees = startup;
     restart(g, t);
     g.tasks.push_back(t);
-    return {{Sev::Good, "Task " + std::to_string(g.tasks.size()) + " added. Each run costs about " + compact(taskFee(g, c.instructions)) + " tokens."}};
+    return {{Sev::Good, "Task " + std::to_string(g.tasks.size()) + " added (" + compact(startup) + " to start it). Each run costs about " +
+                            compact(taskFee(g, c.instructions)) + " tokens."}};
 }
 
 Notes editTask(GameState& g, int idx, const std::string& text) {
@@ -969,13 +995,16 @@ Notes editTask(GameState& g, int idx, const std::string& text) {
     auto prog = compileTask(text, &g, c);
     if (!prog) return rejected(c);
     Task& t = g.tasks[(size_t)idx];
+    long long startup = t.on ? taskStartupCost(g, prog->instructions) : 0;   // a suspended task starts when it's resumed
+    if (startup > 0 && !payStartup(g, startup, out)) return out;
     t.text = trim(text);
     t.prog = prog;
     t.error.clear();
-    t.runs = t.fees = 0;
+    t.runs = 0;
+    t.fees = startup;
     t.lastRun = -1;
     restart(g, t);
-    return {{Sev::Good, "Task " + std::to_string(idx + 1) + " changed."}};
+    return {{Sev::Good, "Task " + std::to_string(idx + 1) + " changed" + (startup > 0 ? " (" + compact(startup) + " to restart it)." : ".")}};
 }
 
 Notes removeTask(GameState& g, int idx) {
@@ -989,11 +1018,16 @@ Notes setTaskOn(GameState& g, int idx, bool on) {
     Notes out;
     if (badIndex(g, idx, out)) return out;
     Task& t = g.tasks[(size_t)idx];
-    if (t.on == on) return {{Sev::Info, "Task " + std::to_string(idx + 1) + " is already " + (on ? "on." : "off.")}};
+    if (t.on == on) return {{Sev::Info, "Task " + std::to_string(idx + 1) + " is already " + (on ? "running." : "suspended.")}};
     if (on && !t.error.empty()) return {{Sev::Warn, "Task " + std::to_string(idx + 1) + " can't run: " + t.error + ". Edit it first."}};
+    long long startup = on ? taskStartupCost(g, t) : 0;
+    if (on && !payStartup(g, startup, out)) return out;
     t.on = on;
-    if (on) restart(g, t);
-    return {{Sev::Good, "Task " + std::to_string(idx + 1) + (on ? " is on." : " is off.")}};
+    if (on) {
+        t.fees = addTokens(t.fees, startup);
+        restart(g, t);
+    }
+    return {{Sev::Good, "Task " + std::to_string(idx + 1) + (on ? " resumed (" + compact(startup) + " to start it)." : " suspended.")}};
 }
 
 Notes setTaskQuiet(GameState& g, int idx, bool quiet) {
@@ -1088,7 +1122,7 @@ void tasksTick(GameState& g, MessageLog& log) {
 
 std::string taskStatus(const GameState& g, const Task& t) {
     if (!t.error.empty()) return "can't run: " + t.error;
-    if (!t.on) return "off";
+    if (!t.on) return "suspended";
     std::string s;
     if (!t.waiting.empty()) s = "waiting: " + t.waiting;
     else if (t.runs == 0) s = "hasn't run yet";

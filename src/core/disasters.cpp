@@ -281,6 +281,32 @@ std::vector<Repair> repairs(const GameState& g) {
 
 bool anythingBroken(const GameState& g) { return g.botBroken || g.orreryCracked != 0 || g.gadgetsBroken != 0; }
 
+long long gadgetRepairShards(const GameState& g, int gadget) { return gadgetRepairCost(g, gadget); }
+
+int repairIndexOf(const GameState& g, Repair::Kind kind, int index) {
+    std::vector<Repair> list = repairs(g);
+    for (size_t i = 0; i < list.size(); ++i)
+        if (list[i].kind == kind && list[i].index == index) return (int)i;
+    return -1;
+}
+
+Notes gadgetTrouble(const GameState& g) {
+    Notes out;
+    if (disasterPending(g) && g.disaster.kind == (int)DisasterKind::Short) {
+        int x = g.disaster.target;
+        std::string what = x >= 0 && x < GADGET_COUNT ? std::string("the ") + GADGETS[x].name : std::string("a gadget");
+        out.push_back({Sev::Bad, "SHORT CIRCUIT in " + duration(g.disaster.secondsLeft) + ": " + what +
+                                     " burns out unless you unplug your gadgets ('respond', or x)."});
+    }
+    if (g.gadgetsUnplugged > 0)
+        out.push_back({Sev::Warn, "Unplugged: every gadget is off for another " + duration(g.gadgetsUnplugged) + "."});
+    for (int x = 0; x < GADGET_COUNT; ++x)
+        if (hasBit(g.gadgetsBroken, x))
+            out.push_back({Sev::Bad, std::string("The ") + GADGETS[x].name + " is burnt out and does nothing until it's repaired (" +
+                                         num(gadgetRepairCost(g, x)) + " shards, 'repair')."});
+    return out;
+}
+
 static void fixOne(GameState& g, const Repair& r) {
     switch (r.kind) {
         case Repair::Bot:    g.botBroken = false; break;

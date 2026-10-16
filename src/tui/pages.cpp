@@ -802,17 +802,20 @@ Component WorkshopPage(Ui& ui) {
         btns.push_back(Btn(
             [&ui, i, equippedNow] {
                 if (!hasBit(ui.snap.gadgetsOwned, i)) return "Build " + num(GADGETS[i].cost) + " sh";
+                if (hasBit(ui.snap.gadgetsBroken, i)) return "Repair " + compact(gadgetRepairShards(ui.snap, i)) + " sh";
                 return std::string(equippedNow() ? "Unequip" : " Equip ");
             },
             [&ui, i] {
                 ui.run([i](GameState& g) {
                     if (!hasBit(g.gadgetsOwned, i)) return craftGadget(g, i);
+                    if (hasBit(g.gadgetsBroken, i)) return repair(g, repairIndexOf(g, Repair::Gadget, i));
                     return gadgetEquipped(g, (Gadget)i) ? unequipGadget(g, i) : equipGadget(g, i);
                 });
             },
             [&ui, i, equippedNow] {
                 const GameState& g = ui.snap;
                 if (!hasBit(g.gadgetsOwned, i)) return hasBit(g.curiosOwned, GADGETS[i].curio) && g.shards >= GADGETS[i].cost;
+                if (hasBit(g.gadgetsBroken, i)) return g.shards >= gadgetRepairShards(g, i);
                 return equippedNow() || freeGadgetSlot(g) >= 0;
             }));
     }
@@ -824,17 +827,24 @@ Component WorkshopPage(Ui& ui) {
         for (int i = 0; i < GADGET_SLOTS; ++i) {
             int x = g.gadgetSlots[(size_t)i];
             slots.push_back(text("[") | muted());
-            slots.push_back(x >= 0 ? text(GADGETS[x].name) | color(hue(Hue::Good)) | bold : text("empty") | muted());
+            bool dead = x >= 0 && hasBit(g.gadgetsBroken, x), off = x >= 0 && g.gadgetsUnplugged > 0;
+            slots.push_back(x < 0 ? text("empty") | muted()
+                            : dead ? text(GADGETS[x].name + std::string(" (broken)")) | color(hue(Hue::Bad)) | bold
+                            : off  ? text(GADGETS[x].name + std::string(" (off)")) | color(hue(Hue::Warn))
+                                   : text(GADGETS[x].name) | color(hue(Hue::Good)) | bold);
             slots.push_back(text("] ") | muted());
         }
         slots.push_back(text("   shards ") | muted());
         slots.push_back(shards(g.shards));
-        Elements rows = {hbox(slots), text("")};
+        Elements rows = {hbox(slots)};
+        for (const Note& n : gadgetTrouble(g))   // a Short Circuit coming, unplugged, burnt out
+            rows.push_back(paragraph(n.text) | color(hue(n.sev == Sev::Bad ? Hue::Bad : Hue::Warn)) | (n.sev == Sev::Bad ? bold : nothing));
+        rows.push_back(text(""));
         for (int i = 0; i < GADGET_COUNT; ++i) {
             const GadgetInfo& x = GADGETS[i];
             bool built = hasBit(g.gadgetsOwned, i), on = gadgetEquipped(g, (Gadget)i), curio = hasBit(g.curiosOwned, x.curio);
             bool dead = hasBit(g.gadgetsBroken, i);
-            Element name = text(x.name + std::string(dead ? " (broken)" : "")) | bold |
+            Element name = text(x.name) | bold |   // red when burnt out: the line above says so, and its button repairs it
                            color(dead ? hue(Hue::Bad) : on ? hue(Hue::Good) : built ? hue(Hue::Text) : hue(Hue::Muted));
             Element right = curio || built ? btns[(size_t)i]->Render() : text("needs its curio") | muted();
             rows.push_back(hbox({name | size(WIDTH, EQUAL, 16), text("+ ") | color(hue(Hue::Good)), text(x.plus) | flex, text(" "), right}));
@@ -972,6 +982,7 @@ Component StatsPage(Ui& ui) {
                            row("Tokens", tokens(g.tokens)),
                            row("Earned in total", tokens(g.lifetimeEarned)),
                            row("Earning now", plain(perSecond(recentEarnRate(g)) + "/s")),
+                           row("Est. Income", plain(perSecond(estimatedIncome(g, std::time(nullptr))) + "/s")),
                            row("Best ever", plain(perSecond((double)g.bestEarnRate) + "/s"))};
         if (isUnlocked(g, Feature::Market)) wealth.push_back(row("Shards", shards(g.shards)));
 

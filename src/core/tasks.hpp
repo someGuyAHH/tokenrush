@@ -30,6 +30,8 @@ inline constexpr int TASK_SLOTS_MAX = 8;
 inline constexpr double TASK_FEE_SECONDS = 0.3;        // income-seconds per instruction, each run
 inline constexpr long long TASK_FEE_MIN = 10;          // tokens
 inline constexpr double TASK_FEE_BUDGET = 0.20;        // fees never take more than this share of a minute's income
+inline constexpr double TASK_STARTUP_SECONDS = 1.0;    // income-seconds per instruction, to start a task: adding it,
+inline constexpr long long TASK_STARTUP_MIN = 100;     // saving an edit while it's on, or resuming it (suspending is free)
 inline constexpr size_t TASK_TEXT_MAX = 160;
 inline constexpr int TASK_EVERY_MIN = 5;               // seconds
 inline constexpr int TASK_EVERY_MAX = 24 * 3600;
@@ -60,6 +62,8 @@ struct TaskCheck {
 TaskCheck checkTask(const std::string& text, const GameState* g = nullptr);
 std::shared_ptr<const TaskProgram> compileTask(const std::string& text, const GameState* g, TaskCheck& check);
 long long taskFee(const GameState& g, int instructions);   // tokens, per run, at today's income
+long long taskStartupCost(const GameState& g, int instructions);   // tokens, once, each time it starts
+long long taskStartupCost(const GameState& g, const Task& t);       // ...for a task as it is
 
 // `predict when <condition>`: the same language, a condition alone, plus three values only
 // predict reads (earned, mines, jackpots).
@@ -78,7 +82,7 @@ Notes buyTaskSlot(GameState& g);
 Notes addTask(GameState& g, const std::string& text);
 Notes editTask(GameState& g, int idx, const std::string& text);
 Notes removeTask(GameState& g, int idx);
-Notes setTaskOn(GameState& g, int idx, bool on);
+Notes setTaskOn(GameState& g, int idx, bool on);   // off: suspended (free); on: resumed (its startup cost)
 Notes setTaskQuiet(GameState& g, int idx, bool quiet);
 Notes moveTask(GameState& g, int idx, int to);
 

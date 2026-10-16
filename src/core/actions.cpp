@@ -97,7 +97,7 @@ Notes buyUpgrades(GameState& g, size_t idx, int n) {
     }
     std::string msg = n == 1 ? std::string("Bought ") + u.name + " -> lvl " + std::to_string(*u.lvl)
                              : "Bought " + std::to_string(bought) + " " + u.name + " levels -> lvl " +
-                                   std::to_string(*u.lvl) + " for " + num(spent) + " tokens";
+                                   std::to_string(*u.lvl) + " for " + compact(spent) + " tokens";
     if (bought < n) msg += *u.lvl >= MAX_LEVEL ? " (maxed out)" : " (that's all you could afford)";
     return {{Sev::Good, msg + "."}};
 }

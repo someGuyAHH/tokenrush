@@ -8,6 +8,7 @@
 #include <string>
 
 #include "contracts.hpp"
+#include "crew.hpp"
 #include "stars.hpp"
 #include "util.hpp"
 
@@ -155,8 +156,32 @@ void updateRates(GameState& g) {
 
     g.earnedSamples.push_back(g.lifetimeEarned);
     while (g.earnedSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.earnedSamples.pop_front();
+    g.mineSamples.push_back(g.manualMines);
+    while (g.mineSamples.size() > (size_t)EST_MINE_WINDOW + 1) g.mineSamples.pop_front();
     g.sourceSamples.push_back(g.earnedBy);
     while (g.sourceSamples.size() > (size_t)EARN_WINDOW_SECONDS + 1) g.sourceSamples.pop_front();
+}
+
+double estimatedIncome(const GameState& g, std::time_t t) {
+    EventFx fx = fxNow(g, t);
+    double drones = passiveRatePerSec(g) * fx.passive;
+    double bot = botRatePerSec(g) * fx.mining;
+    double crew = 0.0;
+    for (const CrewMember& c : g.crew)
+        if (c.role == Role::Miner && !isAway(c)) crew += (double)minerSwing(g, c) * fx.mining / MINER_EVERY;
+
+    // By hand: the last few seconds' mines, each at what a mine pays on average with the streak you have now.
+    double hand = 0.0;
+    if (g.mineSamples.size() >= 2) {
+        double perSec = (double)(g.mineSamples.back() - g.mineSamples.front()) / (double)(g.mineSamples.size() - 1);
+        bool streakAlive = g.lastMine != 0 && std::difftime(t, g.lastMine) < (double)streakTimeout(g);
+        double mult = 1.0 + 0.05 * (double)std::min(streakAlive ? g.streak : 0, 20);   // as mine() does
+        double base = baseYield(g);
+        double perMine = base * 1.5 * mult + bonusChance(g, fx.odds) * base * bonusSize(g) * bonusBoost(g, fx.odds) +
+                         jackpotChance(g, fx.odds) * base * jackpotSize(g) * jackpotBoost(g, fx.odds);
+        hand = perSec * perMine * fx.mining * handMult(g);
+    }
+    return drones + bot + crew + hand;
 }
 
 double recentEarnRate(const GameState& g) {

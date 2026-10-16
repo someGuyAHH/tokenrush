@@ -343,12 +343,14 @@ const std::vector<CommandInfo>& commands() {
           "(\"waiting: Odette is away\"). Each run costs a fee of 0.3 seconds of your income for every instruction "
           "(each value, number, operator and the action count as one), and fees never take more than a fifth of "
           "a minute's income: past that, tasks wait. 'task check <task>' tells you what a task would cost, and "
-          "mistakes are pointed at with a ^."},
+          "mistakes are pointed at with a ^.",
+          "Starting a task costs 1 second of your income for every instruction (at least 100 tokens): adding it, "
+          "saving an edit to one that's running, and resuming one you suspended. Suspending is free."},
          {{"task", "your tasks, what they're doing, what they've cost"},
           {"task add while broken do repair", "a new task"},
           {"task add when heat >= 8 do notify \"cool it\"", "a reminder, once each time heat reaches 8"},
           {"task edit 2 every 5m do upgrade bot max", "rewrite task 2"},
-          {"task off 2", "pause it (task on 2 starts it again)"},
+          {"task suspend 2", "pause it, free ('task resume 2' starts it again, for its startup cost; off/on work too)"},
           {"task quiet 1", "no log lines from it (task loud 1 undoes it)"},
           {"task move 3 1", "make task 3 run first"},
           {"task check while shards > 6k do fund orrery all", "is it right, and what would it cost?"},

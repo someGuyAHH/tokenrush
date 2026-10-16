@@ -30,8 +30,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - `y`/`n`: answer an offer.
   - `x`: stop the disaster that's coming (the DANGER bar's button).
   - `:`: open the Console.
-  - `p`: switch profile.
-  - `q` or Ctrl+C: quit.
+  - `p`: switch profile, `q`: quit. Both ask first (the footer turns yellow): the same key again
+    within 4 seconds goes ahead, any other key stays. Ctrl+C quits at once (and saves). In the
+    Console, `quit` and `logout` ask y/n.
 - **Typing:** while a text box has the keyboard (the Console, the Market's amount box), keys
   type instead of acting, and Esc steps out.
 - **Status bar:**
@@ -539,6 +540,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Earn rate:** "Earning X tokens/s" over the last **10 s**, measured from lifetime earnings
   (every source counts, spending doesn't lower it). Shown on the Mine tab and in `status`, with
   the split by source ("mining 61%, drones 27%").
+- **Est. Income** (`estimatedIncome`, Stats tab, `stats`, `status`): a guess from the formulas
+  rather than what came in: Drones (`passiveRatePerSec`), the Bot (`botRatePerSec`), crew Miners
+  at home (`minerSwing` every 5 s), and mining by hand at your last 5 seconds' pace (`mineSamples`)
+  × what an average mine pays with your current streak. Events count (Meteor Shower, Overclock,
+  Gold Rush); luck, contracts and offers don't.
 - **Income by source** (`[income]`): `earn(g, amount, Source)` books every token under Mining by
   hand, Drones, Mining Bot, Crew, Contracts, or Offers and other. Stats shows each all time (with
   its share) and now. Tokens earned before v9 show as "Before records".
@@ -599,6 +605,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Quake | a built stage (not the Sun) | brace: 2% of that stage in shards | the stage cracks: perk off until repaired |
   | Short Circuit | an equipped gadget | unplug: gadgets off for 2 min | one gadget broken until repaired |
 
+- **Gadget trouble** (`gadgetTrouble`): the Workshop tab and `workshop` say, in red or yellow
+  under the slots, when a Short Circuit is coming (and which gadget it'll take), while gadgets
+  are unplugged (and for how long), and which gadgets are burnt out (and what fixing them
+  costs). A burnt-out gadget's button becomes Repair; the slots mark it "(broken)" or "(off)",
+  and `status` says when gadgets are unplugged.
 - **Fixers soften it:** damage, burnt-out time and repair bills × (1 - min(50%, 5% per effective
   Fixer level)) (`fixerSoften`).
 - **Repairs** (`repairs()`, `repair <n|all>`, the Mine tab): the Bot 15% of its next level in
@@ -666,6 +677,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   wait. Fees grow with income, so they stay the same share at every stage. In 12-hour sims:
   3 sensible tasks ≈ 2% of income, 8 busy tasks ≈ 7-9%, 8 `while` tasks firing every second
   ≈ 9-14% (and they never pass the 20% limit).
+- **Starting costs:** adding a task, saving an edit to a running one, or resuming a suspended one
+  costs instructions × 1 s of income (at least 100 tokens), counted in its fees. Suspending is
+  free (Suspend on the Tasks tab, `task suspend <n>` or `task off <n>`; Resume shows the price).
+  Editing a suspended task costs nothing until it's resumed.
 - **Mistakes** are caught while you type, with a `^` under the spot and a suggestion ("did you
   mean shards?", "you have Odette, Kaan..."). Crew names are checked against your crew when
   you write the task; a saved task this build can't read is kept, marked broken.

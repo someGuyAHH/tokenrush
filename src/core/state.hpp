@@ -211,6 +211,7 @@ struct GameState {
     long long rateMarkMines = 0;
     long long rateSkip = 0;             // contract payouts, which shouldn't count as "income"
     std::deque<long long> earnedSamples;   // lifetimeEarned once a second, newest last (not saved)
+    std::deque<long long> mineSamples;     // manualMines once a second, the last few (not saved)
     SourceTotals earnedBy{};            // lifetime tokens per Source (saves from before v9 start at 0)
     std::deque<SourceTotals> sourceSamples;   // earnedBy once a second, like earnedSamples (not saved)
 

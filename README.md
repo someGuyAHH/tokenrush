@@ -66,7 +66,8 @@ the picker (its rename button).
 **TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (Mine, Shop, Goals, Stats, then
 Curios, Monolith, Market, Themes, Jobs, Crew, Orrery, Workshop, Stars, Tasks in unlock order; locked ones
 aren't shown), `m` to mine, `s` to save, `y`/`n` to answer an offer, `x` to stop a disaster,
-`:` for the Console, `p` to switch profile, `q` or Ctrl+C to quit. Tab, the arrows and Enter move around and press buttons. While a text box
+`:` for the Console, `p` to switch profile, `q` to quit (`p` and `q` ask first: press the same
+key again; Ctrl+C quits right away, and saves). Tab, the arrows and Enter move around and press buttons. While a text box
 has the keyboard (the Console, the Market's amount box), keys type into it and Esc steps out.
 Risky buttons (Fire, Abandon, Delete, and Buy when it would buy at a steep price) need a
 second click within 3 seconds.
@@ -218,7 +219,8 @@ before this kept everything they were already using. The table lives in `FEATURE
   per interval. Tasks read only what the screen shows and do only a short list of things (never
   mining, disasters, offers or firing). A task never runs, or pays for, an action that can't
   happen; it waits and says why. Each run costs 0.3 seconds of income per instruction, and fees
-  stop at a fifth of your income. Mistakes are pointed at while you type. See the Tasks tab, or
+  stop at a fifth of your income. Starting a task (adding it, saving an edit to a running one,
+  resuming it) costs 1 second of income per instruction; suspending it is free. Mistakes are pointed at while you type. See the Tasks tab, or
   `help task` in the Console.
 - **Between profiles.** Two profiles open at the same time (two windows) can trade tokens,
   never shards: `pay Beta 5B` sends some, `borrow Alpha 10B` asks for a loan (their

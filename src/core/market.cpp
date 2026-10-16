@@ -96,7 +96,7 @@ Notes buyShards(GameState& g, long long n) {
     g.tradeCost = addTokens(g.tradeCost, std::max(0LL, cost - toTokens(g.shardPrice * (double)n)));
     g.shardPrice = std::clamp(g.shardPrice * std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;   // your own trade isn't news
-    return {{Sev::Good, "Bought " + count(n, "shard") + " for " + num(cost) + " tokens (avg " +
+    return {{Sev::Good, "Bought " + count(n, "shard") + " for " + compact(cost) + " tokens (avg " +
                         fixed((double)cost / (double)n, 1) + "). Price is now " + fixed(g.shardPrice, 1) + "."}};
 }
 
@@ -116,7 +116,7 @@ Notes sellShards(GameState& g, long long n) {
     if (n >= 100 && (double)value >= 3.0 * SHARD_FAIR_PRICE * (double)n) spotStar(g, Constellation::Scales);
     g.shardPrice = std::clamp(g.shardPrice / std::pow(1.0 + marketImpact(g), (double)n), MIN_PRICE, MAX_PRICE);
     g.lastReportedPrice = g.shardPrice;
-    return {{Sev::Good, "Sold " + count(n, "shard") + " for " + num(value) + " tokens (avg " +
+    return {{Sev::Good, "Sold " + count(n, "shard") + " for " + compact(value) + " tokens (avg " +
                         fixed((double)value / (double)n, 1) + "). Price is now " + fixed(g.shardPrice, 1) + "."}};
 }
 
