@@ -67,6 +67,11 @@ std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, Tas
 bool conditionHolds(const TaskProgram& p, GameState& g);
 std::vector<std::string> conditionValues(const TaskProgram& p);   // the values it reads, by name
 
+// `eval <expression>`: the same language (predict's values too), worked out right now. `kind` says
+// what it comes to: 'b' true or false, 't' a time (seconds), 'a' a number or an amount.
+std::shared_ptr<const TaskProgram> compileExpression(const std::string& text, TaskCheck& check, char& kind);
+double expressionValue(const TaskProgram& p, GameState& g);
+
 // ----- Managing tasks (each returns what to tell the player) -----
 Notes buyTaskLicense(GameState& g);
 Notes buyTaskSlot(GameState& g);

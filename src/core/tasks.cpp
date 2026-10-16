@@ -297,8 +297,25 @@ const char* const FORBIDDEN[][2] = {
 
 class Parser {
 public:
-    Parser(const std::string& text, const GameState* g, bool predicting = false)
-        : text_(text), g_(g), predicting_(predicting), toks_(lex(text)) {}
+    // `reader`: who's reading, for the messages ("predict", "eval"); they also may read predict's
+    // extra values. Null for a task.
+    Parser(const std::string& text, const GameState* g, const char* reader = nullptr)
+        : text_(text), g_(g), predicting_(reader != nullptr), reader_(reader ? reader : "tasks"), toks_(lex(text)) {}
+
+    // `eval`: any expression. `kind` says what came out: 'b' true/false, 't' a time, 'a' a number.
+    TaskProgram parseExpression(char& kind) {
+        TaskProgram p;
+        if (peek().kind == Token::End) fail(peek(), "nothing to work out: try eval tokens / income");
+        int root = orExpr(p);
+        if (peek().kind != Token::End) fail(peek(), "expected + - * / or a comparison here, or the end");
+        const TaskNode& n = p.nodes[(size_t)root];
+        bool boolean = n.kind == TaskNode::Not || (n.kind == TaskNode::Bin && (isCompare(n.op) || n.op == '&' || n.op == '|'));
+        char k = kindOf(p, root);
+        settle(p, root, k == 't' ? 't' : 'a');
+        p.cond = root;
+        kind = boolean ? 'b' : k == 't' ? 't' : 'a';
+        return p;
+    }
 
     // `predict when`: a condition and nothing else.
     TaskProgram parseCondition() {
@@ -348,6 +365,7 @@ private:
     const std::string& text_;
     const GameState* g_;
     bool predicting_ = false;   // predict's extra values are allowed
+    const char* reader_;        // "tasks", "predict", "eval"
     std::vector<Token> toks_;
     size_t at_ = 0;
 
@@ -434,7 +452,7 @@ private:
             if (t.text == "true" || t.text == "false") { n.kind = TaskNode::Num; n.raw = n.num = t.text == "true" ? 1 : 0; return add(p, n); }
             for (int v = 0; v < VALUE_DEFS; ++v) {
                 if (t.text != VALUES[v].name) continue;
-                if (v >= PREDICT_ONLY_FROM && !predicting_) fail(t, "tasks can't read " + t.text + " (only predict can)");
+                if (v >= PREDICT_ONLY_FROM && !predicting_) fail(t, "tasks can't read " + t.text + " (only predict and eval can)");
                 n.kind = TaskNode::Val; n.val = v; return add(p, n);
             }
             if (t.text == "do" || t.text == "and" || t.text == "or") fail(t, "something's missing before " + t.text);
@@ -442,9 +460,9 @@ private:
             for (const ValueDef& v : VALUES) names.push_back(v.name);
             std::string hint = suggest(t.text, names);
             if (hint.empty() && (t.text == "level" || t.text == "cost")) hint = " (" + t.text + ".pickaxe, " + t.text + ".bot...)";
-            fail(t, std::string(predicting_ ? "predict" : "tasks") + " can't read \"" + t.raw + "\"" + (hint.empty() ? ": see the list of values" : hint));
+            fail(t, std::string(reader_) + " can't read \"" + t.raw + "\"" + (hint.empty() ? ": see the list of values" : hint));
         }
-        if (t.kind == Token::End) fail(t, "the condition stops halfway");
+        if (t.kind == Token::End) fail(t, std::string(reader_ == std::string("eval") ? "the expression" : "the condition") + " stops halfway");
         fail(t, "expected a number or a value here, not \"" + t.raw + "\"");
     }
 
@@ -827,7 +845,7 @@ std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, Tas
     check = TaskCheck{};
     if (trim(text).empty()) { check.error = "the condition is missing, like: tokens > 20t"; check.pos = 0; return nullptr; }
     try {
-        auto prog = std::make_shared<TaskProgram>(Parser(text, nullptr, true).parseCondition());
+        auto prog = std::make_shared<TaskProgram>(Parser(text, nullptr, "predict").parseCondition());
         check.ok = true;
         check.instructions = (int)prog->nodes.size();
         return prog;
@@ -838,6 +856,24 @@ std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, Tas
         return nullptr;
     }
 }
+
+std::shared_ptr<const TaskProgram> compileExpression(const std::string& text, TaskCheck& check, char& kind) {
+    check = TaskCheck{};
+    kind = 'a';
+    try {
+        auto prog = std::make_shared<TaskProgram>(Parser(text, nullptr, "eval").parseExpression(kind));
+        check.ok = true;
+        check.instructions = (int)prog->nodes.size();
+        return prog;
+    } catch (const Fail& f) {
+        check.error = f.what;
+        check.pos = f.pos;
+        check.len = f.len;
+        return nullptr;
+    }
+}
+
+double expressionValue(const TaskProgram& p, GameState& g) { return eval(p, p.cond, g); }
 
 bool conditionHolds(const TaskProgram& p, GameState& g) { return p.cond < 0 || eval(p, p.cond, g) != 0; }
 

@@ -19,6 +19,7 @@ inline constexpr int       BOT_REPORT_SECONDS   = 30;
 inline constexpr int       AUTOBUY_SECONDS      = 5;
 inline constexpr long long AUTOBUY_RESERVE      = 3;              // buy once tokens >= 3x cost
 inline constexpr long long AUTOBUY_LICENSE_COST = 2000;
+// (autoBuyOnce, below: the Auto-Buyer's one purchase)
 inline constexpr double    EVENT_CHANCE_PER_SEC = 1.0 / 240.0;    // ~one event per 4 minutes
 inline constexpr int       MAX_LEVEL            = 1'000'000;      // sanity cap for upgrade levels
 
@@ -91,6 +92,9 @@ std::string incomeSplit(const GameState& g);   // "mining 61%, drones 27%, bot 1
 void updatePassive(GameState& g, std::time_t t);
 void applyOfflineEarnings(GameState& g, std::time_t tNow);
 void normalizeStreak(GameState& g, std::time_t t);
+// The Auto-Buyer's purchase, every AUTOBUY_SECONDS: the cheapest upgrade, if you have AUTOBUY_RESERVE
+// times its cost. The name bought (and what it cost), or nullptr.
+const char* autoBuyOnce(GameState& g, long long& cost);
 void resetGame(GameState& g, std::time_t t);   // 'wipe': everything back to the start, except the infection and aliases
 
 // Console aliases (the commands live in shell/aliases.cpp; the save checks names with this too)

@@ -91,16 +91,40 @@ std::string clockIn(long long t) {
 
 constexpr long long WHEN_HORIZON = 30LL * 86400;
 
+// What was typed, a caret under the mistake, and what's wrong.
+void printMistake(const std::string& text, const TaskCheck& c) {
+    out() << "  " << text << "\n";
+    if (c.pos >= 0) out() << "  " << std::string((size_t)c.pos, ' ') << paint(Style::Bad, std::string((size_t)std::max(1, c.len), '^')) << "\n";
+    out() << paint(Style::Warn, "  " + c.error) << "\n";
+}
+
+// What the tasks and the Auto-Buyer did over a forecast: runs and fees by task, the Auto-Buyer's buys.
+void automationSummary(GameState& g, Forecast& f, long long t) {
+    GameState& s = f.state();
+    std::string line;
+    for (size_t i = 0; i < g.tasks.size() && i < s.tasks.size() && (int)i < g.taskSlots; ++i) {
+        long long runs = s.tasks[i].runs - g.tasks[i].runs;
+        if (!g.tasks[i].on || runs <= 0) continue;
+        line += (line.empty() ? "" : "; ") + std::string("task ") + std::to_string(i + 1) + " " + num(runs) + (runs == 1 ? " time" : " times") +
+                " (" + compact(s.tasks[i].fees - g.tasks[i].fees) + " in fees)";
+    }
+    if (f.autoBuys > 0) line += (line.empty() ? "" : "; ") + std::string("the Auto-Buyer ") + num(f.autoBuys) + " upgrades for " + compact(f.autoSpent);
+    if (line.empty()) line = "your tasks and the Auto-Buyer wouldn't do anything";
+    out() << paint(Style::Muted, "  In " + span(t) + ": " + line + ".") << "\n";
+    std::string levels;
+    for (const UpgradeRef& u : upgrades(g)) {
+        int now = *u.lvl, then = 0;
+        for (const UpgradeRef& v : upgrades(s)) if (std::string(v.name) == u.name) then = *v.lvl;
+        if (then > now) levels += (levels.empty() ? "" : ", ") + std::string(u.name) + " " + std::to_string(now) + "->" + std::to_string(then);
+    }
+    if (!levels.empty()) out() << paint(Style::Muted, "  Levels by then: " + levels + "; income " + perSecond(f.rate()) + "/s.") << "\n";
+}
+
 // predict when <condition>: the first moment it holds, if you change nothing.
 void predictWhen(GameState& g, const std::string& text) {
     TaskCheck c;
     auto prog = compileCondition(text, c);
-    if (!prog) {
-        out() << "  " << text << "\n";
-        if (c.pos >= 0) out() << "  " << std::string((size_t)c.pos, ' ') << paint(Style::Bad, std::string((size_t)std::max(1, c.len), '^')) << "\n";
-        out() << paint(Style::Warn, "  " + c.error) << "\n";
-        return;
-    }
+    if (!prog) { printMistake(text, c); return; }
     std::vector<std::string> values = conditionValues(*prog);
     if (std::find(values.begin(), values.end(), "price") != values.end()) {
         out() << "The shard price is random: there's no telling when it gets there. (Try a task: when price < ... do notify \"...\")\n";
@@ -110,7 +134,26 @@ void predictWhen(GameState& g, const std::string& text) {
     GameState work = g;   // copied once; projectInto rewrites what moves
     auto holds = [&](long long t) { projectInto(g, pr, t, work); return conditionHolds(*prog, work); };
     if (holds(0)) { out() << paint(Style::Good, "Already true.") << "\n"; return; }
-    bool moves = std::any_of(values.begin(), values.end(), [](const std::string& v) { return movesWithTime(v); });
+    bool automated = automationOn(g);
+    bool moves = automated || std::any_of(values.begin(), values.end(), [](const std::string& v) { return movesWithTime(v); });
+    if (automated) {   // tasks and the Auto-Buyer: played forward a second at a time, checked every second
+        Forecast f(g);
+        long long found = -1;
+        while (f.seconds() < WHEN_HORIZON) {
+            f.step();
+            if (conditionHolds(*prog, f.state())) { found = f.seconds(); break; }
+        }
+        if (found < 0) {
+            out() << "Not within 30 days, with your tasks and Auto-Buyer doing what they do.";
+            if (f.rate() <= 0) out() << " You're not earning anything right now.";
+            out() << "\n";
+            return;
+        }
+        out() << "In about " << paint(Style::Event, span(found)) << " (" << clockIn(found) << ", if the game stays open).\n";
+        automationSummary(g, f, found);
+        out() << paint(Style::Muted, "  (With your tasks and the Auto-Buyer running as they would; no events, contracts, disasters or offers.)") << "\n";
+        return;
+    }
     if (!moves) {
         out() << "Never by itself: " << (values.empty() ? std::string("it doesn't read anything that changes") : "nothing it reads changes unless you act") << ".\n";
         return;
@@ -139,11 +182,7 @@ void predictWhen(GameState& g, const std::string& text) {
         (holds(mid) ? hi : lo) = mid;
     }
     out() << "In about " << paint(Style::Event, span(hi)) << " (" << clockIn(hi) << ", if the game stays open).\n";
-    std::string assumes = "  (If you change nothing: no purchases, events, contracts or disasters";
-    bool spending = (g.autoUnlocked && g.autoOn) || std::any_of(g.tasks.begin(), g.tasks.end(), [](const Task& tk) { return tk.on; });
-    bool readsTokens = std::find(values.begin(), values.end(), "tokens") != values.end();
-    if (spending && readsTokens) assumes += ". Your Auto-Buyer or tasks spend as you go, so it may come later";
-    out() << paint(Style::Muted, assumes + ".)") << "\n";
+    out() << paint(Style::Muted, "  (If you change nothing: no purchases, events, contracts or disasters.)") << "\n";
 }
 
 void usage() {
@@ -175,8 +214,12 @@ void doPredict(Shared& s, const std::string& args) {
         std::string rest = trim(args);
         rest = trim(rest.substr(std::min(rest.size(), (size_t)4)));
         if (rest.empty()) { out() << "Predict when what? Like: predict when tokens > 20t\n"; return; }
-        std::lock_guard lk(s.m);
-        predictWhen(s.g, rest);
+        GameState g;
+        {
+            std::lock_guard lk(s.m);   // a copy: playing it forward takes a moment, and the game goes on meanwhile
+            g = s.g;
+        }
+        predictWhen(g, rest);
         return;
     }
     if (what.empty() || amount.empty()) { usage(); return; }
@@ -184,8 +227,11 @@ void doPredict(Shared& s, const std::string& args) {
         what != "mines" && what != "paydays" && what != "events" && what != "disasters")
         what.pop_back();   // "pickaxes" -> "pickaxe"
 
-    std::lock_guard lk(s.m);
-    GameState& g = s.g;
+    GameState g;
+    {
+        std::lock_guard lk(s.m);   // a copy, as above
+        g = s.g;
+    }
     auto needTime = [&](long long& secs) {
         secs = parseTime(amount);
         if (secs <= 0) out() << "'" << amount << "' isn't a time: try 1h, 30min or 2h30m.\n";
@@ -205,6 +251,14 @@ void doPredict(Shared& s, const std::string& args) {
         for (int i = 0; i < SOURCE_COUNT; ++i)
             if (by[(size_t)i] > 0) split += (split.empty() ? "" : ", ") + std::string(sourceName((Source)i)) + " +" + tokensText(by[(size_t)i] * (double)t);
         if (!split.empty()) out() << paint(Style::Muted, "  At this minute's pace: " + split + ".") << "\n";
+        if (automationOn(g)) {
+            Forecast f(g);
+            f.runTo(std::min(t, WHEN_HORIZON));
+            long long left = f.state().tokens;
+            out() << "With your tasks and the Auto-Buyer spending as they go: about " << paint(Style::Tokens, tokensText((double)left)) << " left"
+                  << (t > WHEN_HORIZON ? " (after 30 days; it doesn't look further)" : "") << ".\n";
+            automationSummary(g, f, f.seconds());
+        }
         out() << paint(Style::Muted, "  (An average: events, contracts, disasters and what you buy change it.)") << "\n";
         return;
     }
@@ -221,6 +275,13 @@ void doPredict(Shared& s, const std::string& args) {
         if (penny > 0) out() << " (" << countText(penny) << " of them from the Lucky Penny)";
         out() << ", " << paint(Style::Warn, "-" + num((long long)wages)) << " in wages (" << paydays << (paydays == 1 ? " payday" : " paydays") << "): ";
         out() << paint(net >= 0 ? Style::Good : Style::Bad, (net >= 0 ? "+" : "") + countText(net)) << " net, so about " << num(std::max(0LL, after.shards)) << ".\n";
+        if (automationOn(g)) {
+            Forecast f(g);
+            f.runTo(std::min(t, WHEN_HORIZON));
+            out() << "With your tasks running (they can buy, sell and spend shards): about " << paint(Style::Shards, num(std::max(0LL, f.state().shards)))
+                  << (t > WHEN_HORIZON ? " (after 30 days; it doesn't look further)" : "") << ".\n";
+            automationSummary(g, f, f.seconds());
+        }
         out() << paint(Style::Muted, "  (Scouts at their odds once they're home, what expeditions typically bring back; not contracts, the market or secret goals.)") << "\n";
         return;
     }
@@ -308,4 +369,43 @@ void doPredict(Shared& s, const std::string& args) {
     }
     out() << "Can't predict '" << what << "'.\n";
     usage();
+}
+
+// eval <expression>: the Tasks language (and predict's values), worked out right now.
+void doEval(Shared& s, const std::string& args) {
+    std::string text = trim(args);
+    if (text.empty()) {
+        out() << "Eval what? Like: eval tokens / income, eval cost.pickaxe * 10, eval shards >= 5k and heat < 3\n";
+        return;
+    }
+    TaskCheck c;
+    char kind = 'a';
+    auto prog = compileExpression(text, c, kind);
+    if (!prog) { printMistake(text, c); return; }
+    double v;
+    {
+        std::lock_guard lk(s.m);
+        v = expressionValue(*prog, s.g);
+    }
+    std::string shown;
+    if (kind == 'b') {
+        shown = paint(v != 0 ? Style::Good : Style::Bad, v != 0 ? "true" : "false");
+    } else if (kind == 't') {
+        long long secs = std::llround(v);
+        shown = paint(Style::Event, (secs < 0 ? "-" : "") + span(std::llabs(secs))) + paint(Style::Muted, "  (" + num(secs) + "s)");
+    } else if (!std::isfinite(v)) {
+        shown = paint(Style::Warn, "too big to say");
+    } else if (std::abs(v) >= 1e15) {
+        shown = paint(Style::Tokens, (v < 0 ? "-" : "") + compact((long long)std::min(9.0e18, std::abs(v))));
+    } else if (std::abs(v - std::round(v)) < 1e-9 || std::abs(v) >= 1000) {
+        long long whole = std::llround(v);
+        shown = paint(Style::Tokens, num(whole));
+        if (std::llabs(whole) >= 10'000) shown += paint(Style::Muted, "  (" + std::string(whole < 0 ? "-" : "") + compact(std::llabs(whole)) + ")");
+    } else {
+        std::string d = fixed(v, std::abs(v) >= 10 ? 2 : 4);
+        while (d.size() > 1 && d.back() == '0') d.pop_back();
+        if (!d.empty() && d.back() == '.') d.pop_back();
+        shown = paint(Style::Tokens, d);
+    }
+    out() << "= " << shown << "\n";
 }

@@ -421,6 +421,17 @@ const std::vector<CommandInfo>& commands() {
           {"predict when tokens > 20t", "how long until 20T"}, {"predict when tokens > 5 * cost.pickaxe", "when 5 Pickaxe levels are affordable"},
           {"predict when jackpots >= 10k", "at your mining pace"}},
          {"status", "stats", "shop"}, -1, PROGRESS},
+        {Cmd::Eval, {"eval", "calc"}, "eval <expression>", "Work something out from your numbers right now ('eval tokens / income')",
+         {"Any expression in the Tasks language (see 'help task' for the values), worked out right now: arithmetic "
+          "(+ - * / and brackets), comparisons (< <= > >= = !=) and and / or / not. It can read every value a task can "
+          "(tokens, shards, income, price, heat, level.pickaxe, cost.bot, crew, payday...) and predict's three extra ones "
+          "(earned, mines, jackpots).",
+          "Numbers can be written 5k, 2M, 1.5B, 3T, and times 30s, 5m, 1h30m. A comparison says true or false; a time "
+          "comes out as a time (eval payday); anything else as a number."},
+         {{"eval tokens / income", "seconds of income you're holding"}, {"eval cost.pickaxe * 10", "about what 10 more levels cost"},
+          {"eval shards - wages", "shards left after the next payday"}, {"eval payday + 5m", "a time"},
+          {"eval tokens >= 5 * cost.pickaxe and heat < 3", "true or false"}},
+         {"predict", "task"}, -1, PROGRESS},
         {Cmd::Log, {"log"}, "log [n] [good|bad|warn|event|info]", "Earlier background messages, optionally filtered",
          {"Background news (the bot's reports, events, payday, audits, offers...) prints before each prompt. This "
           "shows it again. The game keeps the last 400 messages of this session.",

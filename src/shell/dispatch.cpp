@@ -75,6 +75,7 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         case Cmd::Task:      doTask(s, rest); break;
         case Cmd::Pay:       doPay(s, rest); break;
         case Cmd::Predict:   doPredict(s, rest); break;
+        case Cmd::Eval:      doEval(s, rest); break;
         case Cmd::Borrow:    doBorrow(s, rest); break;
         case Cmd::Yes:       doAnswer(s, rng, true); break;
         case Cmd::No:        doAnswer(s, rng, false); break;

@@ -230,6 +230,16 @@ void resetGame(GameState& g, std::time_t t) {
     g.lastUpdate = t;
 }
 
+const char* autoBuyOnce(GameState& g, long long& cost) {
+    auto ups = upgrades(g);
+    auto cheapest = std::min_element(ups.begin(), ups.end(), [](const UpgradeRef& a, const UpgradeRef& b) { return a.cost < b.cost; });
+    if (g.tokens < cheapest->cost * AUTOBUY_RESERVE) return nullptr;
+    cost = cheapest->cost;
+    g.tokens -= cost;
+    *cheapest->lvl += 1;
+    return cheapest->name;
+}
+
 bool aliasNameOk(const std::string& name) {
     if (name.empty() || name.size() > ALIAS_NAME_MAX) return false;
     for (char c : name)

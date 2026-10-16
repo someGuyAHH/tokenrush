@@ -91,6 +91,22 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     shards (Scouts at their odds once home, expedition loot on return, the Lucky Penny, minus each
     payday's wages), heat's cooling schedule, the payday clock, crew coming home, mines and
     jackpots at your pace. Nothing gets bought; no events, contracts or disasters.
+  - **With tasks or the Auto-Buyer on** (`automationOn`), `predict tokens`, `predict shards` and
+    `predict when` use a **Forecast** instead (`core/projection.cpp`): the same rates, applied a
+    second at a time, with the real `tasksTick` and the Auto-Buyer's purchase (`autoBuyOnce`, every
+    5 s) running on the future state: fees, budgets, `when`/`while`/`every` and all. What they buy
+    rescales the income source by source (mining by hand by `expectedMine`, Drones by
+    `passiveRatePerSec`, the Bot by `botRatePerSec`, crew Miners by their share), so Pickaxe levels
+    do nothing for someone who doesn't mine by hand; tasks read `income` scaled the same way.
+    Scouts, the Penny, expedition loot (crew a task sends come back with it) and paydays as above.
+    It answers with what's left, plus each task's runs and fees, the Auto-Buyer's buys and the
+    levels by then. `predict when` checks the condition every simulated second, up to 30 days
+    (about 15 ms of work per simulated day). Nothing on: the closed form, which it matches exactly.
+  - `predict` works on a copy of the state, so the game doesn't wait while it thinks.
+- **Eval** (`eval`/`calc <expression>`, `shell/predict.cpp`; `compileExpression` in
+  `core/tasks.cpp`): any expression in the Tasks language with predict's extra values, worked out
+  now. A comparison or and/or/not prints true/false, a time prints as a time (`8m 17s (497s)`),
+  anything else as a number with separators (and short form from 10,000). Mistakes get the caret.
 - **Aliases** (`shell/aliases.cpp`): `alias <command...> <name>`: the last word is the name,
   everything before it is what it runs (case kept); `runCommand` swaps a typed alias for its
   command and puts whatever followed on the end, and shows the line it ran. `alias` lists them,

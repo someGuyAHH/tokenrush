@@ -93,7 +93,13 @@ take, and what they pay; `predict jackpots 10min` does it at your mining pace), 
 off). `predict` alone lists them. The other way round, `predict when <condition>` says how long
 until something is true, and at what time: `predict when tokens > 20t`, `predict when shards > 100k`,
 `predict when tokens > 5 * cost.pickaxe`. Conditions are written like a task's (plus `earned`,
-`mines` and `jackpots`); the random price is refused.
+`mines` and `jackpots`); the random price is refused. With tasks or the Auto-Buyer on, `predict
+tokens`, `predict shards` and `predict when` play the game forward a second at a time with them
+running (fees, what they buy, and what that does to your income) and say what they did.
+
+**Eval:** `eval <expression>` works anything out from your numbers right now, in the same
+language: `eval tokens / income`, `eval cost.pickaxe * 10`, `eval payday + 5m` (a time), `eval
+shards >= 5k and heat < 3` (true or false).
 
 **Themes** open with the Market (they're bought with shards), on their own **Themes** tab next
 to it. `theme` lists them, each with a preview line in its own colors. Classic (your

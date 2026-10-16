@@ -94,16 +94,13 @@ static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
 }
 
 static void autoBuy(GameState& g, MessageLog& log) {
-    auto ups = upgrades(g);
-    auto cheapest = std::min_element(ups.begin(), ups.end(),
-        [](const UpgradeRef& a, const UpgradeRef& b) { return a.cost < b.cost; });
-
-    if (g.tokens < cheapest->cost * AUTOBUY_RESERVE) return;
-
-    g.tokens -= cheapest->cost;
-    *cheapest->lvl += 1;
-    log.push(Sev::Info, std::string("Auto-Buyer bought ") + cheapest->name + " -> lvl " +
-                        std::to_string(*cheapest->lvl) + " (cost " + num(cheapest->cost) + ")");
+    long long cost = 0;
+    const char* name = autoBuyOnce(g, cost);
+    if (!name) return;
+    int level = 0;
+    for (const UpgradeRef& u : upgrades(g))
+        if (u.name == std::string(name)) level = *u.lvl;
+    log.push(Sev::Info, std::string("Auto-Buyer bought ") + name + " -> lvl " + std::to_string(level) + " (cost " + num(cost) + ")");
 }
 
 void automationTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng, AutomationClocks& c) {
