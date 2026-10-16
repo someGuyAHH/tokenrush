@@ -218,8 +218,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   what one more level adds to your income (`incomeEstimate` before and after); late in the game
   a Magnet level is often worth more than a Pickaxe level.
 - **Night Shift:** mining by hand pays ×0.75 (`handMult`).
-- **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown; typing `mine` in the Console has
-  none (typing is the limit).
+- **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown, and the core allows 4 mines by hand
+  a second however they're done (`MINES_PER_SECOND`, with a slack of 5): the Console's `mine` too
+  ("Too fast"), so typing or a macro can't beat holding `m`.
 
 ## Upgrades (`core/game.cpp`), Shop tab / `shop`
 - **Costs:**
@@ -232,7 +233,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Mining Bot | 400·(lvl+1)² | auto-mines every max(2, 10 − lvl) s |
 
   Rust doubles all of these. Levels are capped at 1,000,000.
-- **Milestones** (`milestoneMult`): Drones and the Mining Bot double everything they make at 100,
+- **Milestones** (`milestoneMult`): Drones and the Mining Bot double their own output (a Drone's
+  0.5/s, the Bot's own mining) at 100,
   250, 500, 1,000, 2,500, 5,000, 10,000... levels (1, 2.5 and 5 of each power of ten): ×64 at 5,000,
   ×128 at 10,000. Without them a late level of either took hours to pay for itself (its price grows
   with the square of the level while it adds a fixed amount); with them, minutes. The Pickaxe and
@@ -570,7 +572,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Gearwork | 35,000 | crew level cap 8 |
   | The Sun | 80,000 | the Clockwork Sky goal, and the Constellations |
 
-- **Resonance:**
+- **Resonance:** (milestones never double it: doubling it too made income grow faster than it
+  could be spent, and a fast player hit the 10^18 cap within 2 hours of a new profile)
   - Each Drone level also earns 0.3% of an expected manual mine per second.
   - The Mining Bot rolls bonuses and jackpots like a manual mine, at a power of 0.10 + 0.005 × Bot level.
 - **Building it:** `orrery all` / Add all keep back the crew's next payday.

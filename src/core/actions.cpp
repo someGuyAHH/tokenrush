@@ -13,10 +13,15 @@
 
 // ----- Mining -----
 MineResult mine(GameState& g, std::time_t t, std::mt19937& rng) {
+    MineResult r;
+    g.mineBudget = std::min(MINE_BURST, g.mineBudget + MINES_PER_SECOND * (double)std::max<std::time_t>(0, t - g.mineBudgetAt));
+    g.mineBudgetAt = t;
+    if (g.mineBudget < 1.0) { r.tooFast = true; return r; }
+    g.mineBudget -= 1.0;
+
     normalizeStreak(g, t);
     EventFx fx = fxNow(g, t);
 
-    MineResult r;
     r.base = baseYield(g);
     std::uniform_int_distribution<int> extra(0, r.base);
     int raw = r.base + extra(rng);

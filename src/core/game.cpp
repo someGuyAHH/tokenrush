@@ -128,11 +128,11 @@ const char* sourceName(Source src) {
 double resonantBotPower(const GameState& g) { return RESONANCE_BOT + RESONANCE_BOT_LVL * g.bot; }
 
 double passiveRatePerSec(const GameState& g) {
-    double perDrone = 0.5;
-    if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);
+    double perDrone = 0.5 * milestoneMult(g.drone);   // milestones double a Drone's own 0.5/s...
+    if (hasResonance(g)) perDrone += RESONANCE_DRONE * expectedMine(g);   // ...not Resonance's share of a mine
     if (g.machinesPaused > 0) return 0.0;                       // breakers pulled
     int working = std::max(0, g.drone - g.dronesDown);           // some may be burnt out by a surge
-    return perDrone * (double)working * milestoneMult(g.drone) * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0) * humBoost(g);
+    return perDrone * (double)working * (gadgetOn(g, Gadget::LavaCore) ? 1.5 : 1.0) * humBoost(g);
 }
 
 double botRatePerSec(const GameState& g) {
@@ -142,11 +142,11 @@ double botRatePerSec(const GameState& g) {
 
 double botRateIfRunning(const GameState& g) {
     if (g.bot <= 0) return 0.0;
-    double m = milestoneMult(g.bot);
-    if (hasResonance(g)) return expectedMine(g) * resonantBotPower(g) / botIntervalOf(g) * humBoost(g) * m;
     double perMine = baseYield(g) * (0.6 + 0.2 * g.bot);
     double bonus = std::min(0.35, 0.03 + 0.02 * g.magnet) * baseYield(g) * (4.0 + 2.0 * g.magnet);
-    return (perMine + bonus) / botIntervalOf(g) * humBoost(g) * m;
+    double swing = (perMine + bonus) * milestoneMult(g.bot);   // its own mining, doubled by milestones
+    if (hasResonance(g)) swing += expectedMine(g) * resonantBotPower(g);   // Resonance's swing on top, never doubled
+    return swing / botIntervalOf(g) * humBoost(g);
 }
 
 double expectedMine(const GameState& g) {

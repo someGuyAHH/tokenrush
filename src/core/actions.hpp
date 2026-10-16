@@ -17,7 +17,12 @@ struct MineResult {
     bool jackpot = false;
     bool bonus = false;
     bool meteor = false;   // Meteor Shower doubled it
+    bool tooFast = false;  // refused: over MINES_PER_SECOND (nothing happened)
 };
+// Mining by hand is limited to MINES_PER_SECOND however it's done (the button, the m key, the
+// Console's 'mine'), with a little slack (MINE_BURST) so a steady 4 a second never trips it.
+inline constexpr double MINES_PER_SECOND = 4.0;
+inline constexpr double MINE_BURST = 5.0;
 MineResult mine(GameState& g, std::time_t t, std::mt19937& rng);
 
 // ----- Shop -----

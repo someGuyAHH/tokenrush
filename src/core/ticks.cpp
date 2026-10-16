@@ -64,12 +64,21 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
 
 static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
     EventFx fx = fxNow(g, t);
-    std::uniform_real_distribution<double> roll(0.0, 1.0);
+    std::uniform_real_distribution<double> uni(0.0, 1.0);
+
+    // Its own mining, which milestones double.
+    double gain = baseYield(g) * (0.6 + 0.2 * g.bot);
+    double raw = 0.03 + 0.02 * g.magnet;
+    double ownBonusP = std::min(0.35, raw * fx.odds);
+    double boost = fx.odds * std::min(0.35, raw) / std::max(1e-9, ownBonusP);   // Gold Rush past the cap pays more instead
+    if (uni(rng) < ownBonusP) gain += baseYield(g) * (4.0 + 2.0 * g.magnet) * boost;
+    gain *= milestoneMult(g.bot);
 
     if (hasResonance(g)) {
-        // Resonance: the bot rolls bonuses and jackpots exactly like a manual mine, scaled down.
+        // Resonance: on top, the bot rolls bonuses and jackpots exactly like a manual mine, scaled
+        // down. Milestones leave this part alone: it already grows with the Pickaxe and the Magnet.
         double base = baseYield(g);
-        double r = roll(rng);
+        double r = uni(rng);
         double jackpotP = jackpotChance(g, fx.odds);
         double bonusP   = bonusChance(g, fx.odds);
         double swing = base * 1.5;
@@ -79,18 +88,9 @@ static long long botMine(GameState& g, std::time_t t, std::mt19937& rng) {
         } else if (r < jackpotP + bonusP) {
             swing += base * bonusSize(g) * bonusBoost(g, fx.odds);
         }
-        return toTokens(swing * resonantBotPower(g) * fx.mining * humBoost(g) * milestoneMult(g.bot));
+        gain += swing * resonantBotPower(g);
     }
-
-    double gain = baseYield(g) * (0.6 + 0.2 * g.bot);
-
-    std::uniform_real_distribution<double> uni(0.0, 1.0);
-    double raw = 0.03 + 0.02 * g.magnet;
-    double bonusChance = std::min(0.35, raw * fx.odds);
-    double boost = fx.odds * std::min(0.35, raw) / std::max(1e-9, bonusChance);   // Gold Rush past the cap pays more instead
-    if (uni(rng) < bonusChance) gain += baseYield(g) * (4.0 + 2.0 * g.magnet) * boost;
-
-    return toTokens(gain * fx.mining * humBoost(g) * milestoneMult(g.bot));
+    return toTokens(gain * fx.mining * humBoost(g));
 }
 
 static void autoBuy(GameState& g, MessageLog& log) {

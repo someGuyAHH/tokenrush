@@ -49,7 +49,9 @@ void Ui::mineNow() {
     mineReadyAt = now + MINE_COOLDOWN;
     {
         std::lock_guard lk(s.m);
-        lastMine = mine(s.g, nowSec(), rng);
+        MineResult r = mine(s.g, nowSec(), rng);
+        if (r.tooFast) return;   // the core's own limit (the Console's 'mine' shares it)
+        lastMine = r;
         checkContract(s.g, s.log);
         checkDisaster(s.g, s.log);
         checkRace(s.g, s.log);
