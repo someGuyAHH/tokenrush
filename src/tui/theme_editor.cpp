@@ -1,4 +1,4 @@
-// The custom theme's editor, opened from the Shop: every color by role (pick one on the left),
+// The custom theme's editor, opened from the Themes tab: every color by role (pick one on the left),
 // nudged channel by channel or typed as a hex code, with a fixed scene on the right that uses
 // every color. While it's open the whole screen is drawn in the custom theme, so every change
 // shows everywhere at once. Changes are saved as they're made.
@@ -78,7 +78,7 @@ Component ThemeEditor(Ui& ui) {
         ui.run([h, c](GameState& g) { setCustomColor(g, h, c); return Notes{}; });   // quiet: the screen shows it
     };
 
-    Component done = Btn("Done", [&ui] { ui.shopMode = 0; });
+    Component done = Btn("Done", [&ui] { ui.themeMode = 0; });
 
     // Start over from a theme you own: two clicks, since it replaces every color.
     Components bases;
@@ -139,7 +139,7 @@ Component ThemeEditor(Ui& ui) {
                                          Container::Horizontal({roleList, controls})});
 
     return Renderer(all, [=, &ui] {
-        ui.previewTheme = CUSTOM_THEME;   // the whole screen, while you're here (the Shop's own renderer isn't running)
+        ui.previewTheme = CUSTOM_THEME;   // the whole screen, while you're here (the theme list's own renderer isn't running)
         const GameState& g = ui.snap;
         int h = std::clamp(ui.themeRole, 0, HUE_COUNT - 1);
         Rgb c = g.customTheme[(size_t)h];

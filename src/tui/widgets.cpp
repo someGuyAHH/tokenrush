@@ -28,7 +28,7 @@ void Ui::snapshot() {
         snapTime = nowSec();
     }
     setCustomPalette(snap.customTheme);   // this profile's custom theme, for whoever draws it
-    useTheme(previewTheme >= 0 ? previewTheme : snap.themeSel);   // a theme being previewed in the Shop wins
+    useTheme(previewTheme >= 0 ? previewTheme : snap.themeSel);   // a theme being previewed on the Themes tab wins
     setTheme(snap.themeSel);   // the Console tab prints through the shell, which keeps its own copy (never a preview)
 }
 

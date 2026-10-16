@@ -308,7 +308,7 @@ static_assert(std::size(STRAINS) == STRAIN_COUNT);
 const FeatureInfo FEATURES[] = {
     {"Curios",       "curios",    1, "collectibles for your shelf"},                       // Prospector
     {"the Monolith", "monolith",  2, "a big build that soaks up tokens"},                  // Hustler
-    {"the Market",   "market",    3, "shards, a second currency you trade tokens for"},    // Baron
+    {"the Market",   "market",    3, "shards, a second currency you trade tokens for, and themes"},   // Baron
     {"Contracts",    "contracts", 4, "timed jobs that pay tokens and shards"},             // Magnate
     {"the Crew",     "crew",      5, "hires who mine, trade, scout and handle heat"},      // Legend
     {"the Orrery",   "orrery",    6, "the late-game build, made of shards"},               // Monolith-Maker

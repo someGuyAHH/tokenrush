@@ -156,52 +156,11 @@ Component ShopPage(Ui& ui) {
         },
         [&ui] { return ui.snap.autoUnlocked || ui.snap.tokens >= AUTOBUY_LICENSE_COST; });
 
-    // Themes: Buy, Use, or In use. The row itself is a preview in that theme's colors.
-    // The last one is the custom theme: bought once (it starts as a copy of the one in use), then edited.
-    Components themeBtns;
-    auto costOf = [](int i) { return i == CUSTOM_THEME ? CUSTOM_THEME_COST : THEMES[i].cost; };
-    for (int i = 0; i < THEME_CHOICES; ++i) {
-        themeBtns.push_back(Btn(
-            [&ui, i, costOf] {
-                if (i == ui.snap.themeSel) return std::string("In use");
-                if (themeOwned(ui.snap, i)) return std::string("  Use ");
-                return "Buy " + num(costOf(i)) + " sh";
-            },
-            [&ui, i] { ui.run([i](GameState& g) { return chooseTheme(g, i); }); },
-            [&ui, i, costOf] { return i != ui.snap.themeSel && (themeOwned(ui.snap, i) || ui.snap.shards >= costOf(i)); }));
-    }
-    Component editBtn = Maybe(FlatBtn([] { return std::string("edit its colors"); }, [&ui] { ui.shopMode = 1; }),
-                              [&ui] { return ui.snap.customThemeOwned; });
-
     Components all = rowsOfButtons;
     all.push_back(license);
-    for (int i = 0; i < THEME_COUNT; ++i) all.push_back(themeBtns[(size_t)i]);
-    all.push_back(Container::Horizontal({themeBtns[CUSTOM_THEME], editBtn}));
     Component box = Grid(all);
 
-    // Previews: the mouse over a theme's row (anywhere on it), or the keyboard on its button,
-    // shows the whole screen in that theme until it moves away. Nothing is bought or switched.
-    // (The custom theme only once you have it: before that it has no colors of its own.)
-    auto rowBoxes = std::make_shared<std::array<Box, THEME_CHOICES>>();
-    auto previewOf = [&ui, themeBtns, editBtn] {
-        if (ui.shopMode == 1) return CUSTOM_THEME;   // the editor shows its colors everywhere
-        int at = ui.hoverTheme;
-        for (int i = 0; i < THEME_CHOICES && at < 0; ++i)
-            if (themeBtns[(size_t)i]->Focused() || (i == CUSTOM_THEME && editBtn->Focused())) at = i;
-        return at == CUSTOM_THEME && !ui.snap.customThemeOwned ? -1 : at;
-    };
-    box = CatchEvent(box, [&ui, rowBoxes, previewOf](Event e) {
-        if (e.is_mouse()) {
-            ui.hoverTheme = -1;
-            for (int i = 0; i < THEME_CHOICES; ++i)
-                if ((*rowBoxes)[(size_t)i].Contain(e.mouse().x, e.mouse().y)) ui.hoverTheme = i;
-        }
-        ui.previewTheme = previewOf();   // right away, so the next frame already shows it
-        return false;                    // the buttons still get the event
-    });
-
-    Component shop = Renderer(box, [&ui, buys, license, themeBtns, editBtn, rowBoxes, previewOf] {
-        ui.previewTheme = previewOf();   // the keyboard may have moved without an event reaching us
+    return Renderer(box, [&ui, buys, license] {
         GameState g = ui.snap;   // upgrades() wants a non-const state
         auto ups = upgrades(g);
         // What each one does at your level, and what one more level adds to your income.
@@ -234,13 +193,66 @@ Component ShopPage(Ui& ui) {
                             std::to_string(AUTOBUY_RESERVE) + "x its cost."));
         if (g.bot > 0) rows.push_back(note("Mining Bot mines every " + std::to_string(botIntervalOf(g)) + "s."));
 
-        rows.push_back(text(""));
+        return vbox(rows) | yframe;
+    });
+}
+
+// ----- Themes -----
+Component ThemesPage(Ui& ui) {
+    // Themes: Buy, Use, or In use. The row itself is a preview in that theme's colors.
+    // The last one is the custom theme: bought once (it starts as a copy of the one in use), then edited.
+    Components themeBtns;
+    auto costOf = [](int i) { return i == CUSTOM_THEME ? CUSTOM_THEME_COST : THEMES[i].cost; };
+    for (int i = 0; i < THEME_CHOICES; ++i) {
+        themeBtns.push_back(Btn(
+            [&ui, i, costOf] {
+                if (i == ui.snap.themeSel) return std::string("In use");
+                if (themeOwned(ui.snap, i)) return std::string("  Use ");
+                return "Buy " + num(costOf(i)) + " sh";
+            },
+            [&ui, i] { ui.run([i](GameState& g) { return chooseTheme(g, i); }); },
+            [&ui, i, costOf] { return i != ui.snap.themeSel && (themeOwned(ui.snap, i) || ui.snap.shards >= costOf(i)); }));
+    }
+    Component editBtn = Maybe(FlatBtn([] { return std::string("edit its colors"); }, [&ui] { ui.themeMode = 1; }),
+                              [&ui] { return ui.snap.customThemeOwned; });
+
+    Components all;
+    for (int i = 0; i < THEME_COUNT; ++i) all.push_back(themeBtns[(size_t)i]);
+    all.push_back(Container::Horizontal({themeBtns[CUSTOM_THEME], editBtn}));
+    Component box = Grid(all);
+
+    // Previews: the mouse over a theme's row (anywhere on it), or the keyboard on its button,
+    // shows the whole screen in that theme until it moves away. Nothing is bought or switched.
+    // (The custom theme only once you have it: before that it has no colors of its own.)
+    auto rowBoxes = std::make_shared<std::array<Box, THEME_CHOICES>>();
+    auto previewOf = [&ui, themeBtns, editBtn] {
+        if (ui.themeMode == 1) return CUSTOM_THEME;   // the editor shows its colors everywhere
+        int at = ui.hoverTheme;
+        for (int i = 0; i < THEME_CHOICES && at < 0; ++i)
+            if (themeBtns[(size_t)i]->Focused() || (i == CUSTOM_THEME && editBtn->Focused())) at = i;
+        return at == CUSTOM_THEME && !ui.snap.customThemeOwned ? -1 : at;
+    };
+    box = CatchEvent(box, [&ui, rowBoxes, previewOf](Event e) {
+        if (e.is_mouse()) {
+            ui.hoverTheme = -1;
+            for (int i = 0; i < THEME_CHOICES; ++i)
+                if ((*rowBoxes)[(size_t)i].Contain(e.mouse().x, e.mouse().y)) ui.hoverTheme = i;
+        }
+        ui.previewTheme = previewOf();   // right away, so the next frame already shows it
+        return false;                    // the buttons still get the event
+    });
+
+    Component list = Renderer(box, [&ui, themeBtns, editBtn, rowBoxes, previewOf] {
+        ui.previewTheme = previewOf();   // the keyboard may have moved without an event reaching us
+        const GameState& g = ui.snap;
+        Elements rows;
         int shown = ui.previewTheme;
         Element hint = shown >= 0 && shown != g.themeSel
             ? text("   previewing " + std::string(themeName(shown)) + ": move away to go back" +
                    (themeOwned(g, shown) ? "" : ", or buy it to keep it")) | color(hue(Hue::Accent))
             : text("   bought with shards, kept by this profile; hover one to preview it") | muted();
         rows.push_back(hbox({heading("Themes"), hint}));
+        rows.push_back(text(""));
         for (int i = 0; i < THEME_CHOICES; ++i) {
             bool custom = i == CUSTOM_THEME;
             Element look = custom && !g.customThemeOwned ? text(" every color picked by hand, starting from a theme you own ") | muted()
@@ -253,7 +265,7 @@ Component ShopPage(Ui& ui) {
         }
         return vbox(rows) | yframe;
     });
-    return Container::Tab({shop, ThemeEditor(ui)}, &ui.shopMode);
+    return Container::Tab({list, ThemeEditor(ui)}, &ui.themeMode);
 }
 
 // ----- Market -----

@@ -215,7 +215,7 @@ Notes buyCustomTheme(GameState& g, int base) {
     g.customThemeOwned = true;
     g.customTheme = paletteOf(g, base);
     g.themeSel = CUSTOM_THEME;
-    return {{Sev::Good, std::string("Bought the custom theme, starting as a copy of ") + THEMES[base].name + ". Edit its colors in the Shop, or with 'theme custom'."}};
+    return {{Sev::Good, std::string("Bought the custom theme, starting as a copy of ") + THEMES[base].name + ". Edit its colors on the Themes tab, or with 'theme custom'."}};
 }
 
 Notes setCustomColor(GameState& g, Hue h, Rgb c) {

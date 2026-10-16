@@ -61,12 +61,12 @@ struct Ui {
     // Crew tab: which expedition the Send buttons start
     int expeditionTrip = 0;
 
-    // Shop tab: the theme being previewed (the mouse over its row, or the keyboard on its button),
+    // Themes tab: the theme being previewed (the mouse over its row, or the keyboard on its button),
     // drawn over the whole screen instead of the profile's own; -1 = none
     int previewTheme = -1;
     int hoverTheme = -1;
-    // ...and its custom theme editor (shopMode 1)
-    int shopMode = 0;
+    // ...and its custom theme editor (themeMode 1)
+    int themeMode = 0;
     int themeRole = 0;         // the color being edited (a Hue)
     std::string themeHex;      // the hex box
     int themeHexCursor = 0;
@@ -163,6 +163,7 @@ std::string pickProfile(Profiles& profiles);   // the chosen profile's name, or 
 // ----- pages.cpp -----
 ftxui::Component MinePage(Ui& ui);
 ftxui::Component ShopPage(Ui& ui);
+ftxui::Component ThemesPage(Ui& ui);   // opens with the Market: themes are bought with shards
 ftxui::Component MarketPage(Ui& ui);
 ftxui::Component JobsPage(Ui& ui);
 ftxui::Component CrewPage(Ui& ui);
@@ -172,7 +173,7 @@ ftxui::Component OrreryPage(Ui& ui);
 ftxui::Component WorkshopPage(Ui& ui);
 ftxui::Component StarsPage(Ui& ui);
 ftxui::Component TasksPage(Ui& ui);   // tasks_page.cpp
-ftxui::Component ThemeEditor(Ui& ui); // theme_editor.cpp: the custom theme, opened from the Shop
+ftxui::Component ThemeEditor(Ui& ui); // theme_editor.cpp: the custom theme, opened from the Themes tab
 ftxui::Element themeScene(int theme); // a fixed scene using every color of a theme
 ftxui::Component GoalsPage(Ui& ui);
 ftxui::Component StatsPage(Ui& ui);

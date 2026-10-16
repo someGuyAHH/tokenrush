@@ -61,7 +61,7 @@ the picker (its rename button).
 
 
 **TUI keys:** click anything, or `1`-`9` and `0` to switch tabs (Mine, Shop, Goals, Stats, then
-Curios, Monolith, Market, Jobs, Crew, Orrery, Workshop, Stars in unlock order; locked ones
+Curios, Monolith, Market, Themes, Jobs, Crew, Orrery, Workshop, Stars, Tasks in unlock order; locked ones
 aren't shown), `m` to mine, `s` to save, `y`/`n` to answer an offer, `x` to stop a disaster,
 `:` for the Console, `p` to switch profile, `q` or Ctrl+C to quit. Tab, the arrows and Enter move around and press buttons. While a text box
 has the keyboard (the Console, the Market's amount box), keys type into it and Esc steps out.
@@ -95,14 +95,15 @@ until something is true, and at what time: `predict when tokens > 20t`, `predict
 `predict when tokens > 5 * cost.pickaxe`. Conditions are written like a task's (plus `earned`,
 `mines` and `jackpots`); the random price is refused.
 
-**Themes:** `theme` lists them, each with a preview line in its own colors. Classic (your
+**Themes** open with the Market (they're bought with shards), on their own **Themes** tab next
+to it. `theme` lists them, each with a preview line in its own colors. Classic (your
 terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with
-shards; on the Shop tab, hovering a theme previews the whole screen in it. A theme belongs to
+shards; on the Themes tab, hovering a theme previews the whole screen in it. A theme belongs to
 the profile. Every theme but Classic is 24-bit color
 (`ESC[38;2;r;g;bm`), with its own background in the TUI.
 
 **The custom theme** (15,000 shards, once) is yours to color by hand. It starts as a copy of the
-theme you're using; then the Shop's editor lets you change each of its 17 colors (by R/G/B
+theme you're using; then the Themes tab's editor lets you change each of its 17 colors (by R/G/B
 steps or a hex code), shows how readable the text is, and draws a fixed sample scene that uses
 every color, while the whole screen shows your colors as you go. In the Console:
 `theme custom`, `theme custom accent #ff8800`, `theme custom from neon`.

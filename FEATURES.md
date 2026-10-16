@@ -19,8 +19,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   gone; old saves and profiles play exactly as before.
 
 ### TUI layout and keys
-- Tabs, in order: **Mine, Shop, Goals, Stats**, then **Curios, Monolith, Market, Jobs, Crew,
-  Orrery, Workshop, Stars** as they unlock (locked tabs are hidden), then **Console** (always last).
+- Tabs, in order: **Mine, Shop, Goals, Stats**, then **Curios, Monolith, Market, Themes, Jobs,
+  Crew, Orrery, Workshop, Stars, Tasks** as they unlock (locked tabs are hidden), then **Console**
+  (always last). Themes opens with the Market, next to it: themes cost shards, so there's
+  nothing to buy there before.
 - Keys:
   - `1`–`9` and `0`: the first ten visible tabs.
   - `m`: mine.
@@ -270,7 +272,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The styles: `> ` free, `$ ` 500, `>>> ` 1.5K, `~> ` 3K, `[#] ` 7.5K, `<3 ` 15K.
   - The **custom prompt** (`prompt custom <text>`): 1–5 printable characters for 30× the
     priciest style (450,000). Changing the text afterwards is free.
-- **Themes (`THEMES`; `theme` in the Console, or the Shop tab):** kept per profile
+- **Themes (`THEMES`; `theme` in the Console, or the Themes tab; both open with the Market):** kept per profile
   (`[cosmetics] theme`, `themesOwned`). Each is a palette of 17 roles (`Hue`: Text, Muted, Accent,
   Good, Bad, Warn, Event, Tokens, Shards, Heat, Background, Panel, Button, ButtonText, ButtonOff,
   ButtonOffText, Infected).
@@ -287,7 +289,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Classic (`codeFor` in `shell/term.cpp`);
     the theme list shows each one as a swatch line on its own background (`ESC[48;2;...m`).
   - The TUI draws from `hue()`; the Console tab parses the 24-bit codes back (`ansiLine`).
-  - **Previews:** on the Shop tab, the mouse over a theme's row (or the keyboard on its button)
+  - **Previews:** on the Themes tab, the mouse over a theme's row (or the keyboard on its button)
     redraws the whole screen in that theme (`Ui::previewTheme`) until it moves away or you leave
     the tab. Nothing is bought or switched; the Console keeps the real theme.
   - An unknown theme id in a save falls back to Classic instead of rejecting the save.
@@ -297,7 +299,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     - Its colors are the profile's (`[cosmetics] customTheme`, 17 hex codes in `Hue` order). A
       process-wide atomic copy (`setCustomPalette`, refreshed from the snapshot every frame) is
       what the TUI, the terminal backdrop and the Console's painter read, through `themeRgb()`.
-    - **The editor** (Shop → Custom → "edit its colors", `tui/theme_editor.cpp`): the 17 roles on
+    - **The editor** (Themes → Custom → "edit its colors", `tui/theme_editor.cpp`): the 17 roles on
       the left (the keyboard and the selection move together), R/G/B nudges of ±1 and ±16 (a
       Grid, so Up/Down keeps the step) and a hex box (`#ff8800` or `#f80`), how readable the main
       pairs are (contrast ratios: 4.5:1 and up is easy, under 3 is hard), and a fixed scene on

@@ -43,7 +43,8 @@ using namespace std::chrono_literals;
 namespace {
 
 // The tabs, in the order they unlock. A locked tab isn't shown at all, so new ones appear
-// at the end and the number keys of the ones you already have never change.
+// at the end and the number keys of the ones you already have never change. (Themes opens
+// together with the Market, next to it: themes cost shards.)
 struct TabDef {
     const char* name;
     int feature;   // a Feature, or -1 for always there
@@ -51,12 +52,13 @@ struct TabDef {
 const TabDef TABS[] = {
     {"Mine", -1}, {"Shop", -1}, {"Goals", -1}, {"Stats", -1},
     {"Curios", (int)Feature::Curios}, {"Monolith", (int)Feature::Monolith}, {"Market", (int)Feature::Market},
+    {"Themes", (int)Feature::Market},
     {"Jobs", (int)Feature::Contracts}, {"Crew", (int)Feature::Crew}, {"Orrery", (int)Feature::Orrery},
     {"Workshop", (int)Feature::Workshop}, {"Stars", (int)Feature::Stars}, {"Tasks", (int)Feature::Tasks},
     {"Console", -1},   // always last; ':' opens it from anywhere
 };
 constexpr int CONSOLE_PAGE = (int)std::size(TABS) - 1;
-constexpr int SHOP_PAGE = 1;   // where theme previews live
+constexpr int THEMES_PAGE = 7;   // where theme previews live
 
 Element statusBar(const tui::Ui& ui) {
     const GameState& g = ui.snap;
@@ -225,7 +227,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     tabOpt.on_change = [&] { if (ui.tab >= 0 && ui.tab < (int)tabPage.size()) showPage(tabPage[(size_t)ui.tab]); };
     Component tabBar = Menu(&tabNames, &ui.tab, tabOpt);
     Components pageList = {tui::MinePage(ui), tui::ShopPage(ui), tui::GoalsPage(ui), tui::StatsPage(ui), tui::CuriosPage(ui),
-                           tui::MonolithPage(ui), tui::MarketPage(ui), tui::JobsPage(ui), tui::CrewPage(ui),
+                           tui::MonolithPage(ui), tui::MarketPage(ui), tui::ThemesPage(ui), tui::JobsPage(ui), tui::CrewPage(ui),
                            tui::OrreryPage(ui), tui::WorkshopPage(ui), tui::StarsPage(ui), tui::TasksPage(ui),
                            tui::ConsolePage(ui)};
     Component pages = Container::Tab(pageList, &ui.page);
@@ -251,7 +253,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     // The offer and danger bars come last in the focus order, so one showing up never moves the
     // keyboard onto its button (a stray Enter would accept). Click it, or press y / n / x.
     Component layout = Renderer(Container::Vertical({tabBar, pages, offerBar, dangerBar}), [&] {
-        if (ui.page != SHOP_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Shop tab
+        if (ui.page != THEMES_PAGE) ui.previewTheme = ui.hoverTheme = -1;   // theme previews only live on the Themes tab
         ui.snapshot();   // must come first: everything below draws from it
         refreshTabs();
         // Each update once per run (not once per profile): the check runs again every 5-10 minutes, and

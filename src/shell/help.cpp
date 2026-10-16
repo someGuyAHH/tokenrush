@@ -252,7 +252,7 @@ const std::vector<CommandInfo>& commands() {
           "Classic uses your terminal's own color palette, so it looks like the game always did. The other themes use "
           "24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show.",
           "The custom theme (15,000 shards, once) is yours to color by hand: it starts as a copy of the theme you're "
-          "using, then every one of its 17 colors can be changed for free. The Shop has an editor for it, with a "
+          "using, then every one of its 17 colors can be changed for free. The Themes tab has an editor for it, with a "
           "preview that uses every color and a check of how readable the text is. Here, 'theme custom' switches to it "
           "and lists its colors, 'theme custom <color> <#hex>' changes one (the color names are text, quiettext, accent, "
           "good, bad, warning, event, tokens, shards, heat, background, panel, button, buttontext, buttonoff, "
@@ -260,7 +260,7 @@ const std::vector<CommandInfo>& commands() {
          {{"theme", "every theme, with a preview"}, {"theme 2", "switch to Dusk"}, {"theme glacier", "names work too"},
           {"theme custom", "switch to your custom theme (buying it the first time)"},
           {"theme custom accent #ff8800", "make the accent orange"}, {"theme custom from neon", "start over from Neon's colors"}},
-         {"prompt"}, -1, SPENDING},
+         {"prompt"}, MARKET, SPENDING},
         {Cmd::Monolith, {"monolith"}, "monolith", "Look at the Monolith, the mid-game build",
          {"The Monolith is a five-stage build you pour tokens into: Foundation, Pillars, Spire, Crown and Beacon. "
           "Finishing it is worth a big goal. This draws it as it stands."},
