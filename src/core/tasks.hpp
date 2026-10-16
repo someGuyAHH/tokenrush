@@ -61,6 +61,12 @@ TaskCheck checkTask(const std::string& text, const GameState* g = nullptr);
 std::shared_ptr<const TaskProgram> compileTask(const std::string& text, const GameState* g, TaskCheck& check);
 long long taskFee(const GameState& g, int instructions);   // tokens, per run, at today's income
 
+// `predict when <condition>`: the same language, a condition alone, plus three values only
+// predict reads (earned, mines, jackpots).
+std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, TaskCheck& check);
+bool conditionHolds(const TaskProgram& p, GameState& g);
+std::vector<std::string> conditionValues(const TaskProgram& p);   // the values it reads, by name
+
 // ----- Managing tasks (each returns what to tell the player) -----
 Notes buyTaskLicense(GameState& g);
 Notes buyTaskSlot(GameState& g);

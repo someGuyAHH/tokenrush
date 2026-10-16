@@ -82,7 +82,10 @@ last 50 bad-news messages.
 take, and what they pay; `predict jackpots 10min` does it at your mining pace), `predict shards
 2h` (Scouts minus wages), `predict heat 30min`, `predict paydays 1h`, `predict events 1h`, and
 `predict magnet 50` (the cost of 50 levels, the income they add, and how long they take to pay
-off). `predict` alone lists them.
+off). `predict` alone lists them. The other way round, `predict when <condition>` says how long
+until something is true, and at what time: `predict when tokens > 20t`, `predict when shards > 100k`,
+`predict when tokens > 5 * cost.pickaxe`. Conditions are written like a task's (plus `earned`,
+`mines` and `jackpots`); the random price is refused.
 
 **Themes:** `theme` lists them, each with a preview line in its own colors. Classic (your
 terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with

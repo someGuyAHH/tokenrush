@@ -77,6 +77,18 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
     full streak), `jackpots`, `bonuses` (n × p, give or take √(n·p·(1−p)), and the pay of each).
   - Upgrades: `predict <pickaxe|magnet|drone|bot> <n>`: the cost of n levels, the income they
     add (`incomeEstimate` before and after, applied to your income) and the payback time.
+  - **`predict when <condition>`:** the time until a condition holds, and the wall-clock time.
+    The condition is the Tasks language (`compileCondition` in `core/tasks.cpp`: same values,
+    units, `and/or/not`, arithmetic and `^` errors), plus three values only predict reads:
+    `earned`, `mines`, `jackpots`. It scans the projection forward (1 s steps for 2 min, then 10 s
+    to an hour, 1 min to a day, 5 min to 30 days) and narrows the step it turned true in.
+    "Already true"; "never by itself" when nothing it reads moves; the price is refused (random);
+    "not within 30 days", with why (no income, shards falling by N a payday).
+  - **One projection** (`core/projection.*`), read both ways so they agree: tokens and earned at the
+    last minute's steady income (contracts aside; the 5-minute average before there's a minute),
+    shards (Scouts at their odds once home, expedition loot on return, the Lucky Penny, minus each
+    payday's wages), heat's cooling schedule, the payday clock, crew coming home, mines and
+    jackpots at your pace. Nothing gets bought; no events, contracts or disasters.
 - **One-line shortcuts:**
   - `shop 1 10`: 10 Pickaxe levels.
   - `curios 3`: buy curio 3.

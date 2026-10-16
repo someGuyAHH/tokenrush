@@ -386,7 +386,7 @@ const std::vector<CommandInfo>& commands() {
           "Former crew lists the last people who left, and how: quit unpaid, or fired."},
          {{"stats", "show them"}, {"st", "the same"}},
          {"status", "market"}, -1, PROGRESS},
-        {Cmd::Predict, {"predict", "forecast"}, "predict <what> <time|count>", "What the next stretch should bring, from how you're playing now",
+        {Cmd::Predict, {"predict", "forecast"}, "predict <what> <time|count> | predict when <condition>", "What the next stretch should bring, or when something will be true",
          {"Multiplies your current rates out. Over a time (1h, 30min, 2h30m, 90s): 'tokens' (your recent income, split "
           "by source), 'shards' (what your Scouts and the Lucky Penny find, minus the wages of the paydays in between), "
           "'heat' (where it will have cooled to, and when it reaches 0), 'paydays' and 'events' (with disasters).",
@@ -395,11 +395,20 @@ const std::vector<CommandInfo>& commands() {
           "(10min, 1h) and it's turned into mines at your actual mining pace.",
           "And upgrades: 'predict pickaxe 10' (or magnet, drone, bot) gives the cost of the next 10 levels, how much "
           "they add to your income, and how long they take to pay for themselves.",
-          "These are averages from right now: events, contracts, disasters, luck and what you buy all move the real "
-          "numbers. Every answer says what it's based on."},
+          "The other way round, 'predict when <condition>' says how long until something is true, and at what time: "
+          "'predict when tokens > 20t', 'predict when shards > 100k', 'predict when tokens > 5 * cost.pickaxe' (when "
+          "you can afford 5 Pickaxe levels), 'predict when heat = 0 and home = 5'. The condition is written exactly like "
+          "a task's (see 'help task'), and can also read earned (lifetime tokens), mines and jackpots. What moves on "
+          "its own: tokens, earned, shards, heat, payday, crew coming home, mines and jackpots; everything else only "
+          "changes when you act, and the price is random, so predict won't guess it. It looks up to 30 days ahead.",
+          "Both ways read the same projection, so they agree: if 'predict tokens 1h' says 20T, 'predict when tokens > "
+          "20t' says about an hour. These are averages from right now: events, contracts, disasters, luck and what you "
+          "buy all move the real numbers. Every answer says what it's based on."},
          {{"predict tokens 1h", "an hour of income"}, {"predict jackpots 1000", "jackpots in 1000 mines"},
           {"predict jackpots 10min", "...in ten minutes of mining at your pace"}, {"predict shards 2h", "shards after two hours"},
-          {"predict heat 30min", "how cool you'll be"}, {"predict magnet 50", "is 50 Magnet levels worth it?"}},
+          {"predict heat 30min", "how cool you'll be"}, {"predict magnet 50", "is 50 Magnet levels worth it?"},
+          {"predict when tokens > 20t", "how long until 20T"}, {"predict when tokens > 5 * cost.pickaxe", "when 5 Pickaxe levels are affordable"},
+          {"predict when jackpots >= 10k", "at your mining pace"}},
          {"status", "stats", "shop"}, -1, PROGRESS},
         {Cmd::Log, {"log"}, "log [n] [good|bad|warn|event|info]", "Earlier background messages, optionally filtered",
          {"Background news (the bot's reports, events, payday, audits, offers...) prints before each prompt. This "

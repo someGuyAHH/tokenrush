@@ -51,8 +51,13 @@ const ValueDef VALUES[] = {
     {"broken",        Unit::Amount, [](GameState& g) { return (double)repairs(g).size(); }},
     {"orrery.left",   Unit::Amount, [](GameState& g) { return (double)orreryRemaining(g); }},
     {"jobs",          Unit::Amount, [](GameState& g) { return (double)g.contracts.size(); }},
+    // Only `predict when` reads these (from here on): running totals that only grow.
+    {"earned",        Unit::Amount, [](GameState& g) { return (double)g.lifetimeEarned; }},
+    {"mines",         Unit::Amount, [](GameState& g) { return (double)g.manualMines; }},
+    {"jackpots",      Unit::Amount, [](GameState& g) { return (double)g.jackpots; }},
 };
 constexpr int VALUE_DEFS = (int)std::size(VALUES);
+constexpr int PREDICT_ONLY_FROM = VALUE_DEFS - 3;   // tasks stop before these
 
 const char* const UPGRADE_IDS[] = {"pickaxe", "magnet", "drone", "bot"};
 const char* const UPGRADE_NAMES[] = {"Pickaxe", "Magnet", "Drone", "Mining Bot"};
@@ -292,7 +297,16 @@ const char* const FORBIDDEN[][2] = {
 
 class Parser {
 public:
-    Parser(const std::string& text, const GameState* g) : text_(text), g_(g), toks_(lex(text)) {}
+    Parser(const std::string& text, const GameState* g, bool predicting = false)
+        : text_(text), g_(g), predicting_(predicting), toks_(lex(text)) {}
+
+    // `predict when`: a condition and nothing else.
+    TaskProgram parseCondition() {
+        TaskProgram p;
+        p.cond = condition(p);
+        if (peek().kind != Token::End) fail(peek(), peekWord("do") ? "predict when takes just the condition (no do ...)" : "expected and / or here, or the end");
+        return p;
+    }
 
     TaskProgram parse() {
         TaskProgram p;
@@ -333,6 +347,7 @@ public:
 private:
     const std::string& text_;
     const GameState* g_;
+    bool predicting_ = false;   // predict's extra values are allowed
     std::vector<Token> toks_;
     size_t at_ = 0;
 
@@ -417,14 +432,17 @@ private:
         }
         if (t.kind == Token::Word) {
             if (t.text == "true" || t.text == "false") { n.kind = TaskNode::Num; n.raw = n.num = t.text == "true" ? 1 : 0; return add(p, n); }
-            for (int v = 0; v < VALUE_DEFS; ++v)
-                if (t.text == VALUES[v].name) { n.kind = TaskNode::Val; n.val = v; return add(p, n); }
+            for (int v = 0; v < VALUE_DEFS; ++v) {
+                if (t.text != VALUES[v].name) continue;
+                if (v >= PREDICT_ONLY_FROM && !predicting_) fail(t, "tasks can't read " + t.text + " (only predict can)");
+                n.kind = TaskNode::Val; n.val = v; return add(p, n);
+            }
             if (t.text == "do" || t.text == "and" || t.text == "or") fail(t, "something's missing before " + t.text);
             std::vector<std::string> names;
             for (const ValueDef& v : VALUES) names.push_back(v.name);
             std::string hint = suggest(t.text, names);
             if (hint.empty() && (t.text == "level" || t.text == "cost")) hint = " (" + t.text + ".pickaxe, " + t.text + ".bot...)";
-            fail(t, "tasks can't read \"" + t.raw + "\"" + (hint.empty() ? ": see the list of values" : hint));
+            fail(t, std::string(predicting_ ? "predict" : "tasks") + " can't read \"" + t.raw + "\"" + (hint.empty() ? ": see the list of values" : hint));
         }
         if (t.kind == Token::End) fail(t, "the condition stops halfway");
         fail(t, "expected a number or a value here, not \"" + t.raw + "\"");
@@ -803,6 +821,31 @@ long long taskSlotCost(int owned) {
     if (owned < TASK_SLOTS_START) return TASK_LICENSE_COST;
     static const long long PRICES[TASK_SLOTS_MAX - TASK_SLOTS_START] = {1500, 3000, 5000, 8000, 12000};
     return PRICES[owned - TASK_SLOTS_START];
+}
+
+std::shared_ptr<const TaskProgram> compileCondition(const std::string& text, TaskCheck& check) {
+    check = TaskCheck{};
+    if (trim(text).empty()) { check.error = "the condition is missing, like: tokens > 20t"; check.pos = 0; return nullptr; }
+    try {
+        auto prog = std::make_shared<TaskProgram>(Parser(text, nullptr, true).parseCondition());
+        check.ok = true;
+        check.instructions = (int)prog->nodes.size();
+        return prog;
+    } catch (const Fail& f) {
+        check.error = f.what;
+        check.pos = f.pos;
+        check.len = f.len;
+        return nullptr;
+    }
+}
+
+bool conditionHolds(const TaskProgram& p, GameState& g) { return p.cond < 0 || eval(p, p.cond, g) != 0; }
+
+std::vector<std::string> conditionValues(const TaskProgram& p) {
+    std::vector<std::string> out;
+    for (const TaskNode& n : p.nodes)
+        if (n.kind == TaskNode::Val && std::find(out.begin(), out.end(), VALUES[n.val].name) == out.end()) out.push_back(VALUES[n.val].name);
+    return out;
 }
 
 std::shared_ptr<const TaskProgram> compileTask(const std::string& text, const GameState* g, TaskCheck& check) {
