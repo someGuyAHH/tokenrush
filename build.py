@@ -4,6 +4,7 @@
     python build.py --tui        the same
     python build.py --sim        the balance simulator, sim.exe (see README)
     python build.py --rebuild    ignore the saved hashes and compile everything again
+    python build.py -j 4         compile 4 files at a time (default: one per CPU core)
 
 Incremental: every .cpp becomes its own .o in target/debug/obj/, next to a .hash file. The hash
 covers the .cpp, every header it includes (g++ writes that list into a .d file while compiling)
@@ -12,16 +13,21 @@ and the compiler flags. A file is only compiled again when that hash changes, so
 The core is compiled once and shared by the game and the simulator. An exe is only relinked when
 one of its objects changed.
 
-Every build that does something is timed and appended to target/debug/build-times.log.
+Files compile in parallel, one per CPU core (-j N to change it), the slowest first: each file's
+last compile time is kept next to its object. Every build that does something is timed and
+appended to target/debug/build-times.log.
 Needs Python 3.10+ and g++ on the PATH; nothing else.
 """
 
 import argparse
 import hashlib
+import os
 import re
 import subprocess
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -33,9 +39,11 @@ OUT = ROOT / "target" / "debug"
 OBJ_DIR = OUT / "obj"
 LOG = OUT / "build-times.log"
 
+# -O1: about a quarter less compile time than -O2, and the game doesn't need more (its time goes to
+# drawing, in FTXUI's own prebuilt ftxui.o).
 # UNICODE/NOMINMAX: FTXUI requires them on Windows, so everything is built the same way. Every file
 # gets the same flags (FTXUI's include path too), so the core's objects are shared by every exe.
-FLAGS = ["-std=c++20", "-O2", "-Wall", "-Wextra", "-DUNICODE", "-D_UNICODE", "-DNOMINMAX", f"-I{SRC}", f"-I{DEPS}"]
+FLAGS = ["-std=c++20", "-O1", "-Wall", "-Wextra", "-DUNICODE", "-D_UNICODE", "-DNOMINMAX", f"-I{SRC}", f"-I{DEPS}"]
 
 
 class BuildError(Exception):
@@ -90,27 +98,41 @@ def last_time(name: str, /) -> float | None:
     return times[-1] if times else None
 
 
+@dataclass
+class Compiled:
+    source: Path
+    ok: bool
+    output: str      # what g++ said (warnings, errors), printed once it's done
+    seconds: float
+
+
 class Builder:
-    def __init__(self, *, rebuild: bool = False, progress: bool = False):
+    def __init__(self, *, rebuild: bool = False, progress: bool = False, jobs: int = 1):
         self.rebuild = rebuild
         self.progress = progress   # also print "@progress <done> <total> <what>" lines (play.py draws a bar from them)
+        self.jobs = max(1, jobs)
         self.file_hashes: dict[str, str] = {}   # a header shared by many files is read once per build
+        self.hash_lock = threading.Lock()
         self.compiled = 0
         self.step = self.steps = 0
 
     def __repr__(self) -> str:
         mode = "rebuilding everything" if self.rebuild else "incremental"
-        return f"Builder ({mode}): {self.compiled} files compiled so far"
+        return f"Builder ({mode}, {self.jobs} at a time): {self.compiled} files compiled so far"
 
-    def hash_file(self, path: str, /) -> str:
-        if path not in self.file_hashes:
-            file = Path(path)
-            self.file_hashes[path] = hashlib.sha256(file.read_bytes()).hexdigest() if file.is_file() else "missing"
-        return self.file_hashes[path]
+    def hash_file(self, path: str, /, *, fresh: bool = False) -> str:
+        with self.hash_lock:
+            if path in self.file_hashes and not fresh:
+                return self.file_hashes[path]
+        file = Path(path)
+        digest = hashlib.sha256(file.read_bytes()).hexdigest() if file.is_file() else "missing"
+        with self.hash_lock:
+            self.file_hashes[path] = digest
+        return digest
 
-    def object_hash(self, dep_file: Path, /) -> str:
+    def object_hash(self, dep_file: Path, /, *, fresh: bool = False) -> str:
         """One hash for everything that goes into an object: the flags, then each input's path and contents."""
-        parts = [" ".join(FLAGS)] + [f"{f}={self.hash_file(f)}" for f in deps_of(dep_file)]
+        parts = [" ".join(FLAGS)] + [f"{f}={self.hash_file(f, fresh=fresh)}" for f in deps_of(dep_file)]
         return hash_text("\n".join(parts))
 
     def needs_compile(self, source: Path, /) -> bool:
@@ -125,40 +147,71 @@ class Builder:
         if self.progress:
             print(f"@progress {self.step} {self.steps} {what}", flush=True)
 
-    def compile(self, source: Path, /) -> Path:
-        """Compiles `source` unless its saved hash still matches. Returns the object's path."""
+    def compile(self, source: Path, /) -> Compiled:
+        """Runs g++ on one file (from a worker thread) and saves its hash if it worked."""
         obj = object_path(source)
         dep, saved = obj.with_suffix(".d"), obj.with_suffix(".hash")
-
-        if not self.needs_compile(source):
-            return obj
-
         obj.parent.mkdir(parents=True, exist_ok=True)
         saved.unlink(missing_ok=True)   # a failed compile must not look up to date
-        self.report(relative(source))
-        print(f"  compiling {relative(source)}", flush=True)
-        run(["g++", *FLAGS, "-MMD", "-MF", str(dep), "-c", str(source), "-o", str(obj)],
-            failure=f"compile failed: {relative(source)}")
+        start = time.perf_counter()
+        try:
+            result = subprocess.run(["g++", *FLAGS, "-MMD", "-MF", str(dep), "-c", str(source), "-o", str(obj)],
+                                    capture_output=True, text=True, errors="replace")
+        except FileNotFoundError:
+            return Compiled(source, False, "g++ isn't on the PATH", 0.0)
+        seconds = time.perf_counter() - start
+        if result.returncode == 0:
+            # Hashed after compiling, and read fresh: the .d file now lists exactly the headers this compile used.
+            saved.write_text(self.object_hash(dep, fresh=True))
+            obj.with_suffix(".secs").write_text(f"{seconds:.2f}")
+        return Compiled(source, result.returncode == 0, (result.stdout + result.stderr).strip(), seconds)
 
-        # Hash after compiling: the .d file now lists exactly the headers this compile used.
-        self.file_hashes.clear()   # in case a file changed while we were compiling
-        saved.write_text(self.object_hash(dep))
-        self.compiled += 1
-        self.step += 1
-        return obj
+    @staticmethod
+    def expected_seconds(source: Path, /) -> float:
+        """How long it took last time (or a guess from its size), so the slowest files start first."""
+        try:
+            return float(object_path(source).with_suffix(".secs").read_text())
+        except (OSError, ValueError):
+            return source.stat().st_size / 5000
+
+    def compile_all(self, stale: list[Path], /) -> None:
+        """Compiles `stale`, self.jobs at a time. Raises BuildError (after the running ones finish) if any fail."""
+        failed: list[Compiled] = []
+        with ThreadPoolExecutor(max_workers=self.jobs) as pool:
+            pending = [pool.submit(self.compile, s) for s in sorted(stale, key=self.expected_seconds, reverse=True)]
+            for future in as_completed(pending):
+                if future.cancelled():
+                    continue
+                done = future.result()
+                self.step += 1
+                self.report(relative(done.source))
+                print(f"  {'compiled' if done.ok else 'FAILED  '} {relative(done.source)} ({done.seconds:.1f}s)", flush=True)
+                if done.output:
+                    print(done.output, flush=True)
+                if done.ok:
+                    self.compiled += 1
+                elif not failed:
+                    for other in pending:
+                        other.cancel()   # don't start more; the ones running get to finish
+                if not done.ok:
+                    failed.append(done)
+        if failed:
+            names = ", ".join(relative(f.source) for f in failed)
+            raise BuildError(f"compile failed: {names}")
 
     def build(self, target: Target, /) -> None:
         exe = OUT / target.name
         previous = last_time(target.name)
-        print(f"Building {target.name} ...", flush=True)
+        print(f"Building {target.name} ({self.jobs} at a time) ...", flush=True)
         start = time.perf_counter()
         before = self.compiled
-        if self.progress:   # every file that needs compiling, plus the link
-            self.step, self.steps = 0, sum(self.needs_compile(s) for s in target.sources) + 1
-            self.report("starting")
 
         try:
-            objects = [self.compile(source) for source in target.sources]
+            stale = [s for s in target.sources if self.needs_compile(s)]
+            self.step, self.steps = 0, len(stale) + 1   # every file that needs compiling, plus the link
+            self.report("starting")
+            self.compile_all(stale)
+            objects = [object_path(s) for s in target.sources]
             count = self.compiled - before
 
             # Relink only when an object (or an extra link input like ftxui.o) changed.
@@ -216,12 +269,14 @@ def main() -> None:
     parser.add_argument("--sim", action="store_true", help="build the balance simulator, sim.exe")
     parser.add_argument("--rebuild", action="store_true", help="ignore the saved hashes and compile everything")
     parser.add_argument("--progress", action="store_true", help="also print @progress lines (for play.py's progress bar)")
+    parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 4,
+                        help="files to compile at once (default: one per CPU core)")
     args = parser.parse_args()
     if not (args.tui or args.sim):
         args.tui = True
 
     OBJ_DIR.mkdir(parents=True, exist_ok=True)
-    builder = Builder(rebuild=args.rebuild, progress=args.progress)
+    builder = Builder(rebuild=args.rebuild, progress=args.progress, jobs=args.jobs)
     start = time.perf_counter()
     core = sources("core")
     shell = sources("shell")   # the typed commands, run by the TUI's Console tab

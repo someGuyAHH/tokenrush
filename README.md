@@ -13,11 +13,14 @@ Windows (Python 3.10+ and MSYS2 MinGW g++ on the PATH), into `target\debug\`:
     python build.py              # tokenrush-tui.exe
     python build.py --sim        # the balance simulator (add --tui to build both)
     python build.py --rebuild    # ignore what's already built and compile everything
+    python build.py -j 4         # 4 files at a time (default: one per CPU core)
 
 Builds are incremental: each `.cpp` is compiled to its own `.o` in `target\debug\obj\`, with a
 hash of the `.cpp`, every header it includes, and the compiler flags. Only files whose hash
 changed are compiled again (edit one `.cpp`, one file compiles; edit a header, only the files
-that include it do), and an exe is only relinked when one of its objects changed. Times go to
+that include it do), and an exe is only relinked when one of its objects changed. Files compile
+in parallel, one per CPU core, the slowest first (a full build here: 30 s on 4 cores, against
+150 s one at a time). Times go to
 `target\debug\build-times.log`. (`build.ps1` is the older PowerShell version of the same thing.)
 
 The game needs FTXUI's amalgamated header and a compiled object in `dependencies\`:

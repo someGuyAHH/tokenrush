@@ -775,8 +775,13 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - Doubles are saved floored to 4 decimals.
   - **Token cap:** token totals saturate at 10^18 (`TOKEN_CAP`, `addTokens`).
 - **Builds:**
-  - `python build.py [--tui] [--sim] [--rebuild]`: incremental, with per-file hashes
-    covering the source, the headers it includes and the flags.
+  - `python build.py [--tui] [--sim] [--rebuild] [-j N]`: incremental, with per-file hashes
+    covering the source, the headers it includes and the flags. Stale files compile in
+    parallel (a thread pool, one g++ per CPU core by default), longest first by each file's last
+    compile time (`.secs` next to its object; its size before that). Each file's output is printed
+    when it finishes, so errors don't interleave; after a failure nothing new starts, the running
+    ones finish, and every failed file is named. `-O1`: about a quarter faster to compile than
+    `-O2`, and the game's time goes to FTXUI's drawing (its own prebuilt `ftxui.o`) anyway.
   - `build.ps1` is the older PowerShell version of the same thing.
   - `make` on Linux/macOS.
   - Build times go to `target/debug/build-times.log`.
