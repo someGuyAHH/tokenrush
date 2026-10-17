@@ -14,24 +14,28 @@
 #include "util.hpp"
 
 // ----- Upgrades -----
-long long costPickaxe(int lvl) { long long n = (long long)lvl + 1; return 25LL  * n * n; }
-long long costMagnet (int lvl) { long long n = (long long)lvl + 1; return 60LL  * n * n; }
-long long costDrone  (int lvl) { long long n = (long long)lvl + 1; return 120LL * n * n; }
-long long costBot    (int lvl) { long long n = (long long)lvl + 1; return 400LL * n * n; }
+// base * n^2, times 1 + (n - knee)/slope once n passes the knee (see COST_KNEE_YIELD). Exact below it.
+static long long levelCost(long long base, int lvl, int knee, int slope) {
+    double n = (double)lvl + 1.0;
+    double cost = (double)base * n * n * (1.0 + std::max(0.0, n - knee) / slope);
+    return cost >= (double)TOKEN_CAP ? TOKEN_CAP : (long long)cost;
+}
+long long costPickaxe(int lvl) { return levelCost(25,  lvl, COST_KNEE_YIELD, COST_SLOPE_YIELD); }
+long long costMagnet (int lvl) { return levelCost(60,  lvl, COST_KNEE_YIELD, COST_SLOPE_YIELD); }
+long long costDrone  (int lvl) { return levelCost(120, lvl, COST_KNEE_AUTO,  COST_SLOPE_AUTO); }
+long long costBot    (int lvl) { return levelCost(400, lvl, COST_KNEE_AUTO,  COST_SLOPE_AUTO); }
 
 int baseYield(const GameState& g) { return 1 + g.pickaxe; }
 
 int nextMilestone(int level) {
-    for (long long decade = 100;; decade *= 10)
-        for (long long step : {decade, decade * 5 / 2, decade * 5})
-            if (step > level) return (int)std::min<long long>(step, std::numeric_limits<int>::max());
+    long long step = 100;
+    while (step <= level) step *= 10;
+    return (int)std::min<long long>(step, std::numeric_limits<int>::max());
 }
 
 int milestonesAt(int level) {
     int n = 0;
-    for (long long decade = 100; decade <= level; decade *= 10)
-        for (long long step : {decade, decade * 5 / 2, decade * 5})
-            if (step <= level) ++n;
+    for (long long step = 100; step <= level; step *= 10) ++n;
     return n;
 }
 

@@ -22,6 +22,15 @@ inline constexpr long long AUTOBUY_LICENSE_COST = 2000;
 // (autoBuyOnce, below: the Auto-Buyer's one purchase)
 inline constexpr double    EVENT_CHANCE_PER_SEC = 1.0 / 240.0;    // ~one event per 4 minutes
 inline constexpr int       MAX_LEVEL            = 1'000'000;      // sanity cap for upgrade levels
+// Upgrade prices are base * (level+1)^2 up to a knee, then steeper: each level past the knee adds
+// 1/slope to the price's multiplier, so the price tends to level^3. With Resonance, income is
+// Pickaxe * Magnet * (Drones + Bot) while each price grows only with its level squared, which pays
+// every upgrade back in the same time at any level: income doubled on a fixed clock. The knees sit
+// above what two hours of play reaches (Pickaxe 270, Drone 123), so the early game is unchanged.
+inline constexpr int       COST_KNEE_YIELD      = 300;            // Pickaxe and Magnet
+inline constexpr int       COST_SLOPE_YIELD     = 300;
+inline constexpr int       COST_KNEE_AUTO       = 150;            // Drone and Mining Bot
+inline constexpr int       COST_SLOPE_AUTO      = 300;
 
 // ----- Infection -----
 bool infected(const GameState& g, Strain s);   // has this strain and isn't cured yet
@@ -43,12 +52,12 @@ long long costBot(int lvl);
 
 int baseYield(const GameState& g);
 
-// Milestones: Drones and the Mining Bot double everything they make at 100, 250, 500, 1,000,
-// 2,500, 5,000, 10,000... levels (1, 2.5 and 5 of each power of ten). Their price grows with the
-// square of the level while a level adds a fixed amount, so without these a late Drone or Bot
-// level took hours to pay for itself. (The Pickaxe and the Magnet don't need them: they raise the
-// average mine everything else is built on, so their value keeps up on its own, and milestones
-// there would multiply each other through it.)
+// Milestones: Drones and the Mining Bot double everything they make at 100, 1,000, 10,000...
+// levels (each power of ten from 100). A level adds a fixed amount while its price keeps growing,
+// so without these a late Drone or Bot level took hours to pay for itself. (The Pickaxe and the
+// Magnet don't need them: they raise the average mine everything else is built on, so their value
+// keeps up on its own, and milestones there would multiply each other through it. More steps per
+// power of ten, as there used to be, made income double faster than the prices could follow.)
 int milestonesAt(int level);           // how many it has passed
 double milestoneMult(int level);       // 2 to that
 int nextMilestone(int level);          // the next one

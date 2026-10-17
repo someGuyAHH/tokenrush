@@ -226,21 +226,34 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
   | Upgrade | Cost | Effect |
   |---|---|---|
-  | Pickaxe | 25·(lvl+1)² | +1 base yield |
-  | Magnet | 60·(lvl+1)² | better bonus/jackpot odds |
-  | Drone | 120·(lvl+1)² | +0.5 tokens/s passive |
-  | Mining Bot | 400·(lvl+1)² | auto-mines every max(2, 10 − lvl) s |
+  | Pickaxe | 25·n²·f | +1 base yield |
+  | Magnet | 60·n²·f | better bonus/jackpot odds |
+  | Drone | 120·n²·f | +0.5 tokens/s passive |
+  | Mining Bot | 400·n²·f | auto-mines every max(2, 10 − lvl) s |
 
-  Rust doubles all of these. Levels are capped at 1,000,000.
+  n = lvl+1, and f = 1 + (n − knee)/slope past the knee, 1 before it (`levelCost`; the constants are
+  `COST_KNEE_*` / `COST_SLOPE_*` in `game.hpp`): knee 300 and slope 300 for the Pickaxe and Magnet,
+  knee 150 and slope 300 for the Drone and Bot. So the price grows with n² at first and toward n³
+  later: ×2 at level 600 (Pickaxe, Magnet), ×3.3 at 1,000, ×33 at 10,000. Rust doubles all of
+  these. Levels are capped at 1,000,000 (a price is capped at the 10^18 token cap).
+- **Why the knees** (balance, from the simulator): with Resonance, income is Pickaxe × Magnet ×
+  (Drones + Bot) while each price grew only with its level squared, so every upgrade paid itself
+  back in the same time at any level and income doubled on a fixed clock (4.3×10^8 lifetime at 2
+  hours, 8.4×10^10 at 4, 1.9×10^15 at 24; a speedrun reached the 10^18 cap in 2 hours). Softening the
+  Pickaxe and Magnet alone changed almost nothing: the Drones and Bot carry the same product, so
+  all four needed the steeper curve. The knees sit above what two hours of normal play reaches
+  (Pickaxe 270, Magnet 174, Drone 123, Bot 67), so the early game is untouched.
 - **Milestones** (`milestoneMult`): Drones and the Mining Bot double everything they make at 100,
-  250, 500, 1,000, 2,500, 5,000, 10,000... levels (1, 2.5 and 5 of each power of ten): ×64 at 5,000,
-  ×128 at 10,000. Without them a late level of either took hours to pay for itself (its price grows
-  with the square of the level while it adds a fixed amount); with them, minutes. The Pickaxe and
-  Magnet have none: they raise the average mine that mining, the Bot (with Resonance), Drones
-  (with Resonance) and the crew all build on, so their value keeps up, and milestones there would
-  multiply each other through it. In the simulator the early game is unchanged (every unlock at
-  about the same time) and income grows faster later without running away: lifetime 56T at 12
-  hours (4.6T before), 2.7×10^16 at 40 (7.3×10^14), still slowing toward the 10^18 cap.
+  1,000, 10,000, 100,000 and 1,000,000 levels (×2 each, ×32 at most). Without them a late level of
+  either took hours to pay for itself (it adds a fixed amount while its price keeps growing); with
+  them, much sooner. There used to be three steps per power of ten (1, 2.5 and 5: ×8 per ten times
+  the levels, ×8,192 at 1,000,000), which on its own got a speedrun to the cap in 2 hours. The
+  Pickaxe and Magnet have none: they raise the average mine that mining, the Bot (with Resonance),
+  Drones (with Resonance) and the crew all build on, so their value keeps up, and milestones there
+  would multiply each other through it. In the simulator (median of 3 seeds, `normal`): lifetime
+  4.3×10^8 at 2 hours (as before), 5.9×10^10 at 4, 1.4×10^13 at 12, 3.6×10^14 at 24 (before: 8.4×10^10,
+  5.6×10^13, 1.9×10^15), still growing about 25× from hour 12 to hour 24. Every unlock comes at about
+  the same time. `speedrun` reaches 1.4×10^16 at 24 hours and the cap at about 72 (before: 2).
 - **What a level adds** (`upgradeGain`, the Shop's "+X/s"): the income one more level would add,
   from each source you actually earn from scaled by its formula, so it reflects how you play (no
   credit for mining by hand if you don't). Just loaded, before anything's measured: the formulas
