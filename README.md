@@ -24,27 +24,32 @@ command-line edition, `tokenrush-cli`. It's gone: its commands live on in the Co
 
 ## Build
 
-Windows (Python 3.10+ and MSYS2 MinGW g++ on the PATH), into `target\debug\`:
+Needs Python 3.10+ and a C++20 compiler (g++ or clang++) on Windows (MSYS2 MinGW), Linux and macOS.
+First fetch FTXUI into `dependencies/` (downloads 7.0.3, makes the amalgamated `ftxui.hpp` and
+`ftxui.cpp`, compiles `ftxui.o`):
 
-    python build.py              # tokenrush-tui.exe
+    python tools/fetch_ftxui.py
+
+Then, into `target/debug/` (the programs are `tokenrush-tui` and `sim`, with `.exe` on Windows):
+
+    python build.py              # tokenrush-tui
     python build.py --sim        # the balance simulator (add --tui to build both)
     python build.py --rebuild    # ignore what's already built and compile everything
     python build.py -j 4         # 4 files at a time (default: one per CPU core)
 
-Builds are incremental: each `.cpp` is compiled to its own `.o` in `target\debug\obj\`, with a
+`CXX=clang++ python build.py` picks another compiler.
+
+Builds are incremental: each `.cpp` is compiled to its own `.o` in `target/debug/obj/`, with a
 hash of the `.cpp`, every header it includes, and the compiler flags. Only files whose hash
 changed are compiled again (edit one `.cpp`, one file compiles; edit a header, only the files
-that include it do), and an exe is only relinked when one of its objects changed. Files compile
+that include it do), and the program is only relinked when one of its objects changed. Files compile
 in parallel, one per CPU core, the slowest first (a full build here: 30 s on 4 cores, against
 150 s one at a time). Times go to
-`target\debug\build-times.log`. (`build.ps1` is the older PowerShell version of the same thing.)
+`target/debug/build-times.log`. (`build.ps1` is the older PowerShell version of the same thing.)
 
-The game needs FTXUI's amalgamated header and a compiled object in `dependencies\`:
-`ftxui.hpp` and `ftxui.o`, built once with
-
-    g++ -std=c++20 -O2 -DUNICODE -D_UNICODE -DNOMINMAX -c ftxui.cpp -o ftxui.o
-
-Linux / macOS: `make` (put `ftxui.hpp` and `ftxui.cpp` in `dependencies/`).
+Linux / macOS can also use `make` (`make sim` for the simulator; output in `build/` and the
+programs next to the Makefile). It builds `dependencies/ftxui.cpp` itself, so
+`python tools/fetch_ftxui.py --no-compile` is enough.
 
 ## Run
 
@@ -319,7 +324,7 @@ open. Idle earnings from Drones are capped at 12 hours.
 | `tui/console.hpp/.cpp` | The Console tab's engine: the shell's command loop on its own thread |
 | `tui/widgets.cpp` | Buttons, the MINE button, colors, gauges, the chart |
 | `tui/picker.cpp` | The profile picker |
-| `dependencies/` | FTXUI (`ftxui.hpp` + `ftxui.o`), not part of the source |
+| `dependencies/` | FTXUI (`ftxui.hpp`, `ftxui.cpp`, `ftxui.o`), from `tools/fetch_ftxui.py`; not part of the source |
 | `tools/sim.cpp` | Headless balance simulator (see below) |
 
 ## Save file

@@ -1,7 +1,9 @@
 # Linux / macOS (Windows: use build.py)
 #   make            tokenrush-tui
 #   make sim        the headless balance simulator (tools/sim.cpp)
-# The TUI needs dependencies/ftxui.hpp and dependencies/ftxui.cpp (FTXUI 7.0.3, amalgamated).
+# The TUI needs dependencies/ftxui.hpp and dependencies/ftxui.cpp (FTXUI 7.0.3, amalgamated):
+#   python3 tools/fetch_ftxui.py
+# CXX defaults to g++ (clang++ on macOS works too: make CXX=clang++).
 CXX      ?= g++
 CXXFLAGS ?= -std=c++20 -O2 -Wall -Wextra -pthread
 CPPFLAGS += -Isrc
@@ -20,7 +22,7 @@ tokenrush-tui: $(call OBJ,$(CORE) $(SHELL_SRC) $(TUI)) build/ftxui.o
 sim: $(call OBJ,$(CORE)) build/tools/sim.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-build/tui/%.o: src/tui/%.cpp $(HDRS)
+build/tui/%.o: src/tui/%.cpp $(HDRS) dependencies/ftxui.hpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Idependencies -c $< -o $@
 

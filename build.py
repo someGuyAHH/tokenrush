@@ -1,8 +1,8 @@
-"""Builds TokenRush into target/debug/.
+"""Builds TokenRush into target/debug/ (Windows, Linux and macOS).
 
-    python build.py              tokenrush-tui.exe (needs dependencies/ftxui.hpp + ftxui.o)
+    python build.py              tokenrush-tui[.exe] (needs dependencies/ftxui.hpp + ftxui.cpp or ftxui.o)
     python build.py --tui        the same
-    python build.py --sim        the balance simulator, sim.exe (see README)
+    python build.py --sim        the balance simulator, sim[.exe] (see README)
     python build.py --rebuild    ignore the saved hashes and compile everything again
     python build.py -j 4         compile 4 files at a time (default: one per CPU core)
 
@@ -16,7 +16,9 @@ one of its objects changed.
 Files compile in parallel, one per CPU core (-j N to change it), the slowest first: each file's
 last compile time is kept next to its object. Every build that does something is timed and
 appended to target/debug/build-times.log.
-Needs Python 3.10+ and g++ on the PATH; nothing else.
+Needs Python 3.10+ and g++ (or clang++; set CXX to pick one) on the PATH; nothing else.
+dependencies/ftxui.o is compiled from dependencies/ftxui.cpp the first time it's missing
+(tools/fetch_ftxui.py downloads and prepares both).
 """
 
 import argparse
@@ -41,9 +43,14 @@ LOG = OUT / "build-times.log"
 
 # -O1: about a quarter less compile time than -O2, and the game doesn't need more (its time goes to
 # drawing, in FTXUI's own prebuilt ftxui.o).
-# UNICODE/NOMINMAX: FTXUI requires them on Windows, so everything is built the same way. Every file
-# gets the same flags (FTXUI's include path too), so the core's objects are shared by every exe.
-FLAGS = ["-std=c++20", "-O1", "-Wall", "-Wextra", "-DUNICODE", "-D_UNICODE", "-DNOMINMAX", f"-I{SRC}", f"-I{DEPS}"]
+# UNICODE/NOMINMAX: FTXUI requires them on Windows, so everything is built the same way there; elsewhere
+# -pthread instead. Every file gets the same flags (FTXUI's include path too), so the core's objects are
+# shared by every exe.
+WINDOWS = os.name == "nt"
+EXE_SUFFIX = ".exe" if WINDOWS else ""
+CXX = os.environ.get("CXX") or "g++"
+PLATFORM_FLAGS = ["-DUNICODE", "-D_UNICODE", "-DNOMINMAX"] if WINDOWS else ["-pthread"]
+FLAGS = ["-std=c++20", "-O1", "-Wall", "-Wextra", *PLATFORM_FLAGS, f"-I{SRC}", f"-I{DEPS}"]
 
 
 class BuildError(Exception):
@@ -155,10 +162,10 @@ class Builder:
         saved.unlink(missing_ok=True)   # a failed compile must not look up to date
         start = time.perf_counter()
         try:
-            result = subprocess.run(["g++", *FLAGS, "-MMD", "-MF", str(dep), "-c", str(source), "-o", str(obj)],
+            result = subprocess.run([CXX, *FLAGS, "-MMD", "-MF", str(dep), "-c", str(source), "-o", str(obj)],
                                     capture_output=True, text=True, errors="replace")
         except FileNotFoundError:
-            return Compiled(source, False, "g++ isn't on the PATH", 0.0)
+            return Compiled(source, False, f"{CXX} isn't on the PATH", 0.0)
         seconds = time.perf_counter() - start
         if result.returncode == 0:
             # Hashed after compiling, and read fresh: the .d file now lists exactly the headers this compile used.
@@ -230,7 +237,7 @@ class Builder:
                 self.step = self.steps - 1
                 self.report(f"linking {target.name}")
                 print(f"  linking {target.name}", flush=True)
-                run(["g++", *FLAGS, *map(str, objects), *map(str, target.link_extra), "-o", str(exe)],
+                run([CXX, *FLAGS, *map(str, objects), *map(str, target.link_extra), "-o", str(exe)],
                     failure=f"link failed: {target.name}")
                 link_hash_file.write_text(link_hash)
                 note = f"{count} of {len(objects)} files compiled"
@@ -258,15 +265,15 @@ def run(command: list[str], /, *, failure: str) -> None:
     try:
         result = subprocess.run(command)
     except FileNotFoundError:
-        raise BuildError("g++ isn't on the PATH") from None
+        raise BuildError(f"{CXX} isn't on the PATH") from None
     if result.returncode != 0:
         raise BuildError(failure)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Builds TokenRush into target/debug/.")
-    parser.add_argument("--tui", action="store_true", help="build tokenrush-tui.exe")
-    parser.add_argument("--sim", action="store_true", help="build the balance simulator, sim.exe")
+    parser.add_argument("--tui", action="store_true", help=f"build tokenrush-tui{EXE_SUFFIX}")
+    parser.add_argument("--sim", action="store_true", help=f"build the balance simulator, sim{EXE_SUFFIX}")
     parser.add_argument("--rebuild", action="store_true", help="ignore the saved hashes and compile everything")
     parser.add_argument("--progress", action="store_true", help="also print @progress lines (for play.py's progress bar)")
     parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 4,
@@ -283,13 +290,17 @@ def main() -> None:
 
     if args.tui:
         ftxui_obj = DEPS / "ftxui.o"
-        if not ftxui_obj.exists() or not (DEPS / "ftxui.hpp").exists():
-            print("Skipping tokenrush-tui.exe: put ftxui.hpp and ftxui.o in dependencies/ first (see README).")
+        if not (DEPS / "ftxui.hpp").exists() or not (ftxui_obj.exists() or (DEPS / "ftxui.cpp").exists()):
+            print(f"Skipping tokenrush-tui{EXE_SUFFIX}: dependencies/ needs ftxui.hpp and ftxui.cpp (or ftxui.o). "
+                  "Run: python tools/fetch_ftxui.py")
         else:
-            builder.build(Target("tokenrush-tui.exe", core + shell + sources("tui"), [ftxui_obj]))
+            if not ftxui_obj.exists():
+                print("Compiling FTXUI (once) ...", flush=True)
+                run([CXX, *FLAGS, "-O2", "-c", str(DEPS / "ftxui.cpp"), "-o", str(ftxui_obj)], failure="compiling FTXUI failed")
+            builder.build(Target(f"tokenrush-tui{EXE_SUFFIX}", core + shell + sources("tui"), [ftxui_obj]))
 
     if args.sim:
-        builder.build(Target("sim.exe", core + [ROOT / "tools" / "sim.cpp"], []))
+        builder.build(Target(f"sim{EXE_SUFFIX}", core + [ROOT / "tools" / "sim.cpp"], []))
 
     print(f"Done in {time.perf_counter() - start:.1f}s")
 

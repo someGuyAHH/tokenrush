@@ -8,7 +8,8 @@ script clears the screen, says what's new, pulls it and builds it behind a progr
 starts the new launcher (and through it the game). If the pull or the build fails, it shows what
 git or the compiler said and starts the version you already had.
 
-The game can't do this itself: Windows won't let a running .exe be overwritten.
+The game can't do this itself: Windows won't let a running .exe be overwritten (Linux and macOS
+would allow it, but every platform uses this one flow).
 Needs git and everything build.py needs. --no-update-check (passed on to the game) skips the check.
 """
 
@@ -20,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-EXE = ROOT / "target" / "debug" / "tokenrush-tui.exe"
+EXE = ROOT / "target" / "debug" / ("tokenrush-tui.exe" if os.name == "nt" else "tokenrush-tui")
 UPDATE_EXIT_CODE = 42          # UPDATE_EXIT_CODE in src/core/update.hpp
 UPDATE_FORCED_EXIT_CODE = 43   # a gameplay update: the game saved and shut itself down to get it
 BAR_WIDTH = 30
