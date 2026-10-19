@@ -56,6 +56,7 @@ double contractShardScale(double power);         // how job shards (and bribes) 
 long long bribeCost(const GameState& g, int client);   // 0 if they aren't Burned
 Notes bribeClient(GameState& g, int client);
 int findClient(const std::string& word);         // its number in the 'clients' list (from 1) or part of a name; -1 if none
+bool clientPosts(int client, ContractKind k);    // the kinds of job a client's style posts
 
 long long contractProgress(const GameState& g, const Contract& c);
 long long contractGoal(const Contract& c);       // what progress has to reach: the target, or the duration for endurance jobs

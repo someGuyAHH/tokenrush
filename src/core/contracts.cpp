@@ -685,6 +685,8 @@ Notes bribeClient(GameState& g, int client) {
                             " is Wary of you, but will post jobs for you again. (Another bribe to them would cost twice as much.)"}};
 }
 
+bool clientPosts(int client, ContractKind k) { return offers(CLIENTS[client].style, k); }
+
 int findClient(const std::string& word) {
     std::string w = lower(trim(word));
     if (w.empty()) return -1;

@@ -125,7 +125,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   that starts with what's typed (2+ characters); else the word being typed: unlocked command
   names (real ones before aliases) and your aliases; subcommands of task, check, predict, theme,
   prompt, auto, buy, sell, repair, log, expedition; command names for help and alias; your
-  aliases for rmalias; client ids for bribe (Burned ones first); whole gadget names for
+  aliases for rmalias; client ids for bribe (Burned ones first) and clientinfo; whole gadget names for
   equip/unequip/craft; and the Tasks language's values and keywords in eval, predict when and
   task add/edit/check (an alias completes like what it runs). A completed word gets a space after
   it. Tab or Right (at the end) takes it; Tab never leaves the line.
@@ -487,6 +487,12 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - **Small fry** (a nervous intern, your landlord): never big jobs; forgive easily.
 - **Rivals** come in pairs: Syndicate/Guild, Corvid/Saffron, Night Exchange/Foundry, burner/Kestrel,
   Halvard/Pellucid, intern/landlord.
+- **One client in full** (`clientinfo`/`client`/`ci <client>`, by part of a name, its id or its number
+  in `clients`; `doClientInfo` in `shell/economy.cpp`): style, standing and tier, how far to the next
+  tier and to the one below, a Burned client's bribe price, bribes paid and make-amends cooldown,
+  the rival (and anyone else whose jobs cost standing here), the job kinds their style posts
+  (`clientPosts`), whether a signature job for them is done (the Crown), and their offers on the
+  board and running jobs. Completion offers client ids.
 - Offers pick a kind first, then a client who posts it and isn't Burned. (If nobody posts it, the
   nervous intern does; that fallback never fired before, since an unpicked offer looked like an
   Earn job from the Foundry, Burned or not.)

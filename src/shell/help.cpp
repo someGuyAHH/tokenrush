@@ -178,7 +178,16 @@ const std::vector<CommandInfo>& commands() {
           "mining-by-hand jobs and pay 25% more shards. Merchants post money and market jobs and pay 60% more shards "
           "and 20% fewer tokens. Small fry only post small jobs."},
          {{"clients", "the table"}, {"cl", "the same"}},
-         {"contracts", "bribe"}, CONTRACTS, BUSINESS},
+         {"clientinfo", "contracts", "bribe"}, CONTRACTS, BUSINESS},
+        {Cmd::ClientInfo, {"clientinfo", "client", "ci"}, "clientinfo <client>", "Everything about one client: standing, rivals, the jobs they post",
+         {"One client in full, by name (or part of it, or its id) or by its number in 'clients': their style and what it "
+          "means, their standing and tier, how far it is to the next tier (or to Wary, or to Burned), and for a Burned "
+          "client what a bribe costs and when they can next offer a make-amends job.",
+          "Rivals both ways: the client who resents it when you work here, and the clients whose jobs cost you standing "
+          "here. Then the kinds of job their style posts, whether you've done a signature job for them (signature jobs "
+          "for three clients light the Crown), and their offers on the board and your running jobs for them."},
+         {{"clientinfo syndicate", "by part of a name"}, {"ci 3", "by its number in 'clients'"}},
+         {"clients", "contracts", "bribe"}, CONTRACTS, BUSINESS},
         {Cmd::Bribe, {"bribe"}, "bribe <client>", "Pay a Burned client to work with you again",
          {"A Burned client posts no jobs, so delivering can't win them back. Two things can. A bribe, paid in shards, "
           "puts them at -4 (Wary) right away. It costs more the deeper you've sunk with them (twice as much at -10 as at "

@@ -217,7 +217,8 @@ before this kept everything they were already using. The table lives in `FEATURE
   there are trade jobs, cool-your-heat-down jobs, and two endurance jobs, won by lasting until
   the timer runs out: hold N shards, and hands off the mine. Every offer and job shows a tip
   (Easy to Out of reach, and why), judged from your actual pace every 5 seconds.
-- **Clients and standing.** Every client remembers you (`clients`): standing from -10 to 10,
+- **Clients and standing.** Every client remembers you (`clients`, or `clientinfo <client>` for
+  one in full: how far to the next tier, rivals both ways, the jobs they post): standing from -10 to 10,
   up when you deliver, down when you don't, and down with their rival when you work for them.
   Burned clients post nothing; Trusted ones pay 30% more and post signature jobs (longer, no
   stake, double pay). A Burned client isn't gone for good: `bribe <client>` (or the Bribe button

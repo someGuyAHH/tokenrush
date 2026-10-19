@@ -87,6 +87,11 @@ std::vector<std::string> argumentsOf(const GameState& g, Cmd c, const std::vecto
             for (const auto& a : g.aliases) out.push_back(a.first);
             return at == 1 ? out : std::vector<std::string>{};
         }
+        case Cmd::ClientInfo: {
+            std::vector<std::string> out;
+            for (int i = 0; i < CLIENT_COUNT; ++i) out.push_back(CLIENTS[i].id);
+            return at == 1 ? out : std::vector<std::string>{};
+        }
         case Cmd::Bribe: {
             std::vector<std::string> out;
             for (int i = 0; i < CLIENT_COUNT; ++i)

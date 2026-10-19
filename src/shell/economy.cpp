@@ -248,6 +248,83 @@ void doClients(Shared& s) {
         out() << "  " << padRight(CLIENT_STYLES[st].name, 11) << CLIENT_STYLES[st].desc << "\n";
 }
 
+void doClientInfo(Shared& s, const std::string& args) {
+    if (trim(args).empty()) { out() << "Which client? 'clientinfo <client>', by name or by its number in 'clients'.\n"; return; }
+    int who = findClient(args);
+    if (who < 0) { out() << paint(Style::Warn, "No client called '" + trim(args) + "'. 'clients' lists them.") << "\n"; return; }
+    std::lock_guard lk(s.m);
+    const GameState& g = s.g;
+    const ClientInfo& c = CLIENTS[who];
+    int v = g.standing[(size_t)who];
+    Tier t = tierOf(v);
+    auto signedNum = [](int n) { return (n > 0 ? "+" : "") + std::to_string(n); };
+
+    out() << header(c.name) << paint(Style::Muted, "   client " + std::to_string(who + 1) + " of " + std::to_string(CLIENT_COUNT) +
+                                                   " ('" + c.id + "')") << "\n";
+    out() << padRight("Style", 10) << paint(Style::Bold, CLIENT_STYLES[(int)c.style].name) << ": " << CLIENT_STYLES[(int)c.style].desc << "\n";
+    out() << padRight("Standing", 10) << paint(tierStyle(t), standingBar(v)) << " " << signedNum(v) << "  "
+          << paint(tierStyle(t), TIERS[(int)t].name) << ": " << TIERS[(int)t].desc << "\n";
+    if (t == Tier::Trusted) {
+        out() << padRight("", 10) << paint(Style::Muted, "The top tier. Failing a job here costs 2 (a big one 3).") << "\n";
+    } else if (t != Tier::Burned) {
+        const TierInfo& next = TIERS[(int)t + 1];
+        out() << padRight("", 10) << paint(Style::Muted, std::to_string(next.from - v) + " more to " + next.name +
+                                                          ": a finished job is +1, a big or signature one +2.") << "\n";
+        if ((int)t > (int)Tier::Wary)
+            out() << padRight("", 10) << paint(Style::Muted, std::to_string(v - TIERS[(int)Tier::Wary + 1].from + 1) + " lower and they're Wary.") << "\n";
+        else
+            out() << padRight("", 10) << paint(Style::Warn, std::to_string(v - TIERS[(int)Tier::Wary].from + 1) +
+                                                            " lower and they're Burned: no more jobs.") << "\n";
+    } else {
+        out() << padRight("", 10) << paint(Style::Shards, "Bribe: " + count(bribeCost(g, who), "shard")) << " ('bribe " << c.id << "')"
+              << paint(Style::Muted, g.bribes[(size_t)who] > 0 ? ", after " + count(g.bribes[(size_t)who], "bribe") + " to them (each doubles the next)" : "")
+              << "\n";
+        long long wait = g.amendsAfter[(size_t)who] - g.playSeconds;
+        out() << padRight("", 10) << paint(Style::Muted, wait > 0 ? "No make-amends job from them for another " + duration(wait) + " of play."
+                                                                 : "Or deliver a make-amends job, when they post one.") << "\n";
+    }
+
+    // Rivals: who this one resents when you work for them, and who resents this one.
+    bool mutual = CLIENTS[c.rival].rival == who;
+    out() << padRight("Rival", 10) << clientLabel(g, c.rival)
+          << paint(Style::Muted, mutual ? ", both ways: a job for one costs 1 with the other (to Wary at worst)."
+                                        : ": each job you finish here costs 1 with them (to Wary at worst).") << "\n";
+    std::string rivalOf;
+    for (int i = 0; i < CLIENT_COUNT; ++i)
+        if (i != c.rival && CLIENTS[i].rival == who) rivalOf += (rivalOf.empty() ? "" : ", ") + clientLabel(g, i);
+    if (!rivalOf.empty())
+        out() << padRight("Resented", 10) << paint(Style::Muted, "by ") << rivalOf << paint(Style::Muted, ": their jobs cost you 1 here.") << "\n";
+
+    std::string kinds;
+    for (int k = 0; k < CONTRACT_KIND_COUNT; ++k) {
+        if (!clientPosts(who, (ContractKind)k)) continue;
+        std::string f = CONTRACT_KINDS[k].format;
+        if (size_t at = f.find("%s"); at != std::string::npos) f.replace(at, 2, "N");
+        kinds += (kinds.empty() ? "" : ", ") + f;
+    }
+    out() << padRight("Posts", 10) << kinds << (c.style == ClientStyle::SmallFry ? paint(Style::Muted, " (small jobs only)") : "") << "\n";
+    bool sig = hasBit(g.signatureClients, who);
+    out() << padRight("Signature", 10) << (sig ? paint(Style::Good, "done") : paint(Style::Muted, t == Tier::Trusted ? "not yet: they post them now and then"
+                                                                                                         : "not yet: they post them once they're Trusted"))
+          << paint(Style::Muted, " (signature jobs for 3 clients light the Crown)") << "\n";
+
+    // What's on right now.
+    bool any = false;
+    for (size_t i = 0; i < g.offers.size(); ++i) {
+        if (g.offers[i].client != who) continue;
+        if (!any) out() << paint(Style::Bold, "Right now") << "\n";
+        any = true;
+        out() << "  offer " << (i + 1) << ": " << offerRow(g.offers[i]) << paint(Style::Muted, "  leaves in " + duration(g.offers[i].expiresIn)) << "\n";
+    }
+    for (const Contract& job : g.contracts) {
+        if (job.client != who) continue;
+        if (!any) out() << paint(Style::Bold, "Right now") << "\n";
+        any = true;
+        out() << "  running: " << contractText(job) << "  " << progressText(g, job) << paint(Style::Muted, ", " + duration(job.secondsLeft) + " left") << "\n";
+    }
+    if (!any) out() << paint(Style::Muted, "Nothing from them on the board or running right now. 'contracts' shows the board.") << "\n";
+}
+
 void doBribe(Shared& s, const std::string& args) {
     if (trim(args).empty()) { out() << "Bribe who? 'bribe <client>', by name or by its number in 'clients'.\n"; return; }
     int who = findClient(args);
