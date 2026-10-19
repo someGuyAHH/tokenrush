@@ -86,6 +86,12 @@ const ThemeInfo THEMES[] = {
      {{230, 225, 242}, {125, 119, 150}, {185, 163, 245}, {143, 214, 176}, {242, 121, 139}, {244, 194, 122}, {245, 159, 214},
       {246, 210, 122}, {140, 200, 242}, {245, 154, 106},
       {29, 27, 44}, {38, 35, 56}, {91, 79, 158}, {244, 240, 255}, {52, 48, 74}, {138, 132, 163}, {196, 232, 120}}},
+    // The look Classic had until v10: the terminal's own named colors and background (these RGB values
+    // are only stand-ins, for previews and the custom theme's starting point).
+    {"terminal", "Terminal", 0, "Your terminal's own colors and background, as the game first looked.", true,
+     {{204, 204, 204}, {118, 118, 118}, {41, 184, 219}, {13, 188, 121}, {205, 49, 49}, {229, 229, 16}, {188, 63, 188},
+      {255, 215, 0}, {0, 175, 255}, {255, 135, 0},
+      {30, 30, 30}, {48, 48, 48}, {36, 114, 200}, {255, 255, 255}, {68, 68, 68}, {188, 188, 188}, {175, 255, 0}}},
     {"glacier", "Glacier", 300, "Frost blue and snow, cold and clear.", false,
      {{221, 230, 239}, {111, 127, 144}, {136, 198, 224}, {159, 211, 167}, {229, 124, 134}, {232, 201, 138}, {185, 162, 230},
       {236, 210, 139}, {127, 212, 240}, {224, 154, 115},
@@ -102,12 +108,6 @@ const ThemeInfo THEMES[] = {
      {{240, 230, 255}, {122, 108, 153}, {0, 229, 255}, {92, 255, 157}, {255, 79, 123}, {255, 210, 63}, {255, 92, 240},
       {255, 210, 63}, {0, 229, 255}, {255, 138, 61},
       {20, 15, 36}, {29, 22, 51}, {122, 44, 255}, {255, 255, 255}, {42, 33, 64}, {133, 121, 158}, {190, 255, 60}}},
-    // The look Classic had until v10: the terminal's own named colors and background (these RGB values
-    // are only stand-ins, for previews and the custom theme's starting point).
-    {"terminal", "Terminal", 0, "Your terminal's own colors and background, as the game first looked.", true,
-     {{204, 204, 204}, {118, 118, 118}, {41, 184, 219}, {13, 188, 121}, {205, 49, 49}, {229, 229, 16}, {188, 63, 188},
-      {255, 215, 0}, {0, 175, 255}, {255, 135, 0},
-      {30, 30, 30}, {48, 48, 48}, {36, 114, 200}, {255, 255, 255}, {68, 68, 68}, {188, 188, 188}, {175, 255, 0}}},
 };
 static_assert(std::size(THEMES) == THEME_COUNT);
 

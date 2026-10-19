@@ -368,11 +368,11 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   |---|---|---|
   | Classic | free | the default: the original colors, softened, on graphite (an RGB theme since v10) |
   | Dusk | free | lavender and apricot on deep violet |
+  | Terminal | free | the terminal's own 16/256 colors and background: Classic until v10 |
   | Glacier | 300 shards | frost blue and snow |
   | Ember | 750 shards | amber and coal, with a cold blue spark |
   | Verdigris | 1,500 shards | patina green, brass, sea glass |
   | Neon | 3,000 shards | hot pink and cyan on purple |
-  | Terminal | free | the terminal's own 16/256 colors and background: Classic until v10 |
 
   - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Terminal (`codeFor` in `shell/term.cpp`);
     the theme list shows each one as a swatch line on its own background (`ESC[48;2;...m`).
