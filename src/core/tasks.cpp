@@ -38,10 +38,7 @@ const ValueDef VALUES[] = {
     {"price.sell",    Unit::Amount, [](GameState& g) { return sellPrice(g); }},   // ...and what one sells for
     {"spread",        Unit::Amount, [](GameState& g) { return 100.0 * marketSpread(g); }},   // in percent of the price
     {"impact",        Unit::Amount, [](GameState& g) { return 100.0 * marketImpact(g); }},   // in percent, per shard traded
-    {"price.buy",     Unit::Amount, [](GameState& g) { return buyPrice(g); }},    // what one shard costs you right now
-    {"price.sell",    Unit::Amount, [](GameState& g) { return sellPrice(g); }},   // ...and what one sells for
-    {"spread",        Unit::Amount, [](GameState& g) { return 100.0 * marketSpread(g); }},   // in percent of the price
-    {"impact",        Unit::Amount, [](GameState& g) { return 100.0 * marketImpact(g); }},   // in percent, per shard traded
+    {"stock",         Unit::Amount, [](GameState& g) { return (double)g.marketStock; }},   // shards the market has for sale
     {"heat",          Unit::Amount, [](GameState& g) { return (double)g.heat; }},
     {"level.pickaxe", Unit::Amount, [](GameState& g) { return (double)g.pickaxe; }},
     {"level.magnet",  Unit::Amount, [](GameState& g) { return (double)g.magnet; }},
@@ -58,6 +55,7 @@ const ValueDef VALUES[] = {
     {"payday",        Unit::Time,   [](GameState& g) { return g.crew.empty() ? 0.0 : (double)g.paydayClock; }},
     {"broken",        Unit::Amount, [](GameState& g) { return (double)repairs(g).size(); }},
     {"orrery.left",   Unit::Amount, [](GameState& g) { return (double)orreryRemaining(g); }},
+    {"orrery.build",  Unit::Time,   [](GameState& g) { return (double)g.orreryAssembly; }},   // assembly left (0 = none)
     {"jobs",          Unit::Amount, [](GameState& g) { return (double)g.contracts.size(); }},
     // Only `predict when` reads these (from here on): running totals that only grow.
     {"earned",        Unit::Amount, [](GameState& g) { return (double)g.lifetimeEarned; }},
@@ -79,9 +77,7 @@ const TaskValueInfo TASK_VALUES[] = {
     {"price.buy, price.sell", "what one shard costs you, and pays you, right now"},
     {"spread",                "the gap between them, in % of the price (5 = 5%)"},
     {"impact",                "how far each shard you trade moves the price, in %"},
-    {"price.buy, price.sell", "what one shard costs you, and pays you, right now"},
-    {"spread",                "the gap between them, in % of the price (5 = 5%)"},
-    {"impact",                "how far each shard you trade moves the price, in %"},
+    {"stock",                 "shards the market has for sale (it restocks while the game is open)"},
     {"heat",                  "0 to 10"},
     {"level.<upgrade>",       "pickaxe, magnet, drone or bot: its level"},
     {"cost.<upgrade>",        "what its next level costs"},
@@ -90,6 +86,7 @@ const TaskValueInfo TASK_VALUES[] = {
     {"payday",                "time until payday (a time: 30s, 2m...)"},
     {"broken",                "things disasters have broken"},
     {"orrery.left",           "shards the Orrery's current stage still needs"},
+    {"orrery.build",          "time left assembling a funded stage (a time; 0 when none is)"},
     {"jobs",                  "contracts you're working on"},
 };
 const int TASK_VALUE_COUNT = (int)std::size(TASK_VALUES);
@@ -738,7 +735,9 @@ std::string blocked(GameState& g, const TaskAction& a, int& member) {
         }
         case TaskAction::BuyShards: {
             if (auto l = locked(Feature::Market); !l.empty()) return l;
+            if (g.marketStock == 0) return "the market is sold out";
             if (a.all) return maxAffordable(g) > 0 ? "" : "you can't afford a shard";
+            if (a.n > g.marketStock) return "the market only has " + count(g.marketStock, "shard");
             long long cost = buyCost(g, a.n);
             return cost <= g.tokens ? "" : count(a.n, "shard") + " cost " + compact(cost);
         }
@@ -779,6 +778,7 @@ std::string blocked(GameState& g, const TaskAction& a, int& member) {
         case TaskAction::Fund: {
             if (auto l = locked(Feature::Orrery); !l.empty()) return l;
             if (g.orreryStage >= ORRERY_STAGE_COUNT) return "the Orrery is complete";
+            if (g.orreryAssembly > 0) return std::string("the ") + ORRERY[g.orreryStage].name + " is being assembled (" + duration(g.orreryAssembly) + ")";
             if (a.all) return orrerySpareShards(g) > 0 ? "" : "no spare shards (the next payday needs " + count(totalWages(g), "shard") + ")";
             return g.shards >= a.n ? "" : "you have " + count(g.shards, "shard");
         }

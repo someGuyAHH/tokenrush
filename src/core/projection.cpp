@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cmath>
 
+#include "actions.hpp"
 #include "contracts.hpp"
 #include "crew.hpp"
 #include "game.hpp"
+#include "market.hpp"
 #include "tasks.hpp"
 #include "util.hpp"
 
@@ -182,6 +184,8 @@ void Forecast::step() {
         g.shards -= totalWages(g);
         g.paydayClock = PAYDAY_SECONDS;
     }
+    if (assembleOrrery(g)) changed = true;   // a perk (Resonance) can change the rates
+    g.marketStock = std::min(MARKET_STOCK_MAX, g.marketStock + MARKET_RESTOCK_PER_SEC);
     if (g.heat > 0 && !infected(g, Strain::Fever) && --g.heatClock <= 0) {
         g.heat -= 1;
         g.heatClock = heatCoolSeconds(g);

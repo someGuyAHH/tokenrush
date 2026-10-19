@@ -47,6 +47,7 @@
 #include "contracts.hpp"
 #include "crew.hpp"
 #include "game.hpp"
+#include "market.hpp"
 #include "stars.hpp"
 #include "tasks.hpp"
 #include "util.hpp"
@@ -659,6 +660,7 @@ const std::vector<Field>& saveFields() {
               [](const GameState& g) { return g.gadgetsOwned != 0; }},
 
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
+        numField("market", "stock",      &GameState::marketStock, 0LL, MARKET_STOCK_MAX),
         numField("market", "heat",       &GameState::heat, 0, MAX_HEAT),
         numField("market", "heatClock",  &GameState::heatClock, 0, 24 * 3600),
 
@@ -687,6 +689,7 @@ const std::vector<Field>& saveFields() {
 
         numField("orrery", "stage",    &GameState::orreryStage, 0, ORRERY_STAGE_COUNT),
         numField("orrery", "progress", &GameState::orreryProgress),
+        numField("orrery", "assembly", &GameState::orreryAssembly, 0, 24 * 3600),
 
         enumAt("infection", "strain", [](GameState& g) -> Strain& { return g.strain; }, STRAIN_COUNT,
                [](int s) { return STRAINS[s].id; }, [](const GameState& g) { return g.strain != Strain::None; }),
@@ -891,11 +894,12 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
         return false;
     }
     if (g.orreryStage < ORRERY_STAGE_COUNT) {
-        if (g.orreryProgress >= ORRERY[g.orreryStage].cost) {
-            why = "[orrery] progress is at or past the current stage's cost";
+        long long cost = ORRERY[g.orreryStage].cost;
+        if (g.orreryProgress > cost || (g.orreryProgress == cost) != (g.orreryAssembly > 0)) {
+            why = "[orrery] progress should be under the stage's cost, or at it while the stage is assembled";
             return false;
         }
-    } else if (g.orreryProgress != 0) {
+    } else if (g.orreryProgress != 0 || g.orreryAssembly != 0) {
         why = "[orrery] progress should be 0 once the Orrery is complete";
         return false;
     }

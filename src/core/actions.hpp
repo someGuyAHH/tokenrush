@@ -79,4 +79,6 @@ BuildResult buildMonolith(GameState& g, long long amount);
 // ----- The Orrery (shards) -----
 long long orreryRemaining(const GameState& g);              // shards left for the current stage (0 when done)
 long long orrerySpareShards(const GameState& g);            // shards you can put in without missing the next payday
+// Once a second: a funded stage's assembly counts down; returns the stage it just finished, or nullptr.
+const OrreryStage* assembleOrrery(GameState& g);
 BuildResult buildOrrery(GameState& g, long long shards);    // `finished` = the whole Orrery just completed

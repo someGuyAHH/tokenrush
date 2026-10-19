@@ -250,7 +250,7 @@ struct Sim {
         if (t % 10 == 0) contractPlan();
         if (t % 10 == 0 && orreryOpen && !orreryDone) {
             // Any price: a third of the wallet into shards, then everything above a payday into the Orrery.
-            long long budget = g.tokens / 3, lo = 0, hi = MARKET_MAX_ORDER;
+            long long budget = g.tokens / 3, lo = 0, hi = std::min(MARKET_MAX_ORDER, g.marketStock);
             while (lo < hi) { long long mid = (lo + hi + 1) / 2; if (buyCost(g, mid) <= budget) lo = mid; else hi = mid - 1; }
             if (lo > 0) buy(lo);
             long long reserve = totalWages(g) * 2 + 20 + held();
@@ -317,7 +317,7 @@ struct Sim {
     void orreryPlan() {
         if (g.orreryStage >= ORRERY_STAGE_COUNT || g.monolithStage < MONO_STAGE_COUNT) return;
         if (g.shardPrice < SHARD_FAIR_PRICE * 1.3) {
-            long long budget = g.tokens / 2, lo = 0, hi = MARKET_MAX_ORDER;
+            long long budget = g.tokens / 2, lo = 0, hi = std::min(MARKET_MAX_ORDER, g.marketStock);
             while (lo < hi) { long long mid = (lo + hi + 1) / 2; if (buyCost(g, mid) <= budget) lo = mid; else hi = mid - 1; }
             if (lo > 0) buy(lo);
         }

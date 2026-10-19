@@ -84,6 +84,11 @@ int crewCap(const GameState& g);            // 4, or 5 after the Base Plate
 int crewLevelCap(const GameState& g);       // 5, or 8 after the Gearwork
 int contractSlots(const GameState& g);      // 1, or 2 after the Second Ring
 bool hasResonance(const GameState& g);      // after the First Ring
+// A funded Orrery stage takes time to assemble (play time: only while the game is open) before
+// its perk works and the next stage can be funded: 1 minute for the first, twice as long each stage after.
+inline constexpr int ORRERY_BUILD_FIRST  = 60;
+inline constexpr int ORRERY_BUILD_GROWTH = 2;
+int orreryBuildSeconds(int stage);          // 60, 120, 240, 480, 960
 
 // ----- Income -----
 // Every token that enters the economy goes through earn(), so lifetime stats stay honest,

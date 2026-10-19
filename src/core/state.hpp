@@ -184,6 +184,7 @@ struct GameState {
 
     // Market
     double shardPrice = SHARD_FAIR_PRICE;        // mid price in tokens; see market.cpp
+    long long marketStock = 40'000;              // shards the market has for sale (MARKET_STOCK_MAX, market.hpp)
     double lastReportedPrice = SHARD_FAIR_PRICE; // the log mentions big moves away from this
     std::deque<double> priceHistory;    // one sample per few seconds, for the chart (not saved)
     int historyClock = 0;
@@ -314,6 +315,7 @@ struct GameState {
     long long monolithProgress = 0;  // tokens poured into the current stage
     int orreryStage = 0;             // stages completed
     long long orreryProgress = 0;    // shards put into the current stage
+    int orreryAssembly = 0;          // seconds left assembling the current stage, once it's fully funded (0 = not yet)
 
     // Tasks: 0 slots until the Automation License is bought
     int taskSlots = 0;

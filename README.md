@@ -201,9 +201,11 @@ before this kept everything they were already using. The table lives in `FEATURE
   | Gearwork | 35,000 | crew can train up to level 8 |
   | The Sun | 80,000 | the Clockwork Sky goal, and the Constellations |
 
-  Token wealth can't rush it: every shard you buy pushes the price up, so a fortune buys only
-  a few thousand shards before the price needs time to settle. `orrery all` keeps back your
-  crew's next payday.
+  Token wealth can't rush it: every shard you buy pushes the price up, and the market only has
+  so many for sale (40,000 at most, restocking 8 a second). Each funded stage then takes a while
+  to assemble before its perk works and the next stage takes shards: 1 minute for the Base
+  Plate, twice as long each stage after, 16 for the Sun. `orrery all` keeps back your crew's
+  next payday.
 - **Shards and the market.** A second currency, bought and sold with tokens. The price wanders,
   drifts back toward 150, and every shard you trade pushes it a little. Buying costs a bit
   above the price and selling pays a bit below it (the spread). The market screen keeps your

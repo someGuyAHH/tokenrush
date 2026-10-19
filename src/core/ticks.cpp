@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "choices.hpp"
+#include "actions.hpp"
 #include "contracts.hpp"
 #include "crew.hpp"
 #include "disasters.hpp"
@@ -14,12 +15,21 @@
 #include "stars.hpp"
 #include "util.hpp"
 
+static void orreryTick(GameState& g, MessageLog& log) {
+    const OrreryStage* st = assembleOrrery(g);
+    if (!st) return;
+    log.push(Sev::Event, std::string("*** Orrery stage complete: ") + st->name + " ***");
+    log.push(Sev::Event, std::string("Unlocked: ") + st->perk + ".");
+    if (g.orreryStage == ORRERY_STAGE_COUNT) log.push(Sev::Event, "*** THE ORRERY IS COMPLETE ***");
+}
+
 void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     updatePassive(g, t);
     g.playSeconds += 1;
     updateRates(g);
+    orreryTick(g, log);
 
     if (g.streak > 0 && g.lastMine != 0 && std::difftime(t, g.lastMine) >= (double)streakTimeout(g)) {
         log.push(Sev::Info, "Your streak of " + std::to_string(g.streak) + " expired.");

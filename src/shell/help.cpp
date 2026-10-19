@@ -123,6 +123,8 @@ const std::vector<CommandInfo>& commands() {
           "costs a little above the price and selling pays a little below it: that gap is the spread (5% to start). "
           "Heat widens it by 2% a point; Brokers narrow it. Every shard you trade also pushes the price a little "
           "(up when you buy, down when you sell), so big orders get worse as they go.",
+          "The market only has so many shards for sale (40,000 at most) and restocks 8 a second while the game "
+          "is open; what you sell goes back on the shelf.",
           "The screen shows the price and a chart of the last 5 minutes, quotes for 10 shards, and your trading "
           "record: what you've bought and sold, the average prices, the net, and how much went to the spread "
           "and price impact."},
@@ -130,7 +132,8 @@ const std::vector<CommandInfo>& commands() {
          {"buy", "sell", "crew"}, MARKET, BUSINESS},
         {Cmd::Buy, {"buy"}, "buy <n|max>", "Buy shards with tokens",
          {"Buys shards at the current buy price, plus the price impact of the order itself (each shard pushes the "
-          "next one up by about 0.25%). One order can be up to 5,000 shards.",
+          "next one up by about 0.25%). One order can be up to 5,000 shards, and no more than the market has "
+          "for sale (see 'market').",
           "An order that would fill at more than 3x the current price (a huge order, or a price spike) asks you "
           "to type yes first."},
          {{"buy 10", "buy ten shards"}, {"buy 2k", "amounts can be 2000, 2,000 or 2k (also m and b)"},
@@ -297,8 +300,10 @@ const std::vector<CommandInfo>& commands() {
          {"The Orrery is the late-game build, made of shards. Each of its five stages unlocks something: a 5th crew "
           "slot, Resonance (Drones and the Bot scale with your mining), a second contract slot, a higher crew level "
           "cap, and finally the Sun. Completing it cures an Infected profile.",
-          "Token wealth can't rush it: buying lots of shards at once drives their price up, so it takes time and "
-          "the market."},
+          "Token wealth can't rush it: buying lots of shards at once drives their price up, and the market only "
+          "restocks so fast. Each funded stage then takes a while to assemble (1 minute for the first, twice as "
+          "long for each after it, 16 for the Sun, while the game is open) before its perk works and the next "
+          "stage takes shards."},
          {{"orrery", "look at it"}, {"orrery 500", "set 500 shards into it"},
           {"orrery all", "everything except your crew's next payday"}},
          {"market", "buy"}, ORRERY, SPENDING},

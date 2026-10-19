@@ -183,10 +183,12 @@ Component ShopPage(Ui& ui) {
         Elements rows = {hbox({heading("Upgrades"), text("   +/s is what one more level adds to your income, as you play now") | muted()}), text("")};
         for (size_t i = 0; i < ups.size(); ++i) {
             std::string gain = "+" + perSecond(std::max(0.0, upgradeGain(g, i))) + "/s";
+            // The buttons sit right next to the numbers; what the level does goes last, where it can be long.
             rows.push_back(hbox({cell(ups[i].name, 12), cell("lvl " + std::to_string(*ups[i].lvl), 11),
-                                 text(effects[i]) | size(WIDTH, EQUAL, 46), text(gain) | color(hue(Hue::Good)) | size(WIDTH, EQUAL, 10),
+                                 text(gain) | color(hue(Hue::Good)) | size(WIDTH, EQUAL, 11),
                                  tokens(ups[i].cost) | size(WIDTH, EQUAL, 16),
-                                 buys[i][0]->Render(), text(" "), buys[i][1]->Render(), text(" "), buys[i][2]->Render()}));
+                                 buys[i][0]->Render(), text(" "), buys[i][1]->Render(), text(" "), buys[i][2]->Render(),
+                                 text("   "), text(effects[i]) | muted() | flex}));
         }
         rows.push_back(text(""));
         rows.push_back(heading("Automation"));
@@ -290,7 +292,7 @@ static Element ledger(const GameState& g) {
 Component MarketPage(Ui& ui) {
     auto buyN = [&ui](long long n) { return [&ui, n] { ui.run([n](GameState& g) { return buyShards(g, n); }); }; };
     auto sellN = [&ui](long long n) { return [&ui, n] { ui.run([n](GameState& g) { return sellShards(g, n); }); }; };
-    auto canBuy = [&ui](long long n) { return [&ui, n] { return buyCost(ui.snap, n) <= ui.snap.tokens; }; };
+    auto canBuy = [&ui](long long n) { return [&ui, n] { return n <= ui.snap.marketStock && buyCost(ui.snap, n) <= ui.snap.tokens; }; };
     auto canSell = [&ui](long long n) { return [&ui, n] { return ui.snap.shards >= n; }; };
 
     Components buyRow = {
@@ -326,7 +328,7 @@ Component MarketPage(Ui& ui) {
             ui.customBuyArmedUntil = {};
             ui.run([n](GameState& g) { return buyShards(g, n); });
         },
-        [&ui, amount] { long long n = amount(); return n > 0 && n <= MARKET_MAX_ORDER && buyCost(ui.snap, n) <= ui.snap.tokens; });
+        [&ui, amount] { long long n = amount(); return n > 0 && n <= MARKET_MAX_ORDER && n <= ui.snap.marketStock && buyCost(ui.snap, n) <= ui.snap.tokens; });
     Component customSell = Btn("Sell",
         [&ui, amount] {
             long long n = amount();
@@ -358,6 +360,8 @@ Component MarketPage(Ui& ui) {
             g.priceHistory.size() >= 2 ? hbox({text("Last " + duration((long long)g.priceHistory.size() * 5) + "  "), chart}) : chart,
             text(""),
             hbox({text("You have "), shards(g.shards), text(" shards and "), tokens(g.tokens), text(" tokens.")}),
+            hbox({text("For sale "), text(num(g.marketStock)) | color(pick(g.marketStock > 0, hue(Hue::Shards), hue(Hue::Bad))) | bold,
+                  text(" of " + num(MARKET_STOCK_MAX) + " shards   " + restockText()) | muted()}),
             text(""),
             rowOf(buyRow),
             text("        " + num(buyCost(g, 1)) + "     " + num(buyCost(g, 10)) + "      " + num(buyCost(g, 100)) +
@@ -750,13 +754,13 @@ Component OrreryPage(Ui& ui) {
     auto build = [&ui](std::function<long long(const GameState&)> amount) {
         return [&ui, amount] { ui.run([amount](GameState& g) { return buildOrrery(g, amount(g)).notes; }); };
     };
-    auto open = [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.shards > 0; };
+    auto open = [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.orreryAssembly == 0 && ui.snap.shards > 0; };
     Components btns = {
         Btn("Add 100", build([](const GameState& g) { return std::min(100LL, g.shards); }), open),
         Btn("Add 1,000", build([](const GameState& g) { return std::min(1000LL, g.shards); }), open),
         Btn("Add all", build([](const GameState& g) { return orrerySpareShards(g); }), open),   // keeps payday wages
         Btn("Finish stage", build([](const GameState& g) { return std::min(g.shards, orreryRemaining(g)); }),
-            [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.shards >= orreryRemaining(ui.snap); }),
+            [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.orreryAssembly == 0 && ui.snap.shards >= orreryRemaining(ui.snap); }),
     };
     Component box = Container::Horizontal(btns);
 
@@ -789,12 +793,17 @@ Component OrreryPage(Ui& ui) {
             const OrreryStage& st = ORRERY[g.orreryStage];
             status = hbox({text("Stage " + std::to_string(g.orreryStage + 1) + "/" + std::to_string(ORRERY_STAGE_COUNT) + ": " + st.name + "  "),
                            progress(g.orreryProgress, st.cost, 24), text("   you have "), shards(g.shards), text(" shards")});
+            if (g.orreryAssembly > 0)
+                status = vbox({status, hbox({text("Assembling: " + duration(g.orreryAssembly) + " left") | color(hue(Hue::Shards)) | bold,
+                                             text("  (while the game is open; then its perk works and the next stage takes shards)") | muted()})});
         }
         if (Terminal::Size().dimy < 30) {   // short terminal: the picture comes first
             return vbox({vbox(art), status, hbox(btnRow)});
         }
         return vbox({vbox(art), text(""), status, hbox(btnRow), filler(),
-                     note("Built with shards: buy them on the Market (big orders push the price up), or let Scouts and contracts bring them in.")});
+                     note("Built with shards: buy them on the Market (big orders push the price up, and it only has so many), or let Scouts "
+                          "and contracts bring them in. A funded stage takes " + duration(orreryBuildSeconds(0)) + " to assemble, " +
+                          std::to_string(ORRERY_BUILD_GROWTH) + "x more each stage after.")});
     });
 }
 

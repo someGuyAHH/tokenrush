@@ -482,6 +482,8 @@ static void printOrrery(const GameState& g) {
     const OrreryStage& st = ORRERY[g.orreryStage];
     out() << "Stage " << (g.orreryStage + 1) << "/" << ORRERY_STAGE_COUNT << ": " << st.name << "  "
               << bar(g.orreryProgress, st.cost, 20) << " " << num(g.orreryProgress) << " / " << num(st.cost) << " shards\n";
+    if (g.orreryAssembly > 0)
+        out() << paint(Style::Shards, "Assembling: " + duration(g.orreryAssembly) + " left") << paint(Style::Muted, " (while the game is open)") << "\n";
 }
 
 void doOrrery(Shared& s, const std::string& arg) {
@@ -491,7 +493,9 @@ void doOrrery(Shared& s, const std::string& arg) {
     if (arg.empty()) {
         printOrrery(g);
         if (g.orreryStage < ORRERY_STAGE_COUNT)
-            out() << "Use 'orrery <shards>' or 'orrery all' to build. Shards come from the market, Scouts and contracts.\n";
+            out() << "Use 'orrery <shards>' or 'orrery all' to build. Shards come from the market, Scouts and contracts.\n"
+                  << paint(Style::Muted, "A funded stage takes time to assemble: " + duration(orreryBuildSeconds(0)) + " for the first, " +
+                                         std::to_string(ORRERY_BUILD_GROWTH) + "x more each stage after.") << "\n";
         return;
     }
 
@@ -505,5 +509,4 @@ void doOrrery(Shared& s, const std::string& arg) {
     BuildResult r = buildOrrery(g, amount);
     printNotes(r.notes);
     if (r.poured > 0) printOrrery(g);
-    if (r.finished) out() << paint(Style::Event, "*** THE ORRERY IS COMPLETE ***") << "\n";
 }

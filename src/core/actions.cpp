@@ -371,6 +371,14 @@ long long orreryRemaining(const GameState& g) {
     return g.orreryStage < ORRERY_STAGE_COUNT ? ORRERY[g.orreryStage].cost - g.orreryProgress : 0;
 }
 
+const OrreryStage* assembleOrrery(GameState& g) {
+    if (g.orreryAssembly <= 0 || g.orreryStage >= ORRERY_STAGE_COUNT || --g.orreryAssembly > 0) return nullptr;
+    const OrreryStage* st = &ORRERY[g.orreryStage];
+    g.orreryStage += 1;
+    g.orreryProgress = 0;
+    return st;
+}
+
 long long orrerySpareShards(const GameState& g) {
     return std::max(0LL, g.shards - totalWages(g));   // one payday's worth stays
 }
@@ -379,26 +387,25 @@ BuildResult buildOrrery(GameState& g, long long amount) {
     BuildResult r;
     if (!isUnlocked(g, Feature::Orrery)) { r.notes.push_back({Sev::Warn, lockedText(g, Feature::Orrery)}); return r; }
     if (g.orreryStage >= ORRERY_STAGE_COUNT) { r.notes.push_back({Sev::Info, "The Orrery is already complete."}); return r; }
+    if (g.orreryAssembly > 0) {
+        r.notes.push_back({Sev::Warn, std::string("The ") + ORRERY[g.orreryStage].name + " is still being assembled (" +
+                                      duration(g.orreryAssembly) + " left); the next stage takes shards after that."});
+        return r;
+    }
     if (amount <= 0) { r.notes.push_back({Sev::Warn, "Nothing to build with. (The Orrery takes shards.)"}); return r; }
     if (amount > g.shards) { r.notes.push_back({Sev::Warn, "You only have " + count(g.shards, "shard") + "."}); return r; }
 
-    long long left = amount;
-    while (left > 0 && g.orreryStage < ORRERY_STAGE_COUNT) {
-        const OrreryStage& st = ORRERY[g.orreryStage];
-        long long put = std::min(left, st.cost - g.orreryProgress);
-        g.orreryProgress += put;
-        g.shards -= put;
-        left -= put;
-
-        if (g.orreryProgress >= st.cost) {
-            g.orreryStage += 1;
-            g.orreryProgress = 0;
-            r.notes.push_back({Sev::Event, std::string("*** Orrery stage complete: ") + st.name + " ***"});
-            r.notes.push_back({Sev::Event, std::string("Unlocked: ") + st.perk + "."});
-            r.finished = (g.orreryStage == ORRERY_STAGE_COUNT);
-        }
+    // One stage at a time: a funded stage has to be assembled before the next takes shards.
+    const OrreryStage& st = ORRERY[g.orreryStage];
+    long long put = std::min(amount, st.cost - g.orreryProgress);
+    g.orreryProgress += put;
+    g.shards -= put;
+    if (g.orreryProgress >= st.cost) {
+        g.orreryAssembly = orreryBuildSeconds(g.orreryStage);
+        r.notes.push_back({Sev::Event, std::string("The ") + st.name + " is funded! Assembling it takes " +
+                                       duration(g.orreryAssembly) + " (while the game is open)."});
     }
-    r.poured = amount - left;
+    r.poured = put;
     r.notes.push_back({Sev::Good, "Set " + count(r.poured, "shard") + " into the Orrery."});
     return r;
 }

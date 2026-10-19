@@ -104,6 +104,11 @@ EventFx fxNow(const GameState& g, std::time_t t) { return eventFx(activeEvent(g,
 bool stageWorks(const GameState& g, int stage) { return g.orreryStage > stage && !hasBit(g.orreryCracked, stage); }
 int crewCap(const GameState& g)       { return stageWorks(g, 0) ? 5 : 4; }
 bool hasResonance(const GameState& g) { return stageWorks(g, 1); }
+int orreryBuildSeconds(int stage) {
+    int s = ORRERY_BUILD_FIRST;
+    for (int i = 0; i < stage; ++i) s *= ORRERY_BUILD_GROWTH;
+    return s;
+}
 int contractSlots(const GameState& g) { return stageWorks(g, 2) ? 2 : 1; }
 int crewLevelCap(const GameState& g)  { return stageWorks(g, 3) ? 8 : 5; }
 

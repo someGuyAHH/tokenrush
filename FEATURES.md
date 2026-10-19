@@ -411,6 +411,14 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Impact:** 0.25% of the price per shard you trade (geometric), cut by up to 50% by Brokers.
 - **Orders:** max 5,000 shards per order. Buy 1/10/100/max, Sell 1/10/100/all, and the
   **amount box** (any amount, `2k` style).
+- **Stock** (`marketStock`, saved as `[market] stock`): the market has at most **40,000** shards
+  for sale and restocks **8 a second** (28,800 an hour) while the game is open
+  (`MARKET_STOCK_MAX`, `MARKET_RESTOCK_PER_SEC` in `market.hpp`). An order past the stock is
+  refused ("only has N for sale"), Buy max stops at it, and what you sell goes back into it.
+  Shown on the Market tab and in `market`; tasks read it as `stock`. Earned shards (Scouts,
+  contracts, secrets, expeditions) aren't limited. Tuned with the simulator: the normal player
+  never runs into it, and a speedrunner who paid any price for shards (finishing the Orrery in
+  about 3 h) now takes about 5.
 - **Price warning:** an order that would average more than 3× the price asks for confirmation.
 - **Trading record** (`[ledger]`): shards bought and sold, tokens spent and received (the Shady
   Broker counts as a buy), and `tradeCost`, what went to the spread and impact against the mid
@@ -418,8 +426,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Gadgets:** the Golden Ledger makes both quotes 15% higher (selling pays more, buying costs
   more: for net sellers); the Moon Anchor cuts your own price impact to a quarter but doubles
   volatility and shocks.
-- **Known balance gap:** in the late game, income is so high that buying at the 100,000 ceiling
-  is cheap, so the last Orrery stage can be bought outright. Not fixed yet (Script hasn't asked).
+- **The old balance gap** (late income buys the last Orrery stages outright at the 100,000
+  ceiling) is closed by the stock: money can't buy shards faster than the market restocks.
 
 ## Contracts and heat (`core/contracts.*`), Jobs tab / `contracts`
 - **The board:** 3 offers, refilled every 60 s.
@@ -587,7 +595,13 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **Resonance:**
   - Each Drone level also earns 0.3% of an expected manual mine per second.
   - The Mining Bot rolls bonuses and jackpots like a manual mine, at a power of 0.10 + 0.005 × Bot level.
-- **Building it:** `orrery all` / Add all keep back the crew's next payday.
+- **Building it:** `orrery all` / Add all keep back the crew's next payday. Shards go into one
+  stage at a time.
+- **Assembly** (`orreryAssembly`, saved as `[orrery] assembly`): a fully funded stage takes play
+  time to assemble before its perk works and the next stage takes shards: 1 min, 2, 4, 8 and
+  16 min for the Sun (`ORRERY_BUILD_FIRST`, `ORRERY_BUILD_GROWTH`, `orreryBuildSeconds()` in
+  `game.hpp`). The Orrery tab and `orrery` show the time left; tasks read `orrery.build`, and a
+  `fund orrery` task waits for it. Goals, title unlocks and Quakes count only assembled stages.
 - **Completing it** cures an Infection and opens the Constellations.
 - **Quakes** (a disaster) can crack a built stage except the Sun: its perk is off until repaired
   (`stageWorks()` in `game.cpp`; a 5th crew member already hired stays).
@@ -717,7 +731,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   comparison at a time (`a < b < c` is an error: join with `and`).
 - **What tasks can read** (only what the screen already shows): `tokens`, `shards`, `income`
   (the 5-minute average), `price`, `heat`, `level.<pickaxe|magnet|drone|bot>`, `cost.<...>` (the
-  next level), `crew`, `home`, `away`, `wages`, `payday`, `broken`, `orrery.left`, `jobs`, `true`,
+  next level), `crew`, `home`, `away`, `wages`, `payday`, `broken`, `orrery.left`, `orrery.build` (a time),
+  `stock` (the market's), `jobs`, `true`,
   `false`. Nothing about offers, clients, candidates, events or chance.
 - **What tasks can do:** `upgrade <item> [n|max]`, `buy shards <n|max>`, `sell shards <n|all>`,
   `train <who>`, `promote <who>`, `send <who> <short|long|deep>`, `repair`, `fund orrery <n|all>`
