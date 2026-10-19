@@ -46,7 +46,7 @@ enum class Hue : int {
     Background, Panel, Button, ButtonText, ButtonOff, ButtonOffText, Infected, Count,
 };
 inline constexpr int HUE_COUNT = (int)Hue::Count;
-inline constexpr int THEME_COUNT = 6;
+inline constexpr int THEME_COUNT = 7;
 struct ThemeInfo {
     const char* id;       // what the save file uses
     const char* name;

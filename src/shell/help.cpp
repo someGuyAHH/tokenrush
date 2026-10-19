@@ -273,10 +273,10 @@ const std::vector<CommandInfo>& commands() {
         {Cmd::Theme, {"theme", "themes"}, "theme [n|name] | theme custom [<color> <#hex> | from <theme>]", "Change how the game looks: color themes, with previews",
          {"A theme recolors everything: headings, tokens, shards, good and bad news, and in the full-screen edition the "
           "background and buttons too. The list shows each theme as a preview line in its own colors.",
-          "Classic and Dusk are free. The others are bought once with shards and then stay yours to switch between. "
+          "Classic (the default), Dusk and Terminal are free. The others are bought once with shards and then stay yours to switch between. "
           "A theme belongs to the profile: another profile keeps its own.",
-          "Classic uses your terminal's own color palette, so it looks like the game always did. The other themes use "
-          "24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show.",
+          "Terminal uses your terminal's own color palette and background, the way the game first looked. The other "
+          "themes use 24-bit color, which any modern terminal (Windows Terminal, most Linux and macOS terminals) can show.",
           "The custom theme (15,000 shards, once) is yours to color by hand: it starts as a copy of the theme you're "
           "using, then every one of its 17 colors can be changed for free. The Themes tab has an editor for it, with a "
           "preview that uses every color and a check of how readable the text is. Here, 'theme custom' switches to it "

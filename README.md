@@ -146,10 +146,10 @@ language: `eval tokens / income`, `eval cost.pickaxe * 10`, `eval payday + 5m` (
 shards >= 5k and heat < 3` (true or false).
 
 **Themes** open with the Market (they're bought with shards), on their own **Themes** tab next
-to it. `theme` lists them, each with a preview line in its own colors. Classic (your
-terminal's own colors) and Dusk are free; Glacier, Ember, Verdigris and Neon are bought with
-shards; on the Themes tab, hovering a theme previews the whole screen in it. A theme belongs to
-the profile. Every theme but Classic is 24-bit color
+to it. `theme` lists them, each with a preview line in its own colors. Classic (the default: the
+original colors, softened), Dusk and Terminal (your terminal's own colors) are free; Glacier,
+Ember, Verdigris and Neon are bought with shards; on the Themes tab, hovering a theme previews
+the whole screen in it. A theme belongs to the profile. Every theme but Terminal is 24-bit color
 (`ESC[38;2;r;g;bm`), with its own background in the TUI.
 
 **The custom theme** (15,000 shards, once) is yours to color by hand. It starts as a copy of the

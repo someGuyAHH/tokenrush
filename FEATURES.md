@@ -30,7 +30,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   - The tab bar (themed): the open tab is a bright accent chip while the tab bar has the
     keyboard, and the accent faded 40% into the background while you're down in the page; the
     tab under the mouse is underlined (the highlight follows the mouse only while it's over the
-    bar). Classic keeps FTXUI's own look (bold open tab, inverted under the keyboard).
+    bar). Terminal keeps FTXUI's own look (bold open tab, inverted under the keyboard).
   - `m`: mine.
   - `s`: save.
   - `y`/`n`: answer an offer.
@@ -52,7 +52,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   order, so an offer never lands the keyboard on "Yes".
 - **DANGER bar:** the same for a disaster's warning: what's coming, the countdown, and the
   button that stops it (key `x`).
-- **Themes:** every color goes through `hue(Hue::...)` (`tui/widgets.cpp`). Classic maps the roles
+- **Themes:** every color goes through `hue(Hue::...)` (`tui/widgets.cpp`). Terminal maps the roles
   to the original named colors; the others are RGB with the theme's own background (`themed()`),
   a lighter Panel color under the log, and the open tab as an accent-colored chip.
 - **Console scrollback:** PgUp/PgDn (a page), the mouse wheel (3 lines) and End; typing or
@@ -366,14 +366,15 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
   | Theme | Cost | Look |
   |---|---|---|
-  | Classic | free | the original: the terminal's own 16/256 colors, no background |
+  | Classic | free | the default: the original colors, softened, on graphite (an RGB theme since v10) |
   | Dusk | free | lavender and apricot on deep violet |
   | Glacier | 300 shards | frost blue and snow |
   | Ember | 750 shards | amber and coal, with a cold blue spark |
   | Verdigris | 1,500 shards | patina green, brass, sea glass |
   | Neon | 3,000 shards | hot pink and cyan on purple |
+  | Terminal | free | the terminal's own 16/256 colors and background: Classic until v10 |
 
-  - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Classic (`codeFor` in `shell/term.cpp`);
+  - The Console's commands write `ESC[38;2;r;g;bm` for every theme but Terminal (`codeFor` in `shell/term.cpp`);
     the theme list shows each one as a swatch line on its own background (`ESC[48;2;...m`).
   - The TUI draws from `hue()`; the Console tab parses the 24-bit codes back (`ansiLine`).
   - **Previews:** on the Themes tab, the mouse over a theme's row (or the keyboard on its button)
@@ -889,7 +890,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   didn't fit typing; that reasoning still holds for the Console.)
 - **Help is detailed.** `help <command>` is a full page (what, how, examples, related), not a
   sentence. A new command gets its page in the `shell/help.cpp` table.
-- **Themes are per profile**, and Classic stays the terminal's own colors. The custom theme is one
+- **Themes are per profile.** Classic is the default and free like Dusk, so it's a full RGB theme
+  that isn't worse than Dusk (Script, v10: softer, same roles as the original). The terminal's own
+  colors stay available, free, as Terminal (`ThemeInfo::classic`, the old code path). The custom theme is one
   slot, bought dearly (15,000 shards), edited by hand with fixed preview scenes.
 - **Disasters** (Script's decisions): they damage machines, stockpiles, and builds and gear, never
   the crew; they can be stopped when the logic allows (put out the fire, chase the thieves); they
