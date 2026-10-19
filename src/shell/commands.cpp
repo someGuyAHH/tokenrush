@@ -265,6 +265,10 @@ void doMine(Shared& s, std::mt19937& rng) {
         std::lock_guard lk(s.m);
         r = mine(s.g, nowSec(), rng);
     }
+    if (r.tooFast) {
+        out() << paint(Style::Muted, "Too fast: " + std::to_string((int)MINES_PER_SECOND) + " mines a second at most, however you mine.") << "\n";
+        return;
+    }
 
     out() << "You mined " << paint(Style::Tokens, "+" + num(r.gain)) << " tokens"
               << paint(Style::Muted, "  (base " + std::to_string(r.base) + ", x" + fixed(r.mult, 2) + ")");

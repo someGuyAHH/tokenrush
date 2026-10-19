@@ -218,8 +218,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   what one more level adds to your income (`incomeEstimate` before and after); late in the game
   a Magnet level is often worth more than a Pickaxe level.
 - **Night Shift:** mining by hand pays ×0.75 (`handMult`).
-- **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown; typing `mine` in the Console has
-  none (typing is the limit).
+- **Cooldowns:** the MINE button (and `m`) has a 250 ms cooldown, and the core allows 4 mines by hand
+  a second however they're done (`MINES_PER_SECOND`, with a slack of 5): the Console's `mine` too
+  ("Too fast"), so typing or a macro can't beat holding `m`.
 
 ## Upgrades (`core/game.cpp`), Shop tab / `shop`
 - **Costs:**

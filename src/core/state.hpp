@@ -333,6 +333,8 @@ struct GameState {
 
     std::time_t lastUpdate = 0;  // for passive
     std::time_t lastMine = 0;    // for streak timeout
+    double mineBudget = 5;       // mines by hand allowed right now (MINES_PER_SECOND, actions.hpp; not saved)
+    std::time_t mineBudgetAt = 0;
 };
 
 // ----- The message log -----
