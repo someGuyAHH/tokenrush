@@ -47,6 +47,10 @@ int bestStanding(const GameState& g);   // the highest standing with anyone (for
 //    Deliver it and they're Wary again; fail it and they're back at -10, and won't offer
 //    another for AMENDS_COOLDOWN seconds of play.
 // Either way they land at AMENDS_STANDING (Wary, -4).
+// Mining jobs (mine N times, hit N jackpots) are sized for at most this many mines a second:
+// 85% of the limit on mining by hand (MINES_PER_SECOND, actions.hpp).
+inline constexpr double MINE_JOB_MAX_RATE = 3.4;
+
 inline constexpr int AMENDS_STANDING = -4;
 inline constexpr double AMENDS_CHANCE = 0.25;   // of a new offer, while someone Burned has none out
 inline constexpr int AMENDS_COOLDOWN = 1800;

@@ -446,7 +446,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   mines per second they need (the MINE button takes 4 at most); time-based ones by how long they'd
   take at your pace against the time left.
 - **Sizing:** targets come from how fast you've actually been playing (an EMA of income and mine
-  rate), so jobs stay a stretch at every stage.
+  rate), so jobs stay a stretch at every stage. Mining jobs (mine N times, N jackpots) never ask
+  for more than 3.4 mines a second (`MINE_JOB_MAX_RATE`, 85% of the 4-a-second limit on mining by
+  hand): near the limit there's nothing left to stretch, and jackpots need room for luck.
 - **Big jobs (35%):**
   - Longer, and targets of 1.2–1.7×.
   - A shard stake of 3–60.

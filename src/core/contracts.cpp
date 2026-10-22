@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 
+#include "actions.hpp"
 #include "crew.hpp"
 #include "game.hpp"
 #include "market.hpp"
@@ -156,6 +157,9 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     double power = std::max(incomeEstimate(g), g.incomeRate);
     double minesPerSec = std::max(c.big ? between(0.40, 0.55) : between(0.25, 0.35),
                                   g.mineRate * (c.big ? between(1.2, 1.5) : between(0.9, 1.15)));
+    // ...but never past what mining by hand allows (MINES_PER_SECOND), with room left for luck and
+    // breathing: a player already near the limit can't be stretched any further.
+    minesPerSec = std::min(minesPerSec, MINE_JOB_MAX_RATE);
     double jackpotP = std::min(0.20, 0.01 + 0.005 * g.magnet);
     double value = power * c.duration;
     double kindPay = 1.0;   // some jobs are easier or harder than their duration says
