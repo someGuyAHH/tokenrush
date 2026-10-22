@@ -634,7 +634,8 @@ Component CrewPage(Ui& ui) {
         rows.push_back(hbox({heading("Looking for work"), text("   new faces in " + duration(g.candidateClock)) | muted()}));
         for (size_t i = 0; i < g.candidates.size() && i < (size_t)CANDIDATE_COUNT; ++i) {
             const CrewMember& c = g.candidates[i];
-            std::string about = c.trait != Trait::None ? std::string(TRAITS[(int)c.trait].desc) : ROLES[(int)c.role].perk;
+            // What the role does first, then what the trait changes about them.
+            std::string about = std::string(ROLES[(int)c.role].perk) + (c.trait != Trait::None ? std::string(" · ") + TRAITS[(int)c.trait].desc : "");
             rows.push_back(hbox({cell(c.name, 9), cell(ROLES[(int)c.role].name, 8), cell("L" + std::to_string(c.level), 7),
                                  cell("", 6), cell(traitName(c), 14) | color(hue(Hue::Accent)), text(about) | muted() | flex, text("  "),
                                  hbox({shards(hireCost(g, c)), text(" sh")}) | size(WIDTH, EQUAL, 8), hires[i]->Render()}));

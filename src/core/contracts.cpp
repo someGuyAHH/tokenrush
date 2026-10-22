@@ -108,7 +108,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         kinds.push_back(ContractKind::Trade);
         if (g.shards >= 40) kinds.push_back(ContractKind::Hold);
     }
-    if (g.heat >= 2) kinds.push_back(ContractKind::CoolOff);
+    if (g.heat >= 2 && !infected(g, Strain::Fever)) kinds.push_back(ContractKind::CoolOff);   // Fever: heat never cools by itself
     if (g.drone + g.bot > 0 || !g.crew.empty()) kinds.push_back(ContractKind::HandsOff);   // something to live on meanwhile
     std::shuffle(kinds.begin(), kinds.end(), rng);
 
@@ -150,6 +150,14 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     c.duration = c.kind == ContractKind::CoolOff ? roundTo30(c.big ? between(600, 900) : between(420, 600))
                                                  : roundTo30(c.big ? between(240, 420) : between(150, 240));
     if (c.signature) c.duration = roundTo30(c.duration * 1.5);
+    int payDuration = c.duration;   // what it pays for (the wait a cool-off job may add below doesn't)
+    if (c.kind == ContractKind::CoolOff) {
+        // Heat cools a point every heatCoolSeconds (Fixers speed it up), so give it the time that
+        // takes, give or take: without that, a big one (2 points) couldn't be done by waiting.
+        int points = c.big ? 2 : 1;
+        double cooling = (double)std::max(g.heatClock, 1) + (double)(points - 1) * heatCoolSeconds(g);
+        c.duration = std::max(c.duration, (int)roundTo30(cooling * between(1.05, 1.3)));
+    }
     c.expiresIn = (int)between(300, 600);
 
     // Size the job from how you've actually been playing, but never below what the formulas
@@ -161,7 +169,7 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
     // breathing: a player already near the limit can't be stretched any further.
     minesPerSec = std::min(minesPerSec, MINE_JOB_MAX_RATE);
     double jackpotP = std::min(0.20, 0.01 + 0.005 * g.magnet);
-    double value = power * c.duration;
+    double value = power * payDuration;
     double kindPay = 1.0;   // some jobs are easier or harder than their duration says
 
     switch (c.kind) {
@@ -182,7 +190,9 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
             // What the Bot makes when it runs (not right now: a broken Bot or pulled breakers would
             // make this a 50-token job), or what it really made lately, whichever is more.
             double rate = std::max(botRateIfRunning(g), recentSourceRates(g)[(size_t)Source::Bot]);
-            c.target = niceRound(std::max(50.0, rate * c.duration * (c.big ? between(1.4, 1.7) : between(0.9, 1.0))));
+            // The Bot can't be worked harder (only upgraded, or doubled by a Meteor Shower), so a big
+            // job asks for its usual output over a longer time, not 1.4-1.7x of it (which nobody made).
+            c.target = niceRound(std::max(50.0, rate * c.duration * (c.big ? between(0.95, 1.1) : between(0.85, 0.95))));
         }
             break;
         case ContractKind::Trade:
@@ -306,13 +316,13 @@ TipLevel byPace(double pace, double time) {
     return TipLevel::OutOfReach;
 }
 
-// Mining by hand: how many mines a second it asks of you. The MINE button takes four at most.
-TipLevel byMineRate(double perSec) {
-    if (perSec <= 0.35) return TipLevel::Easy;
-    if (perSec <= 0.7) return TipLevel::Doable;
-    if (perSec <= 1.2) return TipLevel::Tight;
-    if (perSec <= 3.0) return TipLevel::Unlikely;
-    return TipLevel::OutOfReach;
+// Mining by hand: how many mines a second it asks of you, against your own pace lately (or a
+// relaxed one, if you've been slower), and never past MINES_PER_SECOND, which nobody can beat.
+TipLevel byMineRate(double perSec, double lately) {
+    if (perSec > MINES_PER_SECOND) return TipLevel::OutOfReach;
+    TipLevel level = byPace(perSec, std::max(lately, 0.7));
+    if (perSec > MINE_JOB_MAX_RATE) level = std::max(level, TipLevel::Tight);   // flat out, with no room to spare
+    return level;
 }
 
 std::string every(double perSec) {   // "a mine every 2s", "2 mines a second"
@@ -344,21 +354,21 @@ void judgeContract(const GameState& g, Contract& c, bool running) {
         }
         case ContractKind::Mine: {
             double need = (double)left / std::max(time, 1.0);
-            level = byMineRate(need);
+            level = byMineRate(need, lately);
             why = "needs " + every(need) + latelyText + ".";
             break;
         }
         case ContractKind::Jackpots: {
             double mines = (double)left / std::max(jackpotChance(g), 0.001);
             double need = mines / std::max(time, 1.0);
-            level = byMineRate(need);
+            level = byMineRate(need, lately);
             if (level < TipLevel::Tight) level = (TipLevel)((int)level + 1);   // luck decides, so never quite easy
             why = "about " + num(std::llround(mines)) + " mines at your odds (" + every(need) + "), and luck decides.";
             break;
         }
         case ContractKind::Streak: {
             double need = (double)left / std::max(time, 1.0);
-            level = byMineRate(need * 0.6);   // steady mining is easier than fast mining
+            level = byMineRate(need * 0.6, lately);   // steady mining is easier than fast mining
             why = "keep mining at least every " + std::to_string(streakTimeout(g)) + "s for " + num(left) + " more mines.";
             break;
         }

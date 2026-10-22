@@ -392,7 +392,8 @@ void doCrew(Shared& s) {
     for (size_t i = 0; i < g.candidates.size(); ++i) {
         const CrewMember& c = g.candidates[i];
         out() << "  " << (i + 1) << ") " << crewRow(c) << "hire: " << paint(Style::Shards, num(hireCost(g, c)) + " shards")
-                  << paint(Style::Muted, "   " + std::string(c.trait != Trait::None ? TRAITS[(int)c.trait].desc : ROLES[(int)c.role].perk)) << "\n";
+                  << paint(Style::Muted, "   " + std::string(ROLES[(int)c.role].perk) +
+                                         (c.trait != Trait::None ? std::string(" · ") + TRAITS[(int)c.trait].desc : "")) << "\n";
     }
     out() << paint(Style::Muted, "Each payday every member takes about their level in shards. Anyone you can't pay quits.") << "\n";
     out() << paint(Style::Muted, "At their level cap, a member can be promoted: a higher cap, and every level counts for more.") << "\n";

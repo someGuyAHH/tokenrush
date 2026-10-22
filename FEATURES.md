@@ -434,7 +434,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 - **The board:** 3 offers, refilled every 60 s.
 - **Job kinds:** Earn tokens, Mine N times, Hit N jackpots, Build a fresh streak, Let the Bot earn N,
   and (v9) Trade N shards (40-120, big 150-400: a few round trips), Cool your heat down by 1 (big 2;
-  offered at heat 2+, 7-15 min), and two **endurance** jobs, won by lasting until the timer runs out
+  offered at heat 2+ and never with Fever; 7-15 min, or longer: always 1.05-1.3x the time your heat
+  takes to cool that far by itself, with its pay still from the shorter time), and two **endurance** jobs, won by lasting until the timer runs out
   and failed the moment the rule breaks: **Hold N shards** (55-80% of what you had, big 85-100%;
   the stake comes out first) and **Hands off** (no mining by hand; offered once something else earns
   for you). Only one job of each kind at a time, and Hands off can't run beside a mining job.
@@ -443,14 +444,17 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   Doable / Tight / Unlikely / Out of reach and why, shown on the Jobs tab and in `contracts`.
   They're judged again every 5 s (`TIP_EVERY`) from your recent pace (income EMA, mine rate),
   odds, wallet, shards and paydays, heat cooling, and the stake. Mining jobs are judged by the
-  mines per second they need (the MINE button takes 4 at most); time-based ones by how long they'd
-  take at your pace against the time left.
+  mines per second they need against your own pace lately (a relaxed 0.7 a second at least):
+  Out of reach only past the 4-a-second limit, and at least Tight past 3.4. Time-based ones by how
+  long they'd take at your pace against the time left.
 - **Sizing:** targets come from how fast you've actually been playing (an EMA of income and mine
   rate), so jobs stay a stretch at every stage. Mining jobs (mine N times, N jackpots) never ask
   for more than 3.4 mines a second (`MINE_JOB_MAX_RATE`, 85% of the 4-a-second limit on mining by
   hand): near the limit there's nothing left to stretch, and jackpots need room for luck.
 - **Big jobs (35%):**
-  - Longer, and targets of 1.2–1.7×.
+  - Longer, and targets of 1.2–1.7×, except Let the Bot earn: 0.95–1.1× its usual output (small
+    jobs 0.85–0.95×). The Bot can't be worked harder, only upgraded, so 1.4–1.7× was a job nobody
+    finished (the simulator's players: 3 of 95).
   - A shard stake of 3–60.
   - They pay 0.7 × value + 4–8 shards.
   - Small jobs pay 0.35 × value + 1–3 shards.
