@@ -202,7 +202,8 @@ before this kept everything they were already using. The table lives in `FEATURE
   | The Sun | 80,000 | the Clockwork Sky goal, and the Constellations |
 
   Token wealth can't rush it: every shard you buy pushes the price up, and the market only has
-  so many for sale (40,000 at most, restocking 8 a second). Each funded stage then takes a while
+  so many for sale (40,000 at most, restocking 8 a second; both grow as the Orrery does, to
+  120,000 and 24 a second once the Gearwork is built). Each funded stage then takes a while
   to assemble before its perk works and the next stage takes shards: 1 minute for the Base
   Plate, twice as long each stage after, 16 for the Sun. `orrery all` keeps back your crew's
   next payday.

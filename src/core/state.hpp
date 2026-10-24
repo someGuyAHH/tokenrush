@@ -184,7 +184,7 @@ struct GameState {
 
     // Market
     double shardPrice = SHARD_FAIR_PRICE;        // mid price in tokens; see market.cpp
-    long long marketStock = 40'000;              // shards the market has for sale (MARKET_STOCK_MAX, market.hpp)
+    long long marketStock = 40'000;              // shards the market has for sale (marketStockMax, market.hpp)
     double lastReportedPrice = SHARD_FAIR_PRICE; // the log mentions big moves away from this
     std::deque<double> priceHistory;    // one sample per few seconds, for the chart (not saved)
     int historyClock = 0;

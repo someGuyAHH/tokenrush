@@ -361,7 +361,7 @@ Component MarketPage(Ui& ui) {
             text(""),
             hbox({text("You have "), shards(g.shards), text(" shards and "), tokens(g.tokens), text(" tokens.")}),
             hbox({text("For sale "), text(num(g.marketStock)) | color(pick(g.marketStock > 0, hue(Hue::Shards), hue(Hue::Bad))) | bold,
-                  text(" of " + num(MARKET_STOCK_MAX) + " shards   " + restockText()) | muted()}),
+                  text(" of " + num(marketStockMax(g)) + " shards   " + restockText(g)) | muted()}),
             text(""),
             rowOf(buyRow),
             text("        " + num(buyCost(g, 1)) + "     " + num(buyCost(g, 10)) + "      " + num(buyCost(g, 100)) +

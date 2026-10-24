@@ -124,7 +124,8 @@ const std::vector<CommandInfo>& commands() {
           "Heat widens it by 2% a point; Brokers narrow it. Every shard you trade also pushes the price a little "
           "(up when you buy, down when you sell), so big orders get worse as they go.",
           "The market only has so many shards for sale (40,000 at most) and restocks 8 a second while the game "
-          "is open; what you sell goes back on the shelf.",
+          "is open; what you sell goes back on the shelf. Both grow with the Orrery: x1.5 after its First Ring, x2 "
+          "after the Second Ring, x3 after the Gearwork.",
           "The screen shows the price and a chart of the last 5 minutes, quotes for 10 shards, and your trading "
           "record: what you've bought and sold, the average prices, the net, and how much went to the spread "
           "and price impact."},

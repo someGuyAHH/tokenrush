@@ -83,8 +83,8 @@ void doMarket(Shared& s) {
     out() << "You have " << paint(Style::Shards, count(g.shards, "shard")) << " and "
               << paint(Style::Tokens, num(g.tokens) + " tokens") << " (enough for " << num(maxAffordable(g)) << ").\n";
     out() << "10 shards cost " << num(buyCost(g, 10)) << "; selling 10 pays " << num(sellValue(g, 10)) << ".\n";
-    out() << "For sale: " << paint(g.marketStock > 0 ? Style::Shards : Style::Bad, num(g.marketStock)) << " of " << num(MARKET_STOCK_MAX)
-          << " shards" << paint(Style::Muted, " (" + restockText() + "; what you sell goes back on the shelf)") << "\n";
+    out() << "For sale: " << paint(g.marketStock > 0 ? Style::Shards : Style::Bad, num(g.marketStock)) << " of " << num(marketStockMax(g))
+          << " shards" << paint(Style::Muted, " (" + restockText(g) + "; what you sell goes back on the shelf)") << "\n";
 
     if (g.heat > 0) out() << paint(Style::Heat, "Heat " + std::to_string(g.heat) + " is adding " + percent(0.02 * g.heat) + " to the spread.") << "\n";
     printLedger(g);

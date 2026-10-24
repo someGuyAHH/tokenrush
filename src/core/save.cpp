@@ -660,7 +660,7 @@ const std::vector<Field>& saveFields() {
               [](const GameState& g) { return g.gadgetsOwned != 0; }},
 
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
-        numField("market", "stock",      &GameState::marketStock, 0LL, MARKET_STOCK_MAX),
+        numField("market", "stock",      &GameState::marketStock, 0LL, MARKET_STOCK_TOP),
         numField("market", "heat",       &GameState::heat, 0, MAX_HEAT),
         numField("market", "heatClock",  &GameState::heatClock, 0, 24 * 3600),
 

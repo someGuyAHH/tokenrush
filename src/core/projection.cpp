@@ -185,7 +185,7 @@ void Forecast::step() {
         g.paydayClock = PAYDAY_SECONDS;
     }
     if (assembleOrrery(g)) changed = true;   // a perk (Resonance) can change the rates
-    g.marketStock = std::min(MARKET_STOCK_MAX, g.marketStock + MARKET_RESTOCK_PER_SEC);
+    g.marketStock = std::min(marketStockMax(g), g.marketStock + marketRestock(g));
     if (g.heat > 0 && !infected(g, Strain::Fever) && --g.heatClock <= 0) {
         g.heat -= 1;
         g.heatClock = heatCoolSeconds(g);

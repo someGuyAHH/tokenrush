@@ -414,12 +414,15 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   **amount box** (any amount, `2k` style).
 - **Stock** (`marketStock`, saved as `[market] stock`): the market has at most **40,000** shards
   for sale and restocks **8 a second** (28,800 an hour) while the game is open
-  (`MARKET_STOCK_MAX`, `MARKET_RESTOCK_PER_SEC` in `market.hpp`). An order past the stock is
-  refused ("only has N for sale"), Buy max stops at it, and what you sell goes back into it.
-  Shown on the Market tab and in `market`; tasks read it as `stock`. Earned shards (Scouts,
-  contracts, secrets, expeditions) aren't limited. Tuned with the simulator: the normal player
-  never runs into it, and a speedrunner who paid any price for shards (finishing the Orrery in
-  about 3 h) now takes about 5.
+  (`MARKET_STOCK_MAX`, `MARKET_RESTOCK_PER_SEC` in `market.hpp`). **Both grow with the Orrery**
+  (`MARKET_STAGE_SCALE`, by stages assembled): x1 with none or the Base Plate, x1.5 after the First
+  Ring, x2 after the Second Ring, x3 after the Gearwork (120,000 held, 24 a second: the Sun's 80,000
+  in under an hour). An order past the stock is refused ("only has N for sale"), Buy max stops at
+  it, and what you sell goes back into it. Shown on the Market tab and in `market`; tasks read it
+  as `stock`. Earned shards (Scouts, contracts, secrets, expeditions) aren't limited. Simulator:
+  the normal player never runs into it (Orrery done 8.3-10.9 h); a speedrunner who pays any price
+  for shards finishes the Orrery in 3.0-3.6 h at 0.5-1 mines a second (about 3 h with no stock at
+  all, about 5 h when it didn't grow, which made the Sun alone 3 hours of buying).
 - **Price warning:** an order that would average more than 3× the price asks for confirmation.
 - **Trading record** (`[ledger]`): shards bought and sold, tokens spent and received (the Shady
   Broker counts as a buy), and `tradeCost`, what went to the spread and impact against the mid

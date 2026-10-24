@@ -78,8 +78,13 @@ long long maxAffordable(const GameState& g) {
     return lo;
 }
 
-std::string restockText() {
-    return "it restocks " + std::to_string(MARKET_RESTOCK_PER_SEC) + " a second (" + compact(MARKET_RESTOCK_PER_SEC * 3600) + " an hour)";
+static_assert(std::size(MARKET_STAGE_SCALE) == ORRERY_STAGE_COUNT + 1);
+static double stageScale(const GameState& g) { return MARKET_STAGE_SCALE[std::clamp(g.orreryStage, 0, ORRERY_STAGE_COUNT)]; }
+long long marketStockMax(const GameState& g) { return std::llround((double)MARKET_STOCK_MAX * stageScale(g)); }
+long long marketRestock(const GameState& g) { return std::llround((double)MARKET_RESTOCK_PER_SEC * stageScale(g)); }
+
+std::string restockText(const GameState& g) {
+    return "it restocks " + std::to_string(marketRestock(g)) + " a second (" + compact(marketRestock(g) * 3600) + " an hour)";
 }
 
 bool pricyOrder(const GameState& g, long long n) {
@@ -91,8 +96,8 @@ Notes buyShards(GameState& g, long long n) {
     if (n <= 0) return {{Sev::Warn, "Buy how many?"}};
     if (n > MARKET_MAX_ORDER) return {{Sev::Warn, "The market only takes orders up to " + num(MARKET_MAX_ORDER) + " shards."}};
     if (n > g.marketStock) {
-        if (g.marketStock == 0) return {{Sev::Warn, "The market is sold out: " + restockText() + "."}};
-        return {{Sev::Warn, "The market only has " + count(g.marketStock, "shard") + " for sale; " + restockText() + "."}};
+        if (g.marketStock == 0) return {{Sev::Warn, "The market is sold out: " + restockText(g) + "."}};
+        return {{Sev::Warn, "The market only has " + count(g.marketStock, "shard") + " for sale; " + restockText(g) + "."}};
     }
     long long cost = buyCost(g, n);
     if (cost > g.tokens) {
@@ -121,7 +126,7 @@ Notes sellShards(GameState& g, long long n) {
 
     long long value = sellValue(g, n);
     g.shards -= n;
-    g.marketStock = std::min(MARKET_STOCK_MAX, g.marketStock + n);   // yours to buy back
+    g.marketStock = std::min(marketStockMax(g), g.marketStock + n);   // yours to buy back
     g.tokens = addTokens(g.tokens, value);   // not earn(): turning shards back into tokens isn't new income
     g.shardsTraded += n;
     g.shardsSold += n;
@@ -137,7 +142,7 @@ Notes sellShards(GameState& g, long long n) {
 void marketTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     std::normal_distribution<double> noise(0.0, 1.0);
     std::uniform_real_distribution<double> uni(0.0, 1.0);
-    g.marketStock = std::min(MARKET_STOCK_MAX, g.marketStock + MARKET_RESTOCK_PER_SEC);
+    g.marketStock = std::min(marketStockMax(g), g.marketStock + marketRestock(g));
 
     double lp = std::log(std::max(g.shardPrice, MIN_PRICE));
     double calm = gadgetOn(g, Gadget::MoonAnchor) ? 2.0 : 1.0;   // ...but the tides pull twice as hard
