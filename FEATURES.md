@@ -651,7 +651,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
 ## The Workshop (`GADGETS` in `core/content.cpp`; `workshop`, `craft`, `equip`, `unequip`)
 - Opens at **Kingpin**. A gadget is built once from a shop curio you own (it stays on the shelf)
-  plus shards, then equipped in one of **3 slots**. Equipping and unequipping are free.
+  plus shards, then equipped in one of **3 slots**. Equipping and unequipping are free and
+  instant. Swapping gadgets between trades to come out ahead (Moon Anchor off to buy and on to
+  sell, Golden Ledger on to sell and off to buy back, by hand or with Tasks) is a technique, not
+  a bug. Script: no warm-ups or cooldowns (one was proposed and rejected in PR #4).
 - `gadgetOn()` is "equipped and working" (not broken by a Short Circuit, not unplugged);
   `gadgetEquipped()` is just "in a slot".
 
