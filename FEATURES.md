@@ -683,7 +683,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 ## Disasters (`core/disasters.*`; `respond`, `repair`)
 - Start once the **Crew** is open: one every **20-35 min** of play (the first after 10-20), one at
   a time, timers only while the game is open. The clock is saved (quitting doesn't reset it); a
-  warning in progress isn't (quitting drops it).
+  warning in progress isn't (quitting drops it). Temporary damage (pulled breakers, burnt-out
+  Drones, unplugged gadgets) wears off while you're away too, and offline Drone income is
+  counted around it (`applyOfflineEarnings`).
 - Each starts with a **warning** (20-30 s) that says what's coming, how to stop it and what it
   costs. `respond` (or the verb: brace, oil, douse, chase, unplug) stops it; key `x` in the TUI.
 
