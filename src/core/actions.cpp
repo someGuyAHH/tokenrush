@@ -101,7 +101,7 @@ Notes buyUpgrades(GameState& g, size_t idx, int n) {
         return {{Sev::Warn, "Not enough tokens. The next " + std::string(u.name) + " level costs " + num(u.cost) + "."}};
     }
     std::string msg = n == 1 ? std::string("Bought ") + u.name + " -> lvl " + std::to_string(*u.lvl)
-                             : "Bought " + std::to_string(bought) + " " + u.name + " levels -> lvl " +
+                             : "Bought " + std::to_string(bought) + " " + u.name + (bought == 1 ? " level" : " levels") + " -> lvl " +
                                    std::to_string(*u.lvl) + " for " + compact(spent) + " tokens";
     if (bought < n) msg += *u.lvl >= MAX_LEVEL ? " (maxed out)" : " (that's all you could afford)";
     return {{Sev::Good, msg + "."}};

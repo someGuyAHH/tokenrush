@@ -274,7 +274,36 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
     if (g.lastUpdate == 0) { g.lastUpdate = tNow; return; }
     long long elapsed = (long long)std::difftime(tNow, g.lastUpdate);
     if (elapsed <= 0) { g.lastUpdate = tNow; return; }
-    addPassiveForElapsed(g, elapsed, 1.0); // events and the bot don't run offline
+    long long before = g.lifetimeEarned;
+    // Events and the bot don't run offline. The short-lived damage does wear off while you're away:
+    // pulled breakers, burnt-out Drones and unplugged gadgets were applied to the whole time away
+    // (up to 12 h of Drone income lost to a 60 s pause), and then still waited for you on return.
+    int unplugged = g.gadgetsUnplugged;
+    g.gadgetsUnplugged = 0;
+    long long cap = passiveCapSeconds(g);   // the Lava Core's cap holds even while it's briefly unplugged
+    g.gadgetsUnplugged = unplugged;
+    long long left = std::min(elapsed, cap);
+    while (left > 0) {
+        long long step = left;
+        for (int timer : {g.machinesPaused, g.dronesDownSecs, g.gadgetsUnplugged})
+            if (timer > 0) step = std::min(step, (long long)timer);
+        addPassiveForElapsed(g, step, 1.0);
+        left -= step;
+        auto wear = [step](int& timer) { timer = (int)std::max(0LL, timer - step); };
+        wear(g.machinesPaused);
+        wear(g.gadgetsUnplugged);
+        wear(g.dronesDownSecs);
+        if (g.dronesDownSecs == 0) g.dronesDown = 0;
+    }
+    if (elapsed > cap) g.machinesPaused = g.gadgetsUnplugged = g.dronesDownSecs = g.dronesDown = 0;   // (timers are minutes; the cap hours)
+    // Contract and Hourglass clocks only run while you play, so what the Drones made while you were
+    // away mustn't count toward them: an Earn job used to finish itself on the first tick after a
+    // long break, with its timer barely touched.
+    if (long long away = g.lifetimeEarned - before; away > 0) {
+        for (Contract& c : g.contracts)
+            if (c.kind == ContractKind::Earn) c.start = addTokens(c.start, away);
+        g.handsOffFrom = addTokens(g.handsOffFrom, away);
+    }
     if (elapsed >= 8 * 3600) spotSecret(g, Secret::WellRested);
 }
 

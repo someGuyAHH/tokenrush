@@ -40,3 +40,9 @@ Every game action is reachable both from a tab button and as a Console command; 
 ## Docs
 
 `README.md` has the full command and feature walkthrough and a file-by-file layout table; `FEATURES.md` (~60 KB) is the detailed feature reference. Check both before changing game mechanics.
+
+## Intended mechanics (not bugs)
+
+Things that look like exploits but are deliberate. Don't "fix" them in audits or refactors; raise them with the owner first if you think one needs changing.
+
+- **Swapping gadgets between trades.** Equipping and unequipping are free and take effect at once, so a player can, for example, buy with the Moon Anchor off and sell with it on, or sell with the Golden Ledger on and buy back with it off, and come out ahead. Tasks can automate the loop. This is a technique the player works out: they do the math and write logic that is basically code. Don't add warm-ups, cooldowns or swap costs to gadgets: a 10-minute warm-up was proposed in PR #4 (audit 2026-10-25) and rejected because it makes gadgets boring to use.

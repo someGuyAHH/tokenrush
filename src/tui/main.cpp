@@ -30,6 +30,7 @@
 #include "core/exchange.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
+#include "core/platform.hpp"
 #include "core/profiles.hpp"
 #include "core/session.hpp"
 #include "core/util.hpp"
@@ -198,14 +199,21 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
     int tabFocus = 0;   // the menu's highlighted entry; put back on the open tab every frame
     std::vector<std::string> tabNames;
     std::vector<int> tabPage;
+    // A tab that unlocks while you play says "(new)" until you open it: the log line announcing it
+    // is soon pushed out of sight (jackpots alone come several a minute). Tabs you already had when
+    // the game started count as seen.
+    std::vector<bool> tabSeen(std::size(TABS), false);
+    bool tabsStarted = false;
     auto refreshTabs = [&] {
         tabNames.clear();
         tabPage.clear();
         for (int i = 0; i < (int)std::size(TABS); ++i) {
             if (TABS[i].feature >= 0 && !isUnlocked(ui.snap, (Feature)TABS[i].feature)) continue;
-            tabNames.push_back(TABS[i].name);
+            if (!tabsStarted || i == ui.page) tabSeen[(size_t)i] = true;
+            tabNames.push_back(std::string(TABS[i].name) + (tabSeen[(size_t)i] ? "" : " (new)"));
             tabPage.push_back(i);
         }
+        tabsStarted = true;
         auto at = std::find(tabPage.begin(), tabPage.end(), ui.page);
         if (at == tabPage.end()) { ui.page = 0; at = tabPage.begin(); }
         ui.tab = (int)(at - tabPage.begin());
@@ -390,6 +398,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         });
         screen.Loop(root);
     }   // refresher joined here
+    if (hangupReceived()) end = SessionEnd::Quit;   // the window closed: save and stop, no profile list
 
     // Single exit path: stop the console and the workers first, so nothing changes after the final save.
     console.stop();
@@ -422,6 +431,7 @@ int main(int argc, char** argv) {
 #endif
     }
 
+    catchHangup();
     if (!opt.noUpdateCheck) startUpdateCheck();   // in the background; only does anything under play.py
     auto exitCode = [] { return updateExitCode(); };
 
@@ -448,7 +458,7 @@ int main(int argc, char** argv) {
     // Pick a profile, play it, and come back to the picker after 'p'.
     while (true) {
         if (name.empty()) name = tui::pickProfile(profiles);
-        if (name.empty()) break;
+        if (name.empty() || hangupReceived()) break;
         if (runGame(profiles.dirOf(name), name) == SessionEnd::Quit) break;
         name.clear();
     }

@@ -651,7 +651,10 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 
 ## The Workshop (`GADGETS` in `core/content.cpp`; `workshop`, `craft`, `equip`, `unequip`)
 - Opens at **Kingpin**. A gadget is built once from a shop curio you own (it stays on the shelf)
-  plus shards, then equipped in one of **3 slots**. Equipping and unequipping are free.
+  plus shards, then equipped in one of **3 slots**. Equipping and unequipping are free and
+  instant. Swapping gadgets between trades to come out ahead (Moon Anchor off to buy and on to
+  sell, Golden Ledger on to sell and off to buy back, by hand or with Tasks) is a technique, not
+  a bug. Script: no warm-ups or cooldowns (one was proposed and rejected in PR #4).
 - `gadgetOn()` is "equipped and working" (not broken by a Short Circuit, not unplugged);
   `gadgetEquipped()` is just "in a slot".
 
@@ -679,7 +682,9 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
 ## Disasters (`core/disasters.*`; `respond`, `repair`)
 - Start once the **Crew** is open: one every **20-35 min** of play (the first after 10-20), one at
   a time, timers only while the game is open. The clock is saved (quitting doesn't reset it); a
-  warning in progress isn't (quitting drops it).
+  warning in progress isn't (quitting drops it). Temporary damage (pulled breakers, burnt-out
+  Drones, unplugged gadgets) wears off while you're away too, and offline Drone income is
+  counted around it (`applyOfflineEarnings`).
 - Each starts with a **warning** (20-30 s) that says what's coming, how to stop it and what it
   costs. `respond` (or the verb: brace, oil, douse, chase, unplug) stops it; key `x` in the TUI.
 

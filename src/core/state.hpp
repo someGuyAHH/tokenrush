@@ -204,8 +204,9 @@ struct GameState {
     long long contractStreak = 0;       // streak counted only from when the contract started
     long long contractPeakStreak = 0;   // best contractStreak so far
 
-    // How fast you've actually been earning and mining lately (moving averages, not saved).
-    // Contracts size their targets from these, so they stay a stretch at every stage of the game.
+    // How fast you've actually been earning and mining lately (moving averages, saved so they don't
+    // start from 0 after loading). Contracts size their targets from these, so they stay a stretch at
+    // every stage of the game, and task fees follow incomeRate.
     double incomeRate = 0.0;            // tokens per second
     double mineRate = 0.0;              // manual mines per second
     long long rateMarkEarned = -1;      // lifetimeEarned at the last tick (-1 = not started)

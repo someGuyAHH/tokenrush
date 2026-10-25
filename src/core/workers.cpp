@@ -48,8 +48,14 @@ void crewThread(std::stop_token st, Shared& s) {
 
 void exchangeThread(std::stop_token st, Shared& s) {
     while (sleepFor(st, 1s)) {
-        std::lock_guard lk(s.m);
-        exchangeTick(s.g, s.log);
+        bool moved = false;
+        {
+            std::lock_guard lk(s.m);
+            long long before = s.g.tokens;
+            exchangeTick(s.g, s.log);
+            moved = s.g.tokens != before;   // a payment came in, or one of yours came back
+        }
+        if (moved) saveNow(s);   // so the money is on disk in this game the moment it left the other
     }
 }
 

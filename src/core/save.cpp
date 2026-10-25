@@ -565,6 +565,10 @@ const std::vector<Field>& saveFields() {
         numField("stats", "audits",         &GameState::audits),
         numField("stats", "biggestJackpot", &GameState::biggestJackpot),
         numField("stats", "bestEarnRate",   &GameState::bestEarnRate),
+        // The moving averages: from 0 after every load, task fees and startups sat at their minimum
+        // for the first several minutes, and logging out and back in made tasks nearly free.
+        numField("stats", "incomeRate",     &GameState::incomeRate, 0.0, 1e19),
+        numField("stats", "mineRate",       &GameState::mineRate, 0.0, 100.0),
         titleTimesField(),
 
         maskField("progress", "goalsDone",   &GameState::goalsDone,   GOAL_COUNT,
