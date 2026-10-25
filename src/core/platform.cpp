@@ -1,5 +1,6 @@
 #include "platform.hpp"
 
+#include <csignal>
 #include <system_error>
 
 #ifdef _WIN32
@@ -36,3 +37,17 @@ std::filesystem::path exeDir() {
     auto cwd = std::filesystem::current_path(ec);
     return ec ? std::filesystem::path(".") : cwd;
 }
+
+namespace {
+volatile std::sig_atomic_t g_hangup = 0;
+void onHangup(int) { g_hangup = 1; }
+}  // namespace
+
+void catchHangup() {
+    std::signal(SIGTERM, onHangup);
+#ifndef _WIN32
+    std::signal(SIGHUP, onHangup);
+#endif
+}
+
+bool hangupReceived() { return g_hangup != 0; }

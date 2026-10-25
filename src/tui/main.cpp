@@ -30,6 +30,7 @@
 #include "core/exchange.hpp"
 #include "core/game.hpp"
 #include "core/save.hpp"
+#include "core/platform.hpp"
 #include "core/profiles.hpp"
 #include "core/session.hpp"
 #include "core/util.hpp"
@@ -397,6 +398,7 @@ static SessionEnd runGame(const std::filesystem::path& dir, const std::string& p
         });
         screen.Loop(root);
     }   // refresher joined here
+    if (hangupReceived()) end = SessionEnd::Quit;   // the window closed: save and stop, no profile list
 
     // Single exit path: stop the console and the workers first, so nothing changes after the final save.
     console.stop();
@@ -429,6 +431,7 @@ int main(int argc, char** argv) {
 #endif
     }
 
+    catchHangup();
     if (!opt.noUpdateCheck) startUpdateCheck();   // in the background; only does anything under play.py
     auto exitCode = [] { return updateExitCode(); };
 
@@ -455,7 +458,7 @@ int main(int argc, char** argv) {
     // Pick a profile, play it, and come back to the picker after 'p'.
     while (true) {
         if (name.empty()) name = tui::pickProfile(profiles);
-        if (name.empty()) break;
+        if (name.empty() || hangupReceived()) break;
         if (runGame(profiles.dirOf(name), name) == SessionEnd::Quit) break;
         name.clear();
     }

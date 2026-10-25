@@ -7,6 +7,7 @@
 
 #include "commands.hpp"
 #include "core/exchange.hpp"
+#include "core/save.hpp"
 #include "core/util.hpp"
 #include "term.hpp"
 
@@ -50,11 +51,18 @@ void doPay(Shared& s, const std::string& args) {
     long long amount = 0;
     splitWhoAmount(args, who, amount);
     Notes notes;
+    bool sent = false;
     {
         std::lock_guard lk(s.m);
         if (who.empty()) { printExchange(s.g); return; }
+        size_t before = s.g.outgoing.size();
         notes = payProfile(s.g, who, amount);
+        sent = s.g.outgoing.size() > before;
     }
+    // Saved at once: otherwise the last autosave (up to 30 s old) still had the tokens, and a game
+    // that ended without its final save (a crash, a killed process) got them back while the other
+    // profile kept them too.
+    if (sent) saveNow(s);
     printNotes(notes);
 }
 
