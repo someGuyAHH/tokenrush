@@ -450,6 +450,9 @@ void judgeAll(GameState& g) {
     g.tipClock = TIP_EVERY;
 }
 
+// A cool-off job asks heat to fall by its target from where it is when you accept.
+static bool coolOffMissed(const GameState& g, const Contract& c) { return c.kind == ContractKind::CoolOff && g.heat < c.target; }
+
 bool isEndurance(const Contract& c) { return c.kind != ContractKind::Count && CONTRACT_KINDS[(int)c.kind].endurance; }
 
 long long contractProgress(const GameState& g, const Contract& c) {
@@ -507,6 +510,10 @@ Notes acceptContract(GameState& g, int idx) {
         if (running.kind == c.kind) return {{Sev::Warn, "You're already on a job like that. Pick a different kind."}};
         bool clash = (running.kind == ContractKind::HandsOff && mining(c.kind)) || (c.kind == ContractKind::HandsOff && mining(running.kind));
         if (clash) return {{Sev::Warn, "One of those jobs wants you mining and the other wants you not to. Pick something else."}};
+    }
+    if (coolOffMissed(g, c)) {
+        g.offers.erase(g.offers.begin() + idx);
+        return {{Sev::Warn, "Your heat is already down to " + std::to_string(g.heat) + ": there's nothing left to cool off. The offer is gone."}};
     }
     if (g.shards < c.stake) {
         return {{Sev::Warn, "This job needs a stake of " + count(c.stake, "shard") + ". You have " + num(g.shards) +
@@ -654,7 +661,9 @@ void contractsTick(GameState& g, MessageLog& log, std::mt19937& rng) {
     // The offer board
     if (--g.tipClock <= 0) judgeAll(g);   // the tips follow your pace, a few seconds at a time
     for (Contract& o : g.offers) --o.expiresIn;
-    std::erase_if(g.offers, [](const Contract& o) { return o.expiresIn <= 0; });
+    // A cool-off offer whose heat has already gone (it cooled, or a bribe or audit took it) can't be
+    // done any more: progress is how far heat falls from where it is, and it can't go below 0.
+    std::erase_if(g.offers, [&g](const Contract& o) { return o.expiresIn <= 0 || coolOffMissed(g, o); });
 
     if (g.offers.empty()) {
         fillOfferBoard(g, rng);
