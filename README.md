@@ -247,7 +247,8 @@ before this kept everything they were already using. The table lives in `FEATURE
   earn 30% more while your streak is 20+ (but the streak breaks after 8 seconds), the Night
   Shift doubles the bot but your own mining pays less, the Moon Anchor makes your own trades
   barely move the price (but the market swings harder), and so on (`workshop`, `craft`,
-  `equip`, `unequip`).
+  `equip`, `unequip`). Swapping is free, but a gadget you put in warms up for 10 minutes of
+  play before it works.
 - **Disasters.** Once the Crew is open, every 20-35 minutes something goes wrong: a power
   surge, a bot breakdown, a vault fire, thieves, a quake under the Orrery, a short circuit in
   your gadgets. Each starts with a warning and can be stopped (`respond`, or the word it names:

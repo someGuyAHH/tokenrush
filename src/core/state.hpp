@@ -308,6 +308,7 @@ struct GameState {
     int themeSel = 0;                // index into THEMES
     std::uint32_t gadgetsOwned = 0;  // bit i = GADGETS[i] built
     std::array<int, GADGET_SLOTS> gadgetSlots{-1, -1, -1};   // what's equipped (indexes into GADGETS, -1 = empty)
+    std::array<int, GADGET_SLOTS> gadgetWarmup{0, 0, 0};     // seconds until each slot's gadget works (counts down while playing)
     std::uint32_t themesOwned = 0;   // bit i = THEMES[i] bought (free ones count as owned anyway)
     bool customThemeOwned = false;   // the custom theme (themeSel CUSTOM_THEME), bought once
     Palette customTheme{};           // its colors, by Hue

@@ -30,6 +30,12 @@ void worldTick(GameState& g, MessageLog& log, std::time_t t, std::mt19937& rng) 
     g.playSeconds += 1;
     updateRates(g);
     orreryTick(g, log);
+    for (int i = 0; i < GADGET_SLOTS; ++i) {
+        int x = g.gadgetSlots[(size_t)i];
+        int& left = g.gadgetWarmup[(size_t)i];
+        if (left > 0 && --left == 0 && x >= 0 && x < GADGET_COUNT)
+            log.push(Sev::Info, std::string("The ") + GADGETS[x].name + " has warmed up and is working.");
+    }
 
     if (g.streak > 0 && g.lastMine != 0 && std::difftime(t, g.lastMine) >= (double)streakTimeout(g)) {
         log.push(Sev::Info, "Your streak of " + std::to_string(g.streak) + " expired.");

@@ -337,7 +337,9 @@ Notes craftGadget(GameState& g, int idx) {
                              "Better: " + x.plus + ". Worse: " + x.minus + "."}};
     if (int slot = freeGadgetSlot(g); slot >= 0) {
         g.gadgetSlots[(size_t)slot] = idx;
-        out.push_back({Sev::Info, "It's equipped (slot " + std::to_string(slot + 1) + ")."});
+        g.gadgetWarmup[(size_t)slot] = GADGET_WARMUP_SECONDS;
+        out.push_back({Sev::Info, "It's equipped (slot " + std::to_string(slot + 1) + ") and works after " + duration(GADGET_WARMUP_SECONDS) +
+                                  " of warming up."});
     } else {
         out.push_back({Sev::Info, "All slots are taken, so it's on the bench. 'unequip' one to make room."});
     }
@@ -353,14 +355,17 @@ Notes equipGadget(GameState& g, int idx) {
     int slot = freeGadgetSlot(g);
     if (slot < 0) return {{Sev::Warn, "All " + std::to_string(GADGET_SLOTS) + " slots are taken. Unequip one first."}};
     g.gadgetSlots[(size_t)slot] = idx;
-    return {{Sev::Good, std::string("Equipped the ") + x.name + ": " + x.plus + ", but " + x.minus + "."}};
+    g.gadgetWarmup[(size_t)slot] = GADGET_WARMUP_SECONDS;
+    return {{Sev::Good, std::string("Equipped the ") + x.name + ": " + x.plus + ", but " + x.minus + ". It works after " +
+                        duration(GADGET_WARMUP_SECONDS) + " of warming up."}};
 }
 
 Notes unequipGadget(GameState& g, int idx) {
     if (idx < 0 || idx >= GADGET_COUNT) return {{Sev::Warn, "No such gadget."}};
-    for (int& slot : g.gadgetSlots) {
-        if (slot != idx) continue;
-        slot = -1;
+    for (int i = 0; i < GADGET_SLOTS; ++i) {
+        if (g.gadgetSlots[(size_t)i] != idx) continue;
+        g.gadgetSlots[(size_t)i] = -1;
+        g.gadgetWarmup[(size_t)i] = 0;
         return {{Sev::Info, std::string("Took off the ") + GADGETS[idx].name + "."}};
     }
     return {{Sev::Info, std::string("The ") + GADGETS[idx].name + " isn't equipped."}};

@@ -68,7 +68,8 @@ struct UpgradeRef { const char* name; long long cost; int* lvl; };
 std::array<UpgradeRef, 4> upgrades(GameState& g);
 
 // ----- Gadgets -----
-bool gadgetOn(const GameState& g, Gadget x);         // built, equipped and working (not broken or unplugged)
+bool gadgetOn(const GameState& g, Gadget x);         // built, equipped and working (warmed up, not broken or unplugged)
+int gadgetWarmupLeft(const GameState& g, Gadget x);  // seconds until an equipped gadget works (0 = it does, or it isn't equipped)
 bool gadgetEquipped(const GameState& g, Gadget x);   // in a slot, working or not
 long long passiveCapSeconds(const GameState& g);   // how long Drones keep earning while you're away
 

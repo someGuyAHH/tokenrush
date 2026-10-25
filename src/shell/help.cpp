@@ -321,7 +321,7 @@ const std::vector<CommandInfo>& commands() {
         {Cmd::Workshop, {"workshop", "ws", "gadgets"}, "workshop", "Gadgets: what you've built, what's equipped, what you could build",
          {"The Workshop turns curios into gadgets. Each gadget is built from one curio you own (the curio stays on your "
           "shelf) plus some shards, and once built it's yours to equip in one of 3 slots or take off again, as often as "
-          "you like.",
+          "you like. A gadget you put in works after 10 minutes of play: it warms up first.",
           "Every gadget is a trade-off: something gets better and something else gets worse. The Tuning Fork makes "
           "your Drones and Bot earn 30% more while your streak is 20 or more, but the streak breaks after 8 seconds; "
           "the Night Shift doubles the Mining Bot but your own mining pays less; the Golden Ledger makes shards sell "
@@ -335,7 +335,8 @@ const std::vector<CommandInfo>& commands() {
          {{"craft 2", "build the second gadget"}, {"craft tuning", "names (or their start) work too"}},
          {"workshop", "equip"}, WORKSHOP, SPENDING},
         {Cmd::Equip, {"equip"}, "equip <n|name>", "Put a gadget you've built into a free slot",
-         {"Equipping is free and instant. With all three slots taken, unequip one first."},
+         {"Equipping is free, but the gadget warms up for 10 minutes of play before it works. With all three slots "
+          "taken, unequip one first."},
          {{"equip 5", "equip the fifth gadget"}},
          {"unequip", "workshop"}, WORKSHOP, SPENDING},
         {Cmd::Unequip, {"unequip"}, "unequip <n|name>", "Take a gadget off (it stays built)",

@@ -658,6 +658,24 @@ const std::vector<Field>& saveFields() {
                   return true;
               },
               [](const GameState& g) { return g.gadgetsOwned != 0; }},
+        // Seconds each slot has left to warm up: "600, 0, 0". Missing (older saves) means warm.
+        Field{"workshop", "warmup",
+              [](const GameState& g) {
+                  std::string out;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) out += (i ? ", " : "") + std::to_string(g.gadgetWarmup[(size_t)i]);
+                  return out;
+              },
+              [](GameState& g, const std::string& text) {
+                  std::stringstream ss(text);
+                  std::string item;
+                  for (int i = 0; i < GADGET_SLOTS; ++i) {
+                      long long v = 0;
+                      if (std::getline(ss, item, ',') && !parseNumber(trim(item), v)) return false;
+                      g.gadgetWarmup[(size_t)i] = (int)std::clamp(v, 0LL, (long long)GADGET_WARMUP_SECONDS);
+                  }
+                  return true;
+              },
+              [](const GameState& g) { return std::any_of(g.gadgetWarmup.begin(), g.gadgetWarmup.end(), [](int s) { return s > 0; }); }},
 
         numField("market", "shardPrice", &GameState::shardPrice, 10.0, 100'000.0),
         numField("market", "stock",      &GameState::marketStock, 0LL, MARKET_STOCK_TOP),
@@ -867,6 +885,7 @@ bool normalizeAndValidate(GameState& g, std::string& why, std::string& notice) {
         int x = g.gadgetSlots[i];
         bool dup = std::find(g.gadgetSlots.begin(), g.gadgetSlots.begin() + (std::ptrdiff_t)i, x) != g.gadgetSlots.begin() + (std::ptrdiff_t)i;
         if (x >= 0 && (!hasBit(g.gadgetsOwned, x) || dup)) g.gadgetSlots[i] = -1;
+        if (g.gadgetSlots[i] < 0) g.gadgetWarmup[i] = 0;
     }
 
     // Crew slots that were only half-written (say, [crew.3] with no name) are dropped, and so are
