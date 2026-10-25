@@ -842,11 +842,9 @@ Component WorkshopPage(Ui& ui) {
             int x = g.gadgetSlots[(size_t)i];
             slots.push_back(text("[") | muted());
             bool dead = x >= 0 && hasBit(g.gadgetsBroken, x), off = x >= 0 && g.gadgetsUnplugged > 0;
-            bool warming = x >= 0 && g.gadgetWarmup[(size_t)i] > 0;
             slots.push_back(x < 0 ? text("empty") | muted()
                             : dead ? text(GADGETS[x].name + std::string(" (broken)")) | color(hue(Hue::Bad)) | bold
                             : off  ? text(GADGETS[x].name + std::string(" (off)")) | color(hue(Hue::Warn))
-                            : warming ? text(GADGETS[x].name + std::string(" (warming up)")) | color(hue(Hue::Warn))
                                    : text(GADGETS[x].name) | color(hue(Hue::Good)) | bold);
             slots.push_back(text("] ") | muted());
         }
@@ -868,8 +866,7 @@ Component WorkshopPage(Ui& ui) {
                                  text(x.minus) | flex}));
         }
         Element hint = note("Each gadget is built once from a curio you own (it stays on the shelf) and some shards. Equip up to " +
-                            std::to_string(GADGET_SLOTS) + "; swapping is free, but a gadget you put in works after " +
-                            duration(GADGET_WARMUP_SECONDS) + " of warming up.");
+                            std::to_string(GADGET_SLOTS) + "; swap them whenever you like, for free.");
         return vbox({vbox(rows) | yframe | flex, hint});
     });
 }

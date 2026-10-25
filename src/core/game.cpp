@@ -51,14 +51,8 @@ bool gadgetEquipped(const GameState& g, Gadget x) {
     return hasBit(g.gadgetsOwned, (int)x) && std::find(g.gadgetSlots.begin(), g.gadgetSlots.end(), (int)x) != g.gadgetSlots.end();
 }
 
-int gadgetWarmupLeft(const GameState& g, Gadget x) {
-    for (int i = 0; i < GADGET_SLOTS; ++i)
-        if (g.gadgetSlots[(size_t)i] == (int)x) return std::max(0, g.gadgetWarmup[(size_t)i]);
-    return 0;
-}
-
 bool gadgetOn(const GameState& g, Gadget x) {
-    return gadgetEquipped(g, x) && !hasBit(g.gadgetsBroken, (int)x) && g.gadgetsUnplugged <= 0 && gadgetWarmupLeft(g, x) <= 0;
+    return gadgetEquipped(g, x) && !hasBit(g.gadgetsBroken, (int)x) && g.gadgetsUnplugged <= 0;
 }
 
 long long passiveCapSeconds(const GameState& g) { return gadgetOn(g, Gadget::LavaCore) ? 4LL * 3600 : PASSIVE_CAP_SECONDS; }

@@ -301,9 +301,6 @@ Notes gadgetTrouble(const GameState& g) {
     if (g.gadgetsUnplugged > 0)
         out.push_back({Sev::Warn, "Unplugged: every gadget is off for another " + duration(g.gadgetsUnplugged) + "."});
     for (int x = 0; x < GADGET_COUNT; ++x)
-        if (int left = gadgetWarmupLeft(g, (Gadget)x); left > 0 && gadgetEquipped(g, (Gadget)x))
-            out.push_back({Sev::Warn, std::string("The ") + GADGETS[x].name + " is warming up: it starts working in " + duration(left) + "."});
-    for (int x = 0; x < GADGET_COUNT; ++x)
         if (hasBit(g.gadgetsBroken, x))
             out.push_back({Sev::Bad, std::string("The ") + GADGETS[x].name + " is burnt out and does nothing until it's repaired (" +
                                          num(gadgetRepairCost(g, x)) + " shards, 'repair')."});

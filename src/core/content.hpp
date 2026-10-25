@@ -170,9 +170,6 @@ enum class Gadget : int {
 };
 inline constexpr int GADGET_COUNT = (int)Gadget::Count;
 inline constexpr int GADGET_SLOTS = 3;
-// A gadget put in a slot (built or equipped) works after this much play. Without it, taking the
-// Moon Anchor or the Golden Ledger in and out between a buy and a sell printed tokens.
-inline constexpr int GADGET_WARMUP_SECONDS = 600;
 struct GadgetInfo {
     const char* id;      // what the save file uses
     const char* name;
