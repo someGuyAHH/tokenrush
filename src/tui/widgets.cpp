@@ -398,8 +398,8 @@ public:
         InputOption opt;
         opt.multiline = false;
         opt.cursor_position = cursor;
-        if (onEnter) opt.on_enter = std::move(onEnter);
-        Add(Input(content, opt));   // it handles the typing; we only draw
+        onEnter_ = std::move(onEnter);
+        Add(Input(content, opt));   // it handles the typing; we only draw (and Enter: see OnEvent)
     }
 
     Element OnRender() override {
@@ -432,10 +432,18 @@ public:
             TakeFocus();
             return true;
         }
+        // Enter runs right away. FTXUI's Input posts its on_enter for later, so keys already queued
+        // behind the Enter (typing fast, or pasting two lines) landed on the old line first:
+        // "cls", Enter, "status", Enter ran "clsstatus".
+        if (event == Event::Return && onEnter_) {
+            onEnter_();
+            return true;
+        }
         return ComponentBase::OnEvent(event);
     }
 
 private:
+    std::function<void()> onEnter_;
     // The text color, halfway to the background: there, but quieter than what's typed.
     static Color ghostColor() {
         Rgb t = themeRgb(currentTheme(), Hue::Text), b = themeRgb(currentTheme(), Hue::Background);
