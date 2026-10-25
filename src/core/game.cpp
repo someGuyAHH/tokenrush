@@ -280,7 +280,16 @@ void applyOfflineEarnings(GameState& g, std::time_t tNow) {
     if (g.lastUpdate == 0) { g.lastUpdate = tNow; return; }
     long long elapsed = (long long)std::difftime(tNow, g.lastUpdate);
     if (elapsed <= 0) { g.lastUpdate = tNow; return; }
+    long long before = g.lifetimeEarned;
     addPassiveForElapsed(g, elapsed, 1.0); // events and the bot don't run offline
+    // Contract and Hourglass clocks only run while you play, so what the Drones made while you were
+    // away mustn't count toward them: an Earn job used to finish itself on the first tick after a
+    // long break, with its timer barely touched.
+    if (long long away = g.lifetimeEarned - before; away > 0) {
+        for (Contract& c : g.contracts)
+            if (c.kind == ContractKind::Earn) c.start = addTokens(c.start, away);
+        g.handsOffFrom = addTokens(g.handsOffFrom, away);
+    }
     if (elapsed >= 8 * 3600) spotSecret(g, Secret::WellRested);
 }
 
