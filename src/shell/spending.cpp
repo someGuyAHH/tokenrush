@@ -119,7 +119,8 @@ void doCurios(Shared& s, const std::string& arg) {
             std::lock_guard lk(s.m);
             const GameState& g = s.g;
             out() << "\n" << paint(Style::Header, "=== CURIOS ===") << "  Tokens: " << paint(Style::Tokens, num(g.tokens))
-                      << "   Shelf: " << std::popcount(g.curiosOwned) << "/" << CURIO_COUNT << "\n";
+                      << "   Shelf: " << std::popcount(g.curiosOwned) << "/" << CURIO_COUNT << "\n"
+                      << paint(Style::Muted, std::string("Curios: ") + CURIOS_ARE + ".") << "\n";
             for (int set = 0; set < CURIO_SET_COUNT; ++set) {
                 out() << paint(Style::Bold, CURIO_SETS[set]) << (set == DEALER_SET ? paint(Style::Muted, "   not in any shop: the Curio Dealer, or a lucky expedition") : "") << "\n";
                 for (int i = 0; i < CURIO_COUNT; ++i) {
