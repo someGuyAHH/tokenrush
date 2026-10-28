@@ -124,8 +124,9 @@ std::string choiceText(const GameState& g) {
             return "An investor wants to borrow " + num(c.tokens) + " tokens. They promise " +
                    num(toTokens((double)c.tokens * 1.3)) + " back in 10 minutes... probably.";
         case ChoiceKind::Rival:
-            return "A rival miner bets " + num(c.tokens) + " tokens you can't mine " + std::to_string(RACE_MINES) +
-                   " times in " + std::to_string(RACE_SECONDS) + " seconds. Win and you double it.";
+            return "A rival miner bets you can't mine " + std::to_string(RACE_MINES) + " times in " + std::to_string(RACE_SECONDS) +
+                   " seconds. Put up " + num(c.tokens) + " tokens: win and you get " + num(addTokens(c.tokens, c.tokens)) +
+                   " back, lose and they keep them.";
         case ChoiceKind::Raise:
             for (const CrewMember& m : g.crew) {
                 if (m.name != c.crewName) continue;
