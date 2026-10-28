@@ -573,8 +573,7 @@ void pay(GameState& g, MessageLog& log, const Contract& c) {
     double fog = gadgetOn(g, Gadget::FogMachine) ? 1.0 + 0.10 * g.heat : 1.0;
     long long tokensPaid = toTokens((double)c.rewardTokens * fog);
     long long shardsPaid = std::llround((double)c.rewardShards * fog);
-    earn(g, tokensPaid, Source::Contracts);
-    g.rateSkip += tokensPaid;   // a payout isn't a sign you got faster
+    earnWindfall(g, tokensPaid, Source::Contracts);   // not income, and not another Earn job's work
     g.shards += shardsPaid + c.stake;
     g.contractsDone += 1;
 

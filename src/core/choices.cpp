@@ -72,7 +72,7 @@ void tickInvestment(GameState& g, MessageLog& log) {
         log.push(Sev::Bad, "The Investor never came back. " + num(inv.amount) + " tokens, gone.");
     } else {
         g.tokens = addTokens(g.tokens, inv.amount);         // your own money back isn't income...
-        earn(g, inv.payback - inv.amount, Source::Other);   // ...the profit is
+        earnWindfall(g, inv.payback - inv.amount, Source::Other);   // ...the profit is
         log.push(Sev::Good, "The Investor paid you back: " + num(inv.payback) + " tokens (+" + num(inv.payback - inv.amount) + ").");
     }
     inv = Investment{};
@@ -219,7 +219,7 @@ void checkRace(GameState& g, MessageLog& log) {
     Race& r = g.race;
     if (r.stake <= 0 || g.manualMines - r.startMines < r.target) return;
     g.tokens = addTokens(g.tokens, r.stake);   // your stake back...
-    earn(g, r.stake, Source::Other);           // ...and theirs
+    earnWindfall(g, r.stake, Source::Other);   // ...and theirs
     log.push(Sev::Event, "You won the race with " + std::to_string(r.secondsLeft) + "s to spare! +" + num(r.stake) + " tokens.");
     r = Race{};
 }
