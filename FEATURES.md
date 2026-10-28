@@ -686,7 +686,7 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   | Disaster | Needs | Stop it | If it hits |
   |---|---|---|---|
   | Power Surge | 2+ Drones | brace: Drones and Bot off for 60 s | half the Drones down for 10 min (temporary) |
-  | Bot Breakdown | a Bot | oil: 60 s of bot income + 10 s of income | the Bot is broken until repaired |
+  | Bot Breakdown | a Bot | oil: 60 s of bot income + 10 s of income, never more than half the repair | the Bot is broken until repaired |
   | Vault Fire | 100+ shards | douse: 20 s of income (min 500) | 8-15% of shards burn |
   | Thieves | 5,000+ tokens | chase: mine 15 times before the warning ends | 5-10% of tokens stolen |
   | Quake | a built stage (not the Sun) | brace: 2% of that stage in shards | the stage cracks: perk off until repaired |

@@ -72,7 +72,7 @@ void tickInvestment(GameState& g, MessageLog& log) {
         log.push(Sev::Bad, "The Investor never came back. " + num(inv.amount) + " tokens, gone.");
     } else {
         g.tokens = addTokens(g.tokens, inv.amount);         // your own money back isn't income...
-        earn(g, inv.payback - inv.amount, Source::Other);   // ...the profit is
+        earnWindfall(g, inv.payback - inv.amount, Source::Other);   // ...the profit is
         log.push(Sev::Good, "The Investor paid you back: " + num(inv.payback) + " tokens (+" + num(inv.payback - inv.amount) + ").");
     }
     inv = Investment{};
@@ -124,8 +124,9 @@ std::string choiceText(const GameState& g) {
             return "An investor wants to borrow " + num(c.tokens) + " tokens. They promise " +
                    num(toTokens((double)c.tokens * 1.3)) + " back in 10 minutes... probably.";
         case ChoiceKind::Rival:
-            return "A rival miner bets " + num(c.tokens) + " tokens you can't mine " + std::to_string(RACE_MINES) +
-                   " times in " + std::to_string(RACE_SECONDS) + " seconds. Win and you double it.";
+            return "A rival miner bets you can't mine " + std::to_string(RACE_MINES) + " times in " + std::to_string(RACE_SECONDS) +
+                   " seconds. Put up " + num(c.tokens) + " tokens: win and you get " + num(addTokens(c.tokens, c.tokens)) +
+                   " back, lose and they keep them.";
         case ChoiceKind::Raise:
             for (const CrewMember& m : g.crew) {
                 if (m.name != c.crewName) continue;
@@ -219,7 +220,7 @@ void checkRace(GameState& g, MessageLog& log) {
     Race& r = g.race;
     if (r.stake <= 0 || g.manualMines - r.startMines < r.target) return;
     g.tokens = addTokens(g.tokens, r.stake);   // your stake back...
-    earn(g, r.stake, Source::Other);           // ...and theirs
+    earnWindfall(g, r.stake, Source::Other);   // ...and theirs
     log.push(Sev::Event, "You won the race with " + std::to_string(r.secondsLeft) + "s to spare! +" + num(r.stake) + " tokens.");
     r = Race{};
 }

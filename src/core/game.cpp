@@ -121,6 +121,14 @@ void earn(GameState& g, long long amount, Source src) {
     by = addTokens(by, amount);
 }
 
+void earnWindfall(GameState& g, long long amount, Source src) {
+    if (amount <= 0) return;
+    earn(g, amount, src);
+    g.rateSkip = addTokens(g.rateSkip, amount);
+    for (Contract& c : g.contracts)
+        if (c.kind == ContractKind::Earn) c.start = addTokens(c.start, amount);
+}
+
 const char* sourceName(Source src) {
     switch (src) {
         case Source::Mining:    return "Mining by hand";

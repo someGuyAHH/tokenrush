@@ -662,7 +662,7 @@ Component CuriosPage(Ui& ui) {
     return Renderer(box, [&ui, buys] {
         const GameState& g = ui.snap;
         Elements rows = {hbox({heading("Curios"), text("   shelf " + std::to_string(std::popcount(g.curiosOwned)) + "/" +
-                                                       std::to_string(CURIO_COUNT)) | muted()})};
+                                                       std::to_string(CURIO_COUNT) + "   " + CURIOS_ARE) | muted()})};
         for (int i = 0; i < CURIO_COUNT; ++i) {
             const CurioInfo& c = CURIOS[i];
             bool owned = hasBit(g.curiosOwned, i);

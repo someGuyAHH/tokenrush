@@ -94,6 +94,10 @@ int orreryBuildSeconds(int stage);          // 60, 120, 240, 480, 960
 // Every token that enters the economy goes through earn(), so lifetime stats stay honest,
 // booked under the Source it came from.
 void earn(GameState& g, long long amount, Source src);
+// A lump sum (a contract payout, a won race, the Investor's profit): earned like any other, but it
+// isn't a sign you got faster (incomeRate leaves it out) and it isn't the work a running Earn job
+// asked for (their start moves along with it).
+void earnWindfall(GameState& g, long long amount, Source src);
 const char* sourceName(Source src);            // "Mining by hand", "Drones", ...
 // Resonance (Orrery stage 2): each Drone level also earns this share of an expected manual mine
 // per second, and the Mining Bot swings like a manual miner at a fraction of the power.

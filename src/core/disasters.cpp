@@ -142,7 +142,11 @@ bool startDisaster(GameState& g, DisasterKind k, std::mt19937& rng) {
     d.kind = (int)k;
     d.secondsLeft = DISASTERS[(int)k].warnSeconds;
     switch (k) {
-        case DisasterKind::BotBreak: d.tokens = std::max(200LL, toTokens(botRatePerSec(g) * 60.0 + income(g) * 10.0)); break;
+        case DisasterKind::BotBreak:
+            // A minute of the Bot and 10 s of income, but never more than half the repair it saves
+            // (at every stage the full price was 3-11x the repair, so letting it break was cheaper).
+            d.tokens = std::min(std::max(200LL, toTokens(botRatePerSec(g) * 60.0 + income(g) * 10.0)), botRepairCost(g) / 2);
+            break;
         case DisasterKind::Fire:     d.tokens = std::max(500LL, toTokens(income(g) * 20.0)); break;
         case DisasterKind::Quake: {
             std::vector<int> st = crackable(g);

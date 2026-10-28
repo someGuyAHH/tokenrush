@@ -26,6 +26,8 @@ inline constexpr int SHOP_CURIO_COUNT = 12;        // CURIOS[0..11] are in the s
 inline constexpr int DEALER_SET = 3;
 struct CurioInfo { const char* name; int set; long long cost; const char* flavor; };
 inline bool inShop(int curio) { return curio < SHOP_CURIO_COUNT; }
+// What a curio is for, in one line (the Curios tab and the 'curios' menu): a newcomer can't tell otherwise.
+inline constexpr const char* CURIOS_ARE = "they don't add income: collecting them completes goals (see Goals)";
 std::string theCurio(int curio);   // "the Lava Lamp", "the First Token Ever", "a Spare Moon": for the middle of a sentence
 extern const char* const CURIO_SETS[];
 extern const CurioInfo CURIOS[];
