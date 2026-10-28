@@ -19,7 +19,7 @@ namespace {
 
 enum Section { PLAYING, BUSINESS, SPENDING, PROGRESS, SECTION_COUNT };
 const char* const SECTION_NAMES[SECTION_COUNT] = {
-    "Playing:", "Shards, contracts and crew:", "Spending (not about mining):", "Progress and other:",
+    "Playing:", "Trading, contracts and crew:", "Spending (not about mining):", "Progress and other:",
 };
 
 struct Example {
@@ -115,7 +115,7 @@ const std::vector<CommandInfo>& commands() {
          {{"auto", "say whether it's on"}, {"auto off", "stop it buying"}, {"auto on", "start it again"}},
          {"shop"}, -1, PLAYING},
 
-        // ----- Shards, contracts and crew -----
+        // ----- Trading (shards, other profiles), contracts and crew -----
         {Cmd::Market, {"market", "mk"}, "market", "Shard price, chart, buy and sell quotes, your trading record",
          {"Shards are the second currency: crew wages, contract stakes and the Orrery are paid in them. You buy "
           "and sell them here with tokens.",
