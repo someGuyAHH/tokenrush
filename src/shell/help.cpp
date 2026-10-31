@@ -302,11 +302,13 @@ const std::vector<CommandInfo>& commands() {
           "Finishing it is worth a big goal. This draws it as it stands."},
          {{"monolith", "look at it"}},
          {"build"}, MONOLITH, SPENDING},
-        {Cmd::Build, {"build", "b"}, "build <n|all>", "Pour tokens into the Monolith",
-         {"Pours tokens into the current stage; whatever is left over carries into the next one."},
-         {{"build 5000", "pour in 5,000 tokens"}, {"build all", "pour in everything you have"}},
+        {Cmd::Build, {"build", "b"}, "build <n|all|stage>", "Pour tokens into the Monolith",
+         {"Pours tokens into the current stage; whatever is left over carries into the next one. 'build stage' "
+          "pours exactly what the current stage still needs (the Monolith tab's Finish stage)."},
+         {{"build 5000", "pour in 5,000 tokens"}, {"build 2.5m", "amounts can be short"}, {"build stage", "finish the current stage"},
+          {"build all", "pour in everything you have"}},
          {"monolith"}, MONOLITH, SPENDING},
-        {Cmd::Orrery, {"orrery", "o"}, "orrery [n|all]", "Look at the Orrery, or set shards into it (late game)",
+        {Cmd::Orrery, {"orrery", "o"}, "orrery [n|all|stage]", "Look at the Orrery, or set shards into it (late game)",
          {"The Orrery is the late-game build, made of shards. Each of its five stages unlocks something: a 5th crew "
           "slot, Resonance (Drones and the Bot scale with your mining), a second contract slot, a higher crew level "
           "cap, and finally the Sun. Completing it cures an Infected profile.",
@@ -314,7 +316,7 @@ const std::vector<CommandInfo>& commands() {
           "restocks so fast. Each funded stage then takes a while to assemble (1 minute for the first, twice as "
           "long for each after it, 16 for the Sun, while the game is open) before its perk works and the next "
           "stage takes shards."},
-         {{"orrery", "look at it"}, {"orrery 500", "set 500 shards into it"},
+         {{"orrery", "look at it"}, {"orrery 500", "set 500 shards into it"}, {"orrery stage", "exactly what the stage still needs"},
           {"orrery all", "everything except your crew's next payday"}},
          {"market", "buy"}, ORRERY, SPENDING},
 
