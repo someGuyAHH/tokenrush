@@ -90,9 +90,11 @@ StartReport startGame(Shared& s, std::mt19937& rng) {
                                          STRAINS[(int)strain].desc + ". Complete the Orrery to cure it."});
     } else {
         long long before = s.g.lifetimeEarned;
+        // The streak ran out while you were away, and before the offline income: the Tuning Fork's
+        // +30% is for while you keep a streak going, not for a whole night away after quitting mid-streak.
+        normalizeStreak(s.g, t);
         applyOfflineEarnings(s.g, t);
         s.g.lastUpdate = t;
-        normalizeStreak(s.g, t);
         if (s.g.event != EV_NONE && t >= s.g.eventEnds) { s.g.event = EV_NONE; s.g.eventEnds = 0; }
         if (s.g.lifetimeEarned > before)
             r.notes.push_back({Sev::Good, "Your drones earned " + compact(s.g.lifetimeEarned - before) + " tokens while you were away."});

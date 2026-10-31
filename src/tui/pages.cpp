@@ -263,10 +263,11 @@ Component ThemesPage(Ui& ui) {
             bool custom = i == CUSTOM_THEME;
             Element look = custom && !g.customThemeOwned ? text(" every color picked by hand, starting from a theme you own ") | muted()
                                                          : themeSwatch(i);
-            Element blurb = custom ? (g.customThemeOwned ? hbox({text("  "), editBtn->Render()}) : text("  your own colors: an editor with a preview") | muted())
-                                   : text("  " + std::string(THEMES[i].blurb)) | muted();
+            Element blurb = custom ? (g.customThemeOwned ? hbox({text("  "), editBtn->Render()}) : hbox({text("  "), paragraph("your own colors: an editor with a preview") | muted()}))
+                                   : hbox({text("  "), paragraph(THEMES[i].blurb) | muted()});   // wraps, rather than cut off at 120 columns
+            // The button gets a fixed width, so the blurbs start in one column whatever it says ("Use", "Buy 1,500 sh").
             Element row = hbox({text(i == shown ? "› " : "  ") | color(hue(Hue::Accent)), cell(themeName(i), 12) | bold, look,
-                                text("  "), themeBtns[(size_t)i]->Render(), blurb | flex});
+                                text("  "), hbox({themeBtns[(size_t)i]->Render(), filler()}) | size(WIDTH, EQUAL, 15), blurb | flex});
             rows.push_back(row | reflect((*rowBoxes)[(size_t)i]));
         }
         return vbox(rows) | yframe;
@@ -612,7 +613,7 @@ Component CrewPage(Ui& ui) {
             rows.push_back(hbox({cell(c.name, 9) | bold, cell(ROLES[(int)c.role].name, 8),
                                  cell("L" + std::to_string(c.level) + "/" + std::to_string(levelCap(g, c)), 7),
                                  cell(starsText(c), 6) | color(hue(Hue::Tokens)) | bold, cell(traitName(c), 14) | color(hue(Hue::Accent)),
-                                 text(crewEffectText(g, c)) | (isAway(c) ? muted() : nothing) | flex, text("  "), cost, trains[i]->Render(), text(" "),
+                                 paragraph(crewEffectText(g, c)) | (isAway(c) ? muted() : nothing) | flex, text("  "), cost, trains[i]->Render(), text(" "),
                                  sends[i]->Render(), text(" "), fires[i]->Render()}));
         }
         // Expeditions: pick a length, then Send someone.
@@ -628,6 +629,7 @@ Component CrewPage(Ui& ui) {
             Elements loot = {text("  typical haul: ") | muted()};
             for (const CrewMember& c : g.crew)
                 if (!isAway(c)) { loot.push_back(text(c.name + " ")); loot.push_back(shards(expeditionLoot(g, c, ui.expeditionTrip))); loot.push_back(text(" sh   ")); }
+            if (loot.size() == 1) loot.push_back(text(g.crew.empty() ? "hire someone first" : "everyone is away") | muted());   // not a bare label
             rows.push_back(hbox(loot));
         }
         rows.push_back(text(""));
@@ -637,7 +639,7 @@ Component CrewPage(Ui& ui) {
             // What the role does first, then what the trait changes about them.
             std::string about = std::string(ROLES[(int)c.role].perk) + (c.trait != Trait::None ? std::string(" · ") + TRAITS[(int)c.trait].desc : "");
             rows.push_back(hbox({cell(c.name, 9), cell(ROLES[(int)c.role].name, 8), cell("L" + std::to_string(c.level), 7),
-                                 cell("", 6), cell(traitName(c), 14) | color(hue(Hue::Accent)), text(about) | muted() | flex, text("  "),
+                                 cell("", 6), cell(traitName(c), 14) | color(hue(Hue::Accent)), paragraph(about) | muted() | flex, text("  "),   // wraps: a trait can be long
                                  hbox({shards(hireCost(g, c)), text(" sh")}) | size(WIDTH, EQUAL, 8), hires[i]->Render()}));
         }
         rows.push_back(filler());

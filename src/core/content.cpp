@@ -316,7 +316,7 @@ const FeatureInfo FEATURES[] = {
     {"the Monolith", "monolith",  2, "a big build that soaks up tokens"},                  // Hustler
     {"the Market",   "market",    3, "shards, a second currency you trade tokens for, and themes"},   // Baron
     {"Contracts",    "contracts", 4, "timed jobs that pay tokens and shards"},             // Magnate
-    {"the Crew",     "crew",      5, "hires who mine, trade, scout and handle heat"},      // Legend
+    {"the Crew",     "crew",      5, "hires who mine, trade, scout and handle heat; and from now on, disasters (each warns you first: x or 'respond' stops it)"},   // Legend
     {"the Orrery",   "orrery",    6, "the late-game build, made of shards"},               // Monolith-Maker
     {"the Workshop", "workshop",  7, "gadgets built from your curios: trade-offs to equip"}, // Kingpin
     {"the Constellations", "stars", -1, "feats that light up the sky around the Orrery"},  // the Orrery's Sun

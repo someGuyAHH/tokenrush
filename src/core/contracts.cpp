@@ -237,6 +237,15 @@ Contract makeOffer(const GameState& g, std::mt19937& rng) {
         c.rewardShards = std::max(1LL, std::llround(between(1, 3) * shardsPay * pay));
         c.stake = 0;
     }
+    if (c.kind == ContractKind::Hold && c.stake > 0) {
+        // The stake comes out of the shards you hold before the job starts (acceptContract), so it
+        // takes at most a quarter of them and the target is sized from the rest. (Sized from all of
+        // them, with the stake on top, a big Hold job couldn't be taken below about 1,000 shards.)
+        c.stake = std::min(c.stake, std::max(3LL, g.shards / 4));
+        long long have = g.shards - c.stake;
+        double share = (double)c.target / (double)std::max(1LL, g.shards);   // the 85-100% picked above
+        c.target = std::min(have, niceRound(std::max(20.0, (double)have * share)));
+    }
     if (c.amends) c.rewardTokens = c.rewardShards = 0;   // (Burned pays nothing anyway; this skips niceRound's minimum of 1)
     // Forged Papers: the same job and the same pay, with a quarter as long again to do it. (Not for
     // endurance jobs, where more time would only mean lasting longer. Failing costs more: fail().)

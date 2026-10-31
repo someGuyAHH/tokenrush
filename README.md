@@ -190,7 +190,7 @@ before this kept everything they were already using. The table lives in `FEATURE
   (25M-750M) are in the shop, spread from the early game to the very late one. Under the
   Counter isn't sold anywhere: the Curio Dealer offers those (at 1.5x their worth), and a crew
   expedition can turn one up.
-- **The Orrery.** The late-game project, built with shards (`orrery <n|all>` in the Console, the
+- **The Orrery.** The late-game project, built with shards (`orrery <n|all|stage>` in the Console, the
   Orrery tab in the TUI). Every stage unlocks something:
 
   | Stage | Shards | Unlocks |

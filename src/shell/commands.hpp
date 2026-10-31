@@ -63,6 +63,12 @@ void doRmAlias(Shared& s, const std::string& args);
 bool expandAlias(const GameState& g, std::string& line);   // an alias's first word -> what it runs (the rest goes on the end)
 std::string aliasHelp(Shared& s, const std::string& word); // what that alias runs, or ""
 
+// ----- dispatch.cpp -----
+// A menu (the shop, the curio shelf) that's handed a whole command instead of one of its choices
+// steps out and lets the command run next: true (and the line is kept) if `line` starts with a
+// command or an alias. Then the menu returns, and runCommand runs the line.
+bool menuHandsBack(Shared& s, const std::string& line, const char* menu);
+
 // ----- spending.cpp -----
 void doShop(Shared& s, const std::string& args);     // no args: the shop menu; "1 10": buy right away
 void doCurios(Shared& s, const std::string& arg);    // no arg: the shelf menu; "3": buy that one

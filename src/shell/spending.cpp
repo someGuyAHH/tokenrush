@@ -92,7 +92,11 @@ void doShop(Shared& s, const std::string& args) {
         printShop(s);
         out() << "> " << std::flush;   // (the lock is released before waiting on input)
         std::string line;
-        if (!std::getline(in(), line) || !shopLine(s, line)) return;
+        if (!std::getline(in(), line)) return;
+        std::string first;
+        std::stringstream(line) >> first;
+        if (parseShopItem(lower(first)) == ShopItem::Invalid && menuHandsBack(s, line, "shop")) return;   // 'status', 'curios 3'...
+        if (!shopLine(s, line)) return;
     }
 }
 
@@ -143,7 +147,11 @@ void doCurios(Shared& s, const std::string& arg) {
         if (!std::getline(in(), line)) return;
 
         long long pick;
-        if (!parseLongLong(line, pick)) { out() << "Enter a number.\n"; continue; }
+        if (!parseLongLong(line, pick)) {
+            if (menuHandsBack(s, line, "curio shelf")) return;
+            out() << "Enter a number (0 to go back).\n";
+            continue;
+        }
         if (pick == 0) return;
         buyCurioNumber(s, pick);
     }
@@ -430,13 +438,20 @@ void doBuild(Shared& s, const std::string& arg) {
 
     if (arg.empty()) {
         printMonolith(g);
-        if (g.monolithStage < MONO_STAGE_COUNT) out() << "Use 'build <amount>' or 'build all' to contribute.\n";
+        if (g.monolithStage < MONO_STAGE_COUNT) out() << "Use 'build <amount>', 'build stage' (what this stage still needs) or 'build all' to contribute.\n";
         return;
     }
 
     long long amount = 0;
     if (arg == "all") amount = g.tokens;
-    else if (!parseLongLong(arg, amount)) { out() << "Usage: build <amount|all>\n"; return; }
+    else if (arg == "stage") {   // the tab's Finish stage: exactly what's left (a finished Monolith says so below)
+        if (g.monolithStage < MONO_STAGE_COUNT) amount = MONO[g.monolithStage].cost - g.monolithProgress;
+        if (amount > g.tokens) {
+            out() << "Finishing the " << MONO[g.monolithStage].name << " takes " << num(amount) << " more tokens. You have " << num(g.tokens) << ".\n";
+            return;
+        }
+    }
+    else if (!parseAmount(arg, amount)) { out() << "Usage: build <amount|all|stage>  (5000 and 5k both work)\n"; return; }
 
     BuildResult r = buildMonolith(g, amount);
     printNotes(r.notes);
@@ -504,7 +519,14 @@ void doOrrery(Shared& s, const std::string& arg) {
         amount = orrerySpareShards(g);   // keeps the next payday's wages, or the crew walks
         if (amount < g.shards) out() << paint(Style::Muted, "(Keeping " + count(g.shards - amount, "shard") + " for payday.)") << "\n";
     }
-    else if (!parseLongLong(arg, amount)) { out() << "Usage: orrery <shards|all>\n"; return; }
+    else if (arg == "stage") {   // the tab's Finish stage (while assembling, or complete, buildOrrery says so)
+        if (g.orreryAssembly == 0) amount = orreryRemaining(g);
+        if (amount > g.shards) {
+            out() << "Finishing the " << ORRERY[g.orreryStage].name << " takes " << count(amount, "more shard") << ". You have " << num(g.shards) << ".\n";
+            return;
+        }
+    }
+    else if (!parseAmount(arg, amount)) { out() << "Usage: orrery <shards|all|stage>  (2000 and 2k both work)\n"; return; }
 
     BuildResult r = buildOrrery(g, amount);
     printNotes(r.notes);

@@ -439,8 +439,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   and (v9) Trade N shards (40-120, big 150-400: a few round trips), Cool your heat down by 1 (big 2;
   offered at heat 2+ and never with Fever; 7-15 min, or longer: always 1.05-1.3x the time your heat
   takes to cool that far by itself, with its pay still from the shorter time), and two **endurance** jobs, won by lasting until the timer runs out
-  and failed the moment the rule breaks: **Hold N shards** (55-80% of what you had, big 85-100%;
-  the stake comes out first) and **Hands off** (no mining by hand; offered once something else earns
+  and failed the moment the rule breaks: **Hold N shards** (55-80% of what you had, big 85-100%
+  of what's left after the stake, which comes out first and is at most a quarter of your shards) and **Hands off** (no mining by hand; offered once something else earns
   for you). Only one job of each kind at a time, and Hands off can't run beside a mining job.
 - **Kind pay:** Trade and Cool off ×0.8, Hold ×0.6, Hands off ×1.2 of the usual reward.
 - **Tips** (`judgeContract` in `contracts.cpp`): every offer and running job carries one, Easy /

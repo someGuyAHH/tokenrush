@@ -24,7 +24,29 @@ bool confirmLeave(const std::string& question) {
     return false;
 }
 
+// A command typed into a menu, to run once the menu has stepped out (menuHandsBack). One per
+// Console thread, like out() and in().
+thread_local std::string handedBack;
+
 }  // namespace
+
+bool menuHandsBack(Shared& s, const std::string& line, const char* menu) {
+    std::stringstream ss(line);
+    std::string word;
+    ss >> word;
+    word = lower(word);
+    if (word.empty()) return false;
+    bool command = parseCmd(word) != Cmd::Unknown;
+    if (!command) {
+        std::string expanded = line;
+        std::lock_guard lk(s.m);
+        command = expandAlias(s.g, expanded);
+    }
+    if (!command) return false;
+    handedBack = line;
+    out() << paint(Style::Muted, std::string("(left the ") + menu + ")") << "\n";
+    return true;
+}
 
 Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool profiles) {
     std::string line = typed;
@@ -114,6 +136,11 @@ Outcome runCommand(Shared& s, std::mt19937& rng, const std::string& typed, bool 
         checkRace(s.g, s.log);
         checkDisaster(s.g, s.log);
         checkGoals(s.g, s.log);
+    }
+    if (!handedBack.empty()) {   // a menu was handed a command: it runs now
+        std::string next = std::move(handedBack);
+        handedBack.clear();
+        if (result == Outcome::Done) return runCommand(s, rng, next, profiles);
     }
     return result;
 }
