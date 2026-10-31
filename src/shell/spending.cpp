@@ -92,7 +92,11 @@ void doShop(Shared& s, const std::string& args) {
         printShop(s);
         out() << "> " << std::flush;   // (the lock is released before waiting on input)
         std::string line;
-        if (!std::getline(in(), line) || !shopLine(s, line)) return;
+        if (!std::getline(in(), line)) return;
+        std::string first;
+        std::stringstream(line) >> first;
+        if (parseShopItem(lower(first)) == ShopItem::Invalid && menuHandsBack(s, line, "shop")) return;   // 'status', 'curios 3'...
+        if (!shopLine(s, line)) return;
     }
 }
 
@@ -143,7 +147,11 @@ void doCurios(Shared& s, const std::string& arg) {
         if (!std::getline(in(), line)) return;
 
         long long pick;
-        if (!parseLongLong(line, pick)) { out() << "Enter a number.\n"; continue; }
+        if (!parseLongLong(line, pick)) {
+            if (menuHandsBack(s, line, "curio shelf")) return;
+            out() << "Enter a number (0 to go back).\n";
+            continue;
+        }
         if (pick == 0) return;
         buyCurioNumber(s, pick);
     }

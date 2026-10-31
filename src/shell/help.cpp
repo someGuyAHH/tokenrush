@@ -57,7 +57,7 @@ const std::vector<CommandInfo>& commands() {
          {"shop", "status"}, -1, PLAYING},
         {Cmd::Shop, {"shop"}, "shop [item [n]]", "Upgrades and the Auto-Buyer ('shop 1 10': 10 Pickaxe levels)",
          {"With no arguments it opens the shop menu, which stays open so you can buy several things in a row; "
-          "type 0 (or back) to leave it. With an item it buys right away, without the menu.",
+          "type 0 (or back) to leave it, or just type another command. With an item it buys right away, without the menu.",
           "The items: 1 Pickaxe (+1 base yield), 2 Magnet (better bonus and jackpot odds), 3 Drone (+0.5 "
           "tokens a second, also while the game is closed, up to 12 hours), 4 Mining Bot (mines on its own, "
           "faster every level), 5 the Auto-Buyer license.",
