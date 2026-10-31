@@ -263,10 +263,11 @@ Component ThemesPage(Ui& ui) {
             bool custom = i == CUSTOM_THEME;
             Element look = custom && !g.customThemeOwned ? text(" every color picked by hand, starting from a theme you own ") | muted()
                                                          : themeSwatch(i);
-            Element blurb = custom ? (g.customThemeOwned ? hbox({text("  "), editBtn->Render()}) : text("  your own colors: an editor with a preview") | muted())
-                                   : text("  " + std::string(THEMES[i].blurb)) | muted();
+            Element blurb = custom ? (g.customThemeOwned ? hbox({text("  "), editBtn->Render()}) : hbox({text("  "), paragraph("your own colors: an editor with a preview") | muted()}))
+                                   : hbox({text("  "), paragraph(THEMES[i].blurb) | muted()});   // wraps, rather than cut off at 120 columns
+            // The button gets a fixed width, so the blurbs start in one column whatever it says ("Use", "Buy 1,500 sh").
             Element row = hbox({text(i == shown ? "› " : "  ") | color(hue(Hue::Accent)), cell(themeName(i), 12) | bold, look,
-                                text("  "), themeBtns[(size_t)i]->Render(), blurb | flex});
+                                text("  "), hbox({themeBtns[(size_t)i]->Render(), filler()}) | size(WIDTH, EQUAL, 15), blurb | flex});
             rows.push_back(row | reflect((*rowBoxes)[(size_t)i]));
         }
         return vbox(rows) | yframe;
