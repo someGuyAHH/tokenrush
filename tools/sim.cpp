@@ -262,6 +262,12 @@ struct Sim {
     void crewPlan() {
         // Keep enough shards for a payday and a stake, then hire, then train.
         long long keep = totalWages(g) + 10 + held();
+        // Saving up for the Automation License (or a task slot): hiring, training and promoting
+        // would eat every shard bought for it, and the tasks-* strategies would never get a task.
+        if (savingForLicense()) {
+            if (g.shards < keep && buyCost(g, keep - g.shards) < g.tokens / 4) buy(keep - g.shards);
+            return;
+        }
         if ((int)g.crew.size() < crewCap(g)) {
             for (size_t i = 0; i < g.candidates.size(); ++i) {
                 long long cost = hireCost(g, g.candidates[i]);
