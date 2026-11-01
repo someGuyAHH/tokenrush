@@ -26,6 +26,7 @@ namespace tui {
 
 using Clock = std::chrono::steady_clock;
 inline constexpr auto MINE_COOLDOWN  = std::chrono::milliseconds(250);
+inline constexpr size_t JACKPOT_HINT_PER_MINUTE = 8;   // jackpots in a minute before the log suggests 'silence jackpots'
 inline constexpr auto CONFIRM_WINDOW = std::chrono::seconds(3);   // click a risky button twice within this
 inline constexpr int  LOG_ROWS_MAX   = 8;   // the log shrinks on short terminals, down to...
 inline constexpr int  LOG_ROWS_MIN   = 3;
@@ -50,6 +51,8 @@ struct Ui {
     Clock::time_point mineReadyAt{};
     MineResult lastMine;
     bool hasMined = false;
+    std::deque<Clock::time_point> recentJackpots;   // this session's last few, for the one-time 'silence jackpots' hint
+    bool jackpotHintShown = false;
 
     // Two-click confirmations
     int abandonArmed = -1;

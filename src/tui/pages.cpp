@@ -342,9 +342,13 @@ Component MarketPage(Ui& ui) {
 
     return Renderer(box, [&ui, buyRow, sellRow, amountBox, customBuy, customSell, amount] {
         const GameState& g = ui.snap;
-        auto rowOf = [](const Components& cs) {
+        // Each button with what it costs (or pays) right under it, however long the numbers get.
+        auto pricedRow = [](const Components& cs, const std::vector<std::string>& prices) {
             Elements e;
-            for (const Component& c : cs) { e.push_back(c->Render()); e.push_back(text(" ")); }
+            for (size_t i = 0; i < cs.size(); ++i) {
+                e.push_back(vbox({cs[i]->Render() | hcenter, text(i < prices.size() ? prices[i] : "") | muted() | hcenter}));
+                e.push_back(text("  "));
+            }
             return hbox(e);
         };
 
@@ -363,11 +367,10 @@ Component MarketPage(Ui& ui) {
             hbox({text("For sale "), text(num(g.marketStock)) | color(pick(g.marketStock > 0, hue(Hue::Shards), hue(Hue::Bad))) | bold,
                   text(" of " + num(marketStockMax(g)) + " shards   " + restockText(g)) | muted()}),
             text(""),
-            rowOf(buyRow),
-            text("        " + num(buyCost(g, 1)) + "     " + num(buyCost(g, 10)) + "      " + num(buyCost(g, 100)) +
-                 "    (" + num(maxAffordable(g)) + " max)") | muted(),
-            rowOf(sellRow),
-            text("        " + num(sellValue(g, 1)) + "     " + num(sellValue(g, 10)) + "      " + num(sellValue(g, 100))) | muted(),
+            pricedRow(buyRow, {num(buyCost(g, 1)), num(buyCost(g, 10)), num(buyCost(g, 100)),
+                               maxAffordable(g) > 0 ? num(maxAffordable(g)) + " for " + compact(buyCost(g, maxAffordable(g))) : "-"}),
+            pricedRow(sellRow, {num(sellValue(g, 1)), num(sellValue(g, 10)), num(sellValue(g, 100)),
+                                g.shards > 0 ? num(std::min(g.shards, MARKET_MAX_ORDER)) + " for " + compact(sellValue(g, std::min(g.shards, MARKET_MAX_ORDER))) : "-"}),
             text(""),
             hbox({text("Any amount "), amountBox->Render() | bgcolor(pick(amountBox->Focused(), hue(Hue::ButtonOff), hue(Hue::Panel))), text(" "), customBuy->Render(), text(" "), customSell->Render(),
                   [&] {
@@ -759,7 +762,11 @@ Component OrreryPage(Ui& ui) {
     Components btns = {
         Btn("Add 100", build([](const GameState& g) { return std::min(100LL, g.shards); }), open),
         Btn("Add 1,000", build([](const GameState& g) { return std::min(1000LL, g.shards); }), open),
-        Btn("Add all", build([](const GameState& g) { return orrerySpareShards(g); }), open),   // keeps payday wages
+        Btn("Add all", [&ui] { ui.run([](GameState& g) {   // keeps payday wages, and says so (as 'orrery all' does)
+                if (orrerySpareShards(g) > 0 || g.shards <= 0) return buildOrrery(g, orrerySpareShards(g)).notes;
+                return Notes{{Sev::Warn, "Add all keeps the next payday's wages (" + count(totalWages(g), "shard") + "), and that's every shard you have. "
+                                         "Add 100 puts them in anyway."}};
+            }); }, open),
         Btn("Finish stage", build([](const GameState& g) { return std::min(g.shards, orreryRemaining(g)); }),
             [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.orreryAssembly == 0 && ui.snap.shards >= orreryRemaining(ui.snap); }),
     };
