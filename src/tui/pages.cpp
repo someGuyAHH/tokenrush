@@ -762,7 +762,11 @@ Component OrreryPage(Ui& ui) {
     Components btns = {
         Btn("Add 100", build([](const GameState& g) { return std::min(100LL, g.shards); }), open),
         Btn("Add 1,000", build([](const GameState& g) { return std::min(1000LL, g.shards); }), open),
-        Btn("Add all", build([](const GameState& g) { return orrerySpareShards(g); }), open),   // keeps payday wages
+        Btn("Add all", [&ui] { ui.run([](GameState& g) {   // keeps payday wages, and says so (as 'orrery all' does)
+                if (orrerySpareShards(g) > 0 || g.shards <= 0) return buildOrrery(g, orrerySpareShards(g)).notes;
+                return Notes{{Sev::Warn, "Add all keeps the next payday's wages (" + count(totalWages(g), "shard") + "), and that's every shard you have. "
+                                         "Add 100 puts them in anyway."}};
+            }); }, open),
         Btn("Finish stage", build([](const GameState& g) { return std::min(g.shards, orreryRemaining(g)); }),
             [&ui] { return ui.snap.orreryStage < ORRERY_STAGE_COUNT && ui.snap.orreryAssembly == 0 && ui.snap.shards >= orreryRemaining(ui.snap); }),
     };
