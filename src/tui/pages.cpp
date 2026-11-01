@@ -342,9 +342,13 @@ Component MarketPage(Ui& ui) {
 
     return Renderer(box, [&ui, buyRow, sellRow, amountBox, customBuy, customSell, amount] {
         const GameState& g = ui.snap;
-        auto rowOf = [](const Components& cs) {
+        // Each button with what it costs (or pays) right under it, however long the numbers get.
+        auto pricedRow = [](const Components& cs, const std::vector<std::string>& prices) {
             Elements e;
-            for (const Component& c : cs) { e.push_back(c->Render()); e.push_back(text(" ")); }
+            for (size_t i = 0; i < cs.size(); ++i) {
+                e.push_back(vbox({cs[i]->Render() | hcenter, text(i < prices.size() ? prices[i] : "") | muted() | hcenter}));
+                e.push_back(text("  "));
+            }
             return hbox(e);
         };
 
@@ -363,11 +367,10 @@ Component MarketPage(Ui& ui) {
             hbox({text("For sale "), text(num(g.marketStock)) | color(pick(g.marketStock > 0, hue(Hue::Shards), hue(Hue::Bad))) | bold,
                   text(" of " + num(marketStockMax(g)) + " shards   " + restockText(g)) | muted()}),
             text(""),
-            rowOf(buyRow),
-            text("        " + num(buyCost(g, 1)) + "     " + num(buyCost(g, 10)) + "      " + num(buyCost(g, 100)) +
-                 "    (" + num(maxAffordable(g)) + " max)") | muted(),
-            rowOf(sellRow),
-            text("        " + num(sellValue(g, 1)) + "     " + num(sellValue(g, 10)) + "      " + num(sellValue(g, 100))) | muted(),
+            pricedRow(buyRow, {num(buyCost(g, 1)), num(buyCost(g, 10)), num(buyCost(g, 100)),
+                               maxAffordable(g) > 0 ? num(maxAffordable(g)) + " for " + compact(buyCost(g, maxAffordable(g))) : "-"}),
+            pricedRow(sellRow, {num(sellValue(g, 1)), num(sellValue(g, 10)), num(sellValue(g, 100)),
+                                g.shards > 0 ? num(std::min(g.shards, MARKET_MAX_ORDER)) + " for " + compact(sellValue(g, std::min(g.shards, MARKET_MAX_ORDER))) : "-"}),
             text(""),
             hbox({text("Any amount "), amountBox->Render() | bgcolor(pick(amountBox->Focused(), hue(Hue::ButtonOff), hue(Hue::Panel))), text(" "), customBuy->Render(), text(" "), customSell->Render(),
                   [&] {
