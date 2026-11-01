@@ -425,9 +425,18 @@ void judgeContract(const GameState& g, Contract& c, bool running) {
             break;
         }
         case ContractKind::HandsOff: {
-            double passive = passiveRatePerSec(g) + botRatePerSec(g);
+            double machines = passiveRatePerSec(g) + botRatePerSec(g), passive = machines;
+            for (const CrewMember& m : g.crew)   // crew Miners aren't mining by hand: they keep going
+                if (m.role == Role::Miner && !isAway(m)) passive += (double)minerSwing(g, m) / MINER_EVERY;
+            std::string makers = passive > machines ? "Drones, the Bot and your Miners" : "Drones and the Bot";
+            // What mining by hand has been bringing in lately: the part this job asks you to give up.
+            double hands = g.mineRate * expectedMine(g) * handMult(g);
             level = passive > 0 ? TipLevel::Easy : TipLevel::Doable;
-            why = "just don't mine by hand" + std::string(passive > 0 ? ": Drones and the Bot make about " + perSecond(passive) + "/s meanwhile."
+            if (hands > passive && hands * time > (double)c.rewardTokens) {
+                why = "just don't mine by hand, but that gives up about " + perSecond(hands) + "/s (the rest makes " + perSecond(passive) + "/s).";
+                break;
+            }
+            why = "just don't mine by hand" + std::string(passive > 0 ? ": " + makers + " make about " + perSecond(passive) + "/s meanwhile."
                                                                        : ". You'll earn almost nothing meanwhile.");
             break;
         }
