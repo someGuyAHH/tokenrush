@@ -58,7 +58,24 @@ void Ui::mineNow() {
         checkGoals(s.g, s.log);
     }
     hasMined = true;
-    if (lastMine.jackpot) s.log.push(Sev::Event, "JACKPOT! +" + compact(lastMine.gain) + " tokens.", LogKind::Jackpots);
+    if (!lastMine.jackpot) return;
+    s.log.push(Sev::Event, "JACKPOT! +" + compact(lastMine.gain) + " tokens.", LogKind::Jackpots);
+
+    // Once jackpots come several a minute they push everything else out of the log pane, and
+    // nothing says it can be helped. Say so, once a session, unless they're silenced already.
+    if (jackpotHintShown) return;
+    recentJackpots.push_back(now);
+    while (now - recentJackpots.front() > std::chrono::seconds(60)) recentJackpots.pop_front();
+    bool silenced = false;
+    {
+        std::lock_guard lk(s.m);
+        silenced = hasBit(s.g.silenced, (int)LogKind::Jackpots);
+    }
+    if (recentJackpots.size() >= JACKPOT_HINT_PER_MINUTE && !silenced) {
+        jackpotHintShown = true;
+        s.log.push(Sev::Info, "Jackpots are crowding the log. 'silence jackpots' in the Console keeps them out of it "
+                              "(the Mine tab still shows each one; 'unsilence jackpots' brings them back).");
+    }
 }
 
 void Ui::saveNow() {

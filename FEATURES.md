@@ -118,7 +118,8 @@ Current save version: **9**. C++20, with FTXUI 7.0.3.
   `LogKind` (market, bot, crew, scouts, autobuyer, tasks, jackpots, heat, offers, events; the rest
   are Other and can't be silenced). Silenced kinds are left out of the log pane only: the history
   keeps them, so `log` shows everything. Saved as `[console] silenced = market, bot` and kept by
-  `wipe`. With no kind it lists each one, shown or silenced.
+  `wipe`. With no kind it lists each one, shown or silenced. In the TUI, once 8 jackpots land
+  within a minute (and jackpots aren't silenced), the log suggests `silence jackpots`, once a session.
 - **Completion** (`shell/complete.cpp: completion`, drawn by `TextBox`'s ghost): the rest of the
   line, greyed out after the caret (the text color 45% of the way into the background, the caret
   on its first letter), from the TUI's snapshot so it never locks. First the newest earlier line
